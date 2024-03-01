@@ -1,0 +1,1 @@
+export type GalleryType = "gallery" | "mgallery" | "mini";

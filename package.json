@@ -1,0 +1,27 @@
+{
+  "name": "dcinside.js",
+  "version": "1.0.0",
+  "description": "",
+  "type": "module",
+  "engines": {
+    "node": ">=16"
+  },
+  "exports": "./index.js",
+  "scripts": {
+    "build": "tsc",
+    "test": "pnpm run build && node dist/test.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/tough-cookie": "^4.0.5",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "cheerio": "1.0.0-rc.12",
+    "got": "^14.2.0",
+    "tough-cookie": "^4.1.3"
+  }
+}
