@@ -6,7 +6,7 @@ interface SerializedField {
 export function serialize(fields: SerializedField[]) {
     const result: Record<string, string> = {};
 
-    for (const field  of fields) {
+    for (const field of fields) {
         result[field.name] = field.value;
     }
 
