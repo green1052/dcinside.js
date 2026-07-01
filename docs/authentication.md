@@ -54,7 +54,7 @@ new DCInsideClient()
 | `checkinCredentials`   | 최초 1회 발급 후 영구 캐싱          | `refreshAppId({refreshClientToken: true})` |
 | `clientToken`          | 발급 후 영구 캐싱                   | `refreshAppId({refreshClientToken: true})` |
 | `fid` / `refreshToken` | clientToken 갱신 시마다 새 fid 생성 | 자동                                       |
-| `appCheckDate`         | 같은 시(서울 기준) 내에서 재사용    | 시간이 바뀌면 자동 갱신                    |
+| `appCheckDate`         | 같은 시(서울 기준) 내에서 재사용    | 시간가 바뀌면 자동 갱신                    |
 | `lastHash` / `appId`   | hash가 같으면 재사용                | hash가 바뀌면 자동 재발급                  |
 
 ## HTTP 훅
@@ -79,8 +79,8 @@ new DCInsideClient()
 ```ts
 // checkin 자격증명 수동 설정 (프로토콜 checkin 생략)
 client.auth.setCheckinCredentials({
-  androidId: "3816187042652070764",
-  securityToken: "3588619422980947403",
+    androidId: "",
+    securityToken: "",
 });
 
 // Firebase Installation 직접 호출
@@ -93,5 +93,5 @@ const checkin = await client.auth.fetchAndroidCheckin();
 const result = await client.auth.fetchClientTokenWithCheckin(checkin);
 
 // app_id 강제 갱신
-await client.auth.refreshAppId({ refreshClientToken: true });
+await client.auth.refreshAppId({refreshClientToken: true});
 ```

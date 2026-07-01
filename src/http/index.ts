@@ -87,13 +87,17 @@ export class KyHttpClient {
         const body = await request.clone().formData();
         const headers = new Headers(request.headers);
         headers.delete("content-type");
+        headers.delete("accept");
 
         if (contentType.startsWith("multipart/form-data")) {
             const next = new FormData();
-            next.append("app_id", appId);
-            if (userId) next.append("user_id", userId);
-            if (clientToken) next.append("client_token", clientToken);
-            for (const [key, value] of body.entries()) next.append(key, value);
+            const entries = Array.from(body.entries());
+            for (const [key, value] of entries) {
+                next.append(key, value);
+                if (key === "id") next.append("app_id", appId);
+                if (key === "mode" && clientToken) next.append("client_token", clientToken);
+                if (key === "memo_block[0]" && userId) next.append("user_id", userId);
+            }
             return new Request(request.url, {method: "POST", headers, body: next});
         }
 

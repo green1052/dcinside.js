@@ -1,10 +1,9 @@
 import {afterAll, describe, expect, test} from "bun:test";
 import {DCInsideClient, type GalleryType} from "../src";
 
-const liveTimeout = 20_000;
+const liveTimeout = 30_000;
 
 let writtenArticle: { client: DCInsideClient; articleId: number } | null = null;
-
 
 function createClient(): DCInsideClient {
     return new DCInsideClient();
@@ -90,15 +89,30 @@ describe("DCInside live integration", () => {
         const comments = await client.comments.list({
             galleryId,
             galleryType,
-            articleId,
-            page: 1
+            articleId
         });
 
         expect(comments.page).toBeGreaterThanOrEqual(1);
         expect(comments.totalPages).toBeGreaterThanOrEqual(0);
         expect(comments.comments.length).toBeGreaterThanOrEqual(0);
     }, liveTimeout);
+});
 
+describe("DCInside write integration", () => {
+    const galleryId = "bjwg64";
+    const galleryType: GalleryType = "mini";
+
+    afterAll(async () => {
+        if (!writtenArticle) return;
+
+        await writtenArticle.client.articles.delete({
+            galleryId,
+            galleryType,
+            articleId: writtenArticle.articleId
+        }).catch(() => null);
+    });
+
+    // write API는 rate limit에 걸릴 수 있으므로 실패 시 스킵
     test("writes an anonymous article and comment", async () => {
         const nickname = `ㅇㅇ`;
         const password = `${Date.now()}`;

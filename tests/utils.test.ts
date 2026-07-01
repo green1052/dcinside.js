@@ -1,5 +1,5 @@
 import {describe, expect, test} from "bun:test";
-import {inferGalleryType, KyHttpClient, normalizeGalleryId} from "../src";
+import {inferGalleryType, KyHttpClient, normalizeGalleryId, normalizeGalleryType} from "../src";
 import {postMultipartJson} from "../src/http";
 import {
     arrayValue,
@@ -33,8 +33,21 @@ describe("JSON and utility helpers", () => {
         expect(objectValue([])).toEqual({});
     });
 
-    test("escapes HTML like KotlinInside text content conversion", () => {
+    test("escapes HTML like KotlinInside toHtml", () => {
         expect(escapeHtml("<a&b>\n\t  x")).toBe("&lt;a&amp;b&gt;<br>&nbsp; &nbsp; &nbsp; &nbsp;x");
+    });
+
+    test("does not escape single quotes (KotlinInside compatible)", () => {
+        expect(escapeHtml("it's")).toBe("it's");
+    });
+
+    test("does not double-encode existing entities", () => {
+        expect(escapeHtml("&amp;")).toBe("&amp;amp;");
+        expect(escapeHtml("&nbsp;")).toBe("&amp;nbsp;");
+    });
+
+    test("preserves Korean characters without encoding", () => {
+        expect(escapeHtml("한글")).toBe("한글");
     });
 
     test("redirects app API GET requests through the ky hook", async () => {
@@ -84,14 +97,14 @@ describe("JSON and utility helpers", () => {
         expect(targetUrl.searchParams.get("confirm_id")).toBe("user-no");
     });
 
-    test("adds auth fields to DCInside form requests", async () => {
-        const fields: Record<string, string> = {};
+    test("adds auth fields to DCInside multipart form requests in field order", async () => {
+        const fields: [string, string][] = [];
         const http = new KyHttpClient({
             hooks: {
                 beforeRequest: [
                     async ({request}) => {
                         for (const [key, value] of await request.clone().formData()) {
-                            fields[key] = String(value);
+                            fields.push([key, String(value)]);
                         }
                         return new Response("{}");
                     }
@@ -104,30 +117,46 @@ describe("JSON and utility helpers", () => {
             getUserId: () => "user-no"
         });
 
-        await postMultipartJson(http, "https://app.dcinside.com/api/example", {
-            id: "gallery"
+        await postMultipartJson(http, "https://upload.dcinside.com/_app_write_api.php", {
+            id: "mi$bjwg64",
+            mode: "write",
+            subject: "test",
+            "memo_block[0]": "<div>test</div>"
         });
 
-        expect(fields).toMatchObject({
-            id: "gallery",
-            app_id: "app-id",
-            user_id: "user-no",
-            client_token: "client-token"
-        });
+        const keys = fields.map(([key]) => key);
+        expect(keys).toContain("app_id");
+        expect(keys).toContain("client_token");
+        expect(keys).toContain("user_id");
+
+        // app_id should be injected right after id
+        expect(keys[keys.indexOf("app_id") - 1]).toBe("id");
+        // client_token should be injected right after mode
+        expect(keys[keys.indexOf("client_token") - 1]).toBe("mode");
+        // user_id should be injected right after memo_block[0]
+        expect(keys[keys.indexOf("user_id") - 1]).toBe("memo_block[0]");
     });
 
     test("normalizes typed gallery ids", () => {
         expect(normalizeGalleryId("football_new9", "main")).toBe("football_new9");
-        expect(normalizeGalleryId("singlebungle1472", "minor")).toBe("singlebungle1472");
-        expect(normalizeGalleryId("rohmoohyunpresident", "mini")).toBe("mi$rohmoohyunpresident");
-        expect(normalizeGalleryId("mi$rohmoohyunpresident", "mini")).toBe("mi$rohmoohyunpresident");
-        expect(normalizeGalleryId("bones", "person")).toBe("pr$bones");
-        expect(normalizeGalleryId("pr$bones", "person")).toBe("pr$bones");
+        expect(normalizeGalleryId("krstock", "minor")).toBe("krstock");
+        expect(normalizeGalleryId("bjwg64", "mini")).toBe("mi$bjwg64");
+        expect(normalizeGalleryId("mi$bjwg64", "mini")).toBe("mi$bjwg64");
+        expect(normalizeGalleryId("dororong", "person")).toBe("pr$dororong");
+        expect(normalizeGalleryId("pr$dororong", "person")).toBe("pr$dororong");
+    });
+
+    test("normalizes gallery type with default main", () => {
+        expect(normalizeGalleryType(undefined)).toBe("main");
+        expect(normalizeGalleryType("main")).toBe("main");
+        expect(normalizeGalleryType("minor")).toBe("minor");
+        expect(normalizeGalleryType("mini")).toBe("mini");
+        expect(normalizeGalleryType("person")).toBe("person");
     });
 
     test("infers prefixed gallery id types", () => {
-        expect(inferGalleryType("mi$rohmoohyunpresident")).toBe("mini");
-        expect(inferGalleryType("pr$bones")).toBe("person");
+        expect(inferGalleryType("mi$bjwg64")).toBe("mini");
+        expect(inferGalleryType("pr$dororong")).toBe("person");
         expect(inferGalleryType("football_new9")).toBe("main");
     });
 });

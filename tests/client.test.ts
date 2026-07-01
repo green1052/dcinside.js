@@ -16,13 +16,43 @@ describe("DCInsideClient", () => {
 
     test("stores anonymous sessions and exposes currentUser", () => {
         const client = new DCInsideClient();
-        const session = client.useAnonymous("nick", "id");
+        const session = client.useAnonymous("nick", "pass");
 
         expect(client.session).toBe(session);
         expect(client.currentUser).toEqual({
             type: "anonymous",
-            id: "id",
-            password: "pw"
+            id: "nick",
+            password: "pass"
         });
+    });
+
+    test("useSession sets the current session", () => {
+        const client = new DCInsideClient();
+        const session = client.useAnonymous("nick", "pass");
+
+        client.useSession(session);
+
+        expect(client.session).toBe(session);
+        expect(client.currentUser).toEqual({
+            type: "anonymous",
+            id: "nick",
+            password: "pass"
+        });
+    });
+
+    test("currentUser is null when no session is set", () => {
+        const client = new DCInsideClient();
+
+        expect(client.session).toBeNull();
+        expect(client.currentUser).toBeNull();
+    });
+
+    test("exposes auth manager and http client", () => {
+        const client = new DCInsideClient();
+
+        expect(client.auth).toBeDefined();
+        expect(client.http).toBeDefined();
+        expect(client.auth.fcmToken).toBeNull();
+        expect(client.auth.firebaseInstallationId).toHaveLength(22);
     });
 });

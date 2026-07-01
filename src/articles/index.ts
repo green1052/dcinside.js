@@ -16,7 +16,7 @@ import {
     stringValue,
     ynBoolean
 } from "../http/json";
-import {escapeHtml} from "../http/utils";
+import {decodeHtml, escapeHtml} from "../http/utils";
 import type {
     ArticleContent,
     ArticleDeleteOptions,
@@ -66,19 +66,15 @@ export class ArticleManager {
         const galleryId = normalizeGalleryId(options.galleryId, options.galleryType);
         const multipart: Record<string, string | number | boolean | Blob | File | null | undefined> = {
             id: galleryId,
-            mode: options.mode ?? "write",
-            subject: encodeURIComponent(options.subject),
-            fix: "",
-            secret_use: "0",
-            is_quick: "0",
-            use_gall_nickname: "0",
-            write_movie: "0"
+            mode: options.mode ?? "write"
         };
 
         if (options.headText) {
             multipart["head_name"] = options.headText.name;
-            multipart["head_no"] = options.headText.id;
+            multipart["head_no"] = String(options.headText.no);
         }
+
+        multipart["subject"] = encodeURIComponent(options.subject);
 
         if (session.user.type === "anonymous") {
             multipart["name"] = encodeURIComponent(session.user.id);
@@ -106,6 +102,12 @@ export class ArticleManager {
                 dcconCount++;
             }
         });
+
+        multipart["fix"] = "0";
+        multipart["secret_use"] = "0";
+        multipart["is_quick"] = "0";
+        multipart["use_gall_nickname"] = "0";
+        multipart["write_movie"] = "0";
 
         const raw = await postMultipartJson(this.http, API_URL.article.write, multipart);
         const json = firstObject(raw);
@@ -327,20 +329,11 @@ function mapModifyContent(value: unknown): ArticleContent[] {
     });
 }
 
-function decodeHtml(value: string): string {
-    return value
-        .replaceAll("&lt;", "<")
-        .replaceAll("&gt;", ">")
-        .replaceAll("&quot;", "\"")
-        .replaceAll("&#39;", "'")
-        .replaceAll("&amp;", "&");
-}
-
 function mapHeadTexts(value: unknown): HeadText[] {
     return arrayValue(value).map((item) => {
         const object = objectValue(item);
         return {
-            id: numberValue(object["no"]),
+            no: numberValue(object["no"]),
             name: stringValue(object["name"]),
             level: numberValue(object["level"]),
             selected: booleanValue(object["selected"])

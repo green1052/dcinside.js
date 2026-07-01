@@ -53,7 +53,7 @@ export interface ClientTokenResult {
 }
 
 export interface HeadText {
-    id: number;
+    no: string | number;
     name: string;
     level: number;
     selected: boolean;
@@ -230,7 +230,7 @@ export interface ArticleWriteOptions {
     galleryType?: GalleryType;
     subject: string;
     content: ArticleContent[];
-    headText?: HeadText;
+    headText?: Pick<HeadText, "no" | "name">;
     mode?: "write" | "modify";
 }
 

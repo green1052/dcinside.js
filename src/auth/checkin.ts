@@ -3,15 +3,18 @@ import type {AndroidCheckinCredentials} from "../types";
 type Field = Uint8Array;
 
 export function createAndroidCheckinRequest(): Uint8Array {
+    const locale = "ko_KR";
+    const timeZone = "Asia/Seoul";
+
     const build = message([
-        stringField(1, "samsung/e3quew/e3q:14/UP1A.231005.007/S928NKSU1AXB5:user/release-keys"),
+        stringField(1, "samsung/e3quew/e3q:16/BP4A.251205.006/S928NKSU1AXB5:user/release-keys"),
         stringField(2, "e3q"),
         boolField(3, false),
         stringField(4, "S928NKSU1AXB5"),
         stringField(6, "samsung"),
         varintField(7, BigInt(Date.now())),
         stringField(9, "e3quew"),
-        varintField(10, 34n),
+        varintField(10, 36n),
         stringField(11, "SM-S928N"),
         stringField(12, "samsung"),
         stringField(13, "e3quew")
@@ -26,11 +29,11 @@ export function createAndroidCheckinRequest(): Uint8Array {
     return message([
         varintField(2, 0n),
         bytesField(4, checkin),
-        stringField(6, "ko_KR"),
+        stringField(6, locale),
         varintField(7, BigInt(Date.now() * 1000 + Math.floor(Math.random() * 1000))),
         stringField(9, randomHex(12)),
         stringField(10, randomDigits(14)),
-        stringField(12, "Asia/Seoul"),
+        stringField(12, timeZone),
         varintField(14, 3n),
         stringField(15, "S928NKSU1AXB5"),
         stringField(19, "wifi"),

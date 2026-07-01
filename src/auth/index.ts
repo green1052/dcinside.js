@@ -93,12 +93,12 @@ export class AuthManager {
 
         const json = objectValue(await this.http.ky.post(API_URL.auth.login, {
             headers: {
-                "User-Agent": "com.dcinside.mobileapp",
+                "User-Agent": DC_APP.userAgent,
                 Referer: DC_APP.referer
             },
             body: new URLSearchParams({
                 client_token: this.clientToken ?? "",
-                mode: "login_quick",
+                mode: "login_normal",
                 user_id: user.id,
                 user_pw: user.password
             })
@@ -174,10 +174,14 @@ export class AuthManager {
 
         const json = objectValue(await this.http.ky.post(API_URL.firebase.installations, {
             headers: {
+                "Content-Type": "application/json",
+                Accept: "application/json",
+                "Cache-Control": "no-cache",
                 "X-Android-Package": DC_APP.package,
                 "X-Android-Cert": FIREBASE.cert,
-                "X-firebase-client": FIREBASE.firebaseClient,
-                "x-goog-api-key": FIREBASE.apiKey
+                "x-firebase-client": FIREBASE.firebaseClient,
+                "x-goog-api-key": FIREBASE.apiKey,
+                "User-Agent": "Dalvik/2.1.0 (Linux; U; Android 16; SM-S928N Build/BP4A.251205.006)"
             },
             json: body
         }).json());
@@ -339,24 +343,30 @@ export class AuthManager {
                 "X-Android-Package": DC_APP.package,
                 "X-Android-Cert": FIREBASE.cert,
                 "X-Google-GFE-Can-Retry": "yes",
-                "X-Goog-Firebase-Installations-Auth": installationAuthToken
+                "X-Goog-Firebase-Installations-Auth": installationAuthToken,
+                "Content-Type": "application/json",
+                Accept: "application/json",
+                "X-Firebase-RC-Fetch-Type": "BASE/1",
+                "User-Agent": "Dalvik/2.1.0 (Linux; U; Android 16; SM-S928N Build/BP4A.251205.006)"
             },
             json: {
-                platformVersion: FIREBASE.osVersion,
-                appInstanceId: this.fid,
-                packageName: DC_APP.package,
                 appVersion: DC_APP.versionName,
-                countryCode: "KR",
-                sdkVersion: FIREBASE.remoteConfigSdkVersion,
-                appBuild: DC_APP.versionCode,
                 firstOpenTime: firstOpenTime.toISOString(),
+                timeZone: "Asia/Seoul",
+                appInstanceIdToken: installationAuthToken,
+                languageCode: "ko-KR",
+                appBuild: DC_APP.versionCode,
+                appInstanceId: this.fid,
+                countryCode: "KR",
                 analyticsUserProperties: {
-                    store_name: "ONE"
+                    installer_name: "com.google.android.packageinstaller",
+                    store_name: "ONE",
+                    screen_event_ver: "1"
                 },
                 appId: FIREBASE.appId,
-                languageCode: "ko-KR",
-                appInstanceIdToken: installationAuthToken,
-                timeZone: "Asia/Seoul"
+                platformVersion: "36",
+                sdkVersion: FIREBASE.remoteConfigSdkVersion,
+                packageName: DC_APP.package
             }
         }).json();
     }

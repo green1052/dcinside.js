@@ -1,6 +1,14 @@
 # dcinside.js
 
-Bun 기반 디시인사이드 비공식 API 클라이언트. KotlinInside에서 영감을 받았으며 discord.js 스타일의 인터페이스를 제공합니다.
+디시인사이드 비공식 API 클라이언트
+
+## 설치
+
+```sh
+bun add dcinside.js
+```
+
+## 빠른 예시
 
 ```ts
 import {DCInsideClient} from "dcinside.js";
@@ -10,19 +18,20 @@ const client = new DCInsideClient();
 // 게시글 목록
 const list = await client.articles.list({
     galleryType: "mini",
-    galleryId: "<galleryId>",
-    page: 1,
+    galleryId: "bjwg64",
 });
 
 // 게시글 읽기
 const article = await client.articles.read({
     galleryType: "mini",
-    galleryId: "<galleryId>",
+    galleryId: "bjwg64",
     articleId: list.articles[0]!.id,
 });
 
 console.log(article.info.subject);
 ```
+
+최초 요청 시 자동으로 인증 흐름이 실행됩니다 (약 5-6초 소요). 이후 요청은 캐시된 app_id를 사용하므로 빠릅니다.
 
 ## 세션
 
@@ -33,7 +42,7 @@ client.useAnonymous("닉네임", "비밀번호");
 
 await client.comments.write({
     galleryType: "mini",
-    galleryId: "<galleryId>",
+    galleryId: "bjwg64",
     articleId: 1,
     content: "hello from Bun",
 });
@@ -46,9 +55,16 @@ await client.login("dcinside-id", "password");
 
 await client.articles.upvote({
     galleryType: "minor",
-    galleryId: "<galleryId>",
+    galleryId: "bjwg64",
     articleId: 1,
 });
+```
+
+### 세션 확인
+
+```ts
+console.log(client.currentUser);  // User | null
+console.log(client.session);      // Session | null
 ```
 
 ## galleryType
@@ -57,7 +73,7 @@ await client.articles.upvote({
 
 | 값       | 설명          | 접두사 |
 |----------|---------------|--------|
-| `main`   | 메인 갤러리   | (없음) |
+| `main`   | 갤러리        | (없음) |
 | `minor`  | 마이너 갤러리 | (없음) |
 | `mini`   | 미니 갤러리   | `mi$`  |
 | `person` | 인물 갤러리   | `pr$`  |
@@ -78,69 +94,6 @@ await client.articles.upvote({
 
 자세한 내용은 [docs/](./docs)를 참고하세요.
 
-## 인증 흐름
-
-클라이언트는 app_id가 필요할 때 자동으로 인증 흐름을 실행합니다.
-
-```
-1. Android Checkin (최초 1회, 이후 캐싱)
-   └─ POST android.clients.google.com/checkin (protobuf)
-   └─ androidId, securityToken 획득
-
-2. Firebase Installation
-   └─ POST firebaseinstallations.googleapis.com
-   └─ fid, refreshToken, authToken 획득
-
-3. GCM Register3
-   └─ POST android.apis.google.com/c2dm/register3
-   └─ clientToken 획득
-
-4. GCM Scope 구독 (2개 토픽)
-
-5. Firebase Remote Config
-
-6. App Check
-   └─ GET json2.dcinside.com/json0/app_check_A_rina_one_new.php
-   └─ date 토큰 획득 → SHA-256 해시
-
-7. App ID 발급
-   └─ POST msign.dcinside.com/auth/mobile_app_verification
-   └─ app_id 획득
-```
-
-최초 발급 후 `clientToken`, `checkinCredentials`, `appCheckDate`, `appId`를 모두 캐싱하여 재사용합니다. 같은 시간대 (서울 기준) 내에서는 app_check 재호출
-없이 캐시된 해시를 사용합니다.
-
-### 수동 인증 헬퍼
-
-```ts
-const checkin = await client.auth.fetchAndroidCheckin();
-const installation = await client.auth.fetchFirebaseInstallation();
-await client.auth.fetchClientTokenWithCheckin(checkin);
-```
-
-## 검증
-
-```sh
-bun run typecheck
-bun test
-```
-
-통합 테스트 (실제 디시인사이드 API 호출):
-
-```powershell
-$env:DCINSIDE_TEST_NICK = "닉네임"
-$env:DCINSIDE_TEST_PASSWORD = "비밀번호"
-bun test tests/bjwg64.integration.test.ts
-```
-
-## 기술 스택
-
-- **런타임**: [Bun](https://bun.sh)
-- **HTTP**: [ky](https://github.com/sindresorhus/ky)
-- **언어**: TypeScript (strict mode)
-- **영감**: [KotlinInside](https://github.com/choiman1559/KotlinInside)
-
 ## 프록시
 
 Bun fetch의 `proxy` 옵션을 지원합니다.
@@ -148,7 +101,49 @@ Bun fetch의 `proxy` 옵션을 지원합니다.
 ```ts
 const client = new DCInsideClient({
     http: {
-        proxy: "http://127.0.0.1:8080",
-    },
+        proxy: "http://127.0.0.1:8080"
+    }
 });
 ```
+
+## 에러 처리
+
+모든 API 에러는 `DCInsideError` (또는 하위 클래스)를 던집니다.
+
+```ts
+import {DCInsideError, HTTPError, AuthenticationError} from "dcinside.js";
+
+try {
+    await client.articles.write({...});
+} catch (e) {
+    if (e instanceof AuthenticationError) {
+        // 인증 실패
+    } else if (e instanceof HTTPError) {
+        // HTTP 상태 코드 에러
+        console.log(e.statusCode);
+    } else if (e instanceof DCInsideError) {
+        // API 응답 에러 (cause 포함)
+        console.log(e.message);
+    }
+}
+```
+
+## 빌드
+
+```sh
+bun run build
+```
+
+`bun-plugin-dtsx`를 사용하여 `dist/index.js` (minified)와 `dist/index.d.ts`를 생성합니다.
+
+## 테스트
+
+```sh
+bun test
+```
+
+단위 테스트는 네트워크 요청 없이 실행되며, 통합 테스트 (`bjwg64.integration.test.ts`)는 실제 DCInside API에 접근합니다.
+
+## Special Thanks
+
+- [KotlinInside](https://github.com/jeongukjae/KotlinInside) — 인증 흐름 설계 참고

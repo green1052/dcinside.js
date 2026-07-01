@@ -36,7 +36,7 @@ export const API_URL = {
 
     firebase: {
         installations: "https://firebaseinstallations.googleapis.com/v1/projects/dcinside-b3f40/installations",
-        remoteConfig: "https://firebaseremoteconfig.googleapis.com/v1/projects/dcinside-b3f40/namespaces/firebase:fetch"
+        remoteConfig: "https://firebaseremoteconfig.googleapis.com/v1/projects/477369754343/namespaces/firebase:fetch"
     },
 
     playService: {
@@ -102,10 +102,10 @@ export const FIREBASE = {
     appId: "1:477369754343:android:d2ffdd960120a207727842",
     authVersion: "FIS_v2",
     firebaseClient: "H4sIAAAAAAAA_6tWykhNLCpJSk0sKVayio7VUSpLLSrOzM9TslIyUqoFAFyivEQfAAAA",
-    sdkVersion: "22.0.0",
-    remoteConfigSdkVersion: "21.2.1",
-    cert: "43bd70dfc365ec1749f0424d28174da44ee7659d",
-    osVersion: "25",
+    sdkVersion: "a:18.0.0",
+    remoteConfigSdkVersion: "22.0.0",
+    cert: "43BD70DFC365EC1749F0424D28174DA44EE7659D",
+    osVersion: "36",
     targetVer: "33",
     cliv: "fcm-23.1.1",
     info: "Q2U3ar09NyAToOhBO1boBVw1nzmBjxg",

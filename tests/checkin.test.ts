@@ -1,4 +1,5 @@
 import {describe, expect, test} from "bun:test";
+import {TextEncoder} from "util";
 import {createAndroidCheckinRequest, parseAndroidCheckinResponse} from "../src/auth/checkin";
 
 function fixed64Field(fieldNumber: number, value: bigint): Uint8Array {
@@ -11,11 +12,23 @@ function fixed64Field(fieldNumber: number, value: bigint): Uint8Array {
 }
 
 describe("Android checkin protobuf helpers", () => {
-    test("creates a non-empty checkin request with deterministic locale/timezone fields", () => {
+    test("creates a non-empty checkin request", () => {
         const request = createAndroidCheckinRequest();
 
         expect(request).toBeInstanceOf(Uint8Array);
         expect(request.byteLength).toBeGreaterThan(80);
+    });
+
+    test("includes samsung SM-S928N build fingerprint in the request", () => {
+        const request = createAndroidCheckinRequest();
+        const text = new TextEncoder();
+        const fingerprint = text.encode("samsung/e3quew/e3q");
+        const found = request.byteLength >= fingerprint.byteLength
+            && request.some((_, i) =>
+                fingerprint.every((b, j) => request[i + j] === b)
+            );
+
+        expect(found).toBe(true);
     });
 
     test("parses androidId and securityToken fixed64 fields", () => {
@@ -34,5 +47,21 @@ describe("Android checkin protobuf helpers", () => {
 
     test("throws when required checkin credentials are missing", () => {
         expect(() => parseAndroidCheckinResponse(new Uint8Array())).toThrow("androidId/securityToken");
+    });
+
+    test("parses checkin response with extra unknown fields", () => {
+        const androidId = 0x0102_0304_0506_0708n;
+        const securityToken = 0x1112_1314_1516_1718n;
+        const unknownVarint = new Uint8Array([(1 << 3) | 0, 42]);  // field 1, varint 42
+        const response = new Uint8Array([
+            ...unknownVarint,
+            ...fixed64Field(7, androidId),
+            ...fixed64Field(8, securityToken)
+        ]);
+
+        expect(parseAndroidCheckinResponse(response)).toEqual({
+            androidId,
+            securityToken
+        });
     });
 });

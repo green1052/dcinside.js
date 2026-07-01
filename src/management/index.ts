@@ -52,7 +52,7 @@ export class ManagementManager {
     /** 게시글의 말머리를 변경. */
     async changeHeadText(options: ChangeHeadTextOptions): Promise<ManagerActionResult> {
         return this.managerRequest("headtext", options, {
-            headtxt_no: options.headTextId
+            headtxt_no: String(options.headTextId)
         });
     }
 

@@ -6,9 +6,8 @@
 
 ```ts
 const list = await client.articles.list({
-    galleryId: "rohmoohyunpresident",
+    galleryId: "bjwg64",
     galleryType: "mini",   // 생략 시 "main"
-    page: 1,               // 기본 1
     searchKeyword: "키워드",
     searchType: "all",     // "all" | "subject" | "memo" | "name" | "subject_m"
     recommend: false,      // 추천글만
@@ -19,15 +18,11 @@ const list = await client.articles.list({
 
 ### 반환값
 
-```ts
+```
 {
-    gallery: GalleryInfo,       // 갤러리 메타데이터
-        articles
-:
-    ArticleListItem[], // 게시글 목록
-        raw
-:
-    unknown,               // 원본 응답
+    gallery: GalleryInfo,        // 갤러리 메타데이터
+    articles: ArticleListItem[], // 게시글 목록
+    raw: unknown,                // 원본 응답
 }
 ```
 
@@ -51,23 +46,19 @@ const list = await client.articles.list({
 
 ```ts
 const article = await client.articles.read({
-    galleryId: "rohmoohyunpresident",
+    galleryId: "bjwg64",
     galleryType: "mini",
-    articleId: 249,
+    articleId: 1557,
 });
 ```
 
 ### 반환값
 
-```ts
+```
 {
-    info: ArticleViewInfo,   // 게시글 메타데이터
-        main
-:
-    ArticleViewMain,   // 본문, 추천/비추천수
-        raw
-:
-    unknown,
+    info: ArticleViewInfo, // 게시글 메타데이터
+    main: ArticleViewMain, // 본문, 추천/비추천수
+    raw: unknown
 }
 ```
 
@@ -77,7 +68,7 @@ const article = await client.articles.read({
 
 ```ts
 const result = await client.articles.write({
-    galleryId: "rohmoohyunpresident",
+    galleryId: "bjwg64",
     galleryType: "mini",
     subject: "제목",
     content: [
@@ -86,9 +77,9 @@ const result = await client.articles.write({
         {type: "html", html: "<b>HTML</b>"},
         {type: "markdown", markdown: "# 마크다운"},
         {type: "image", file: imageBlob},
-        {type: "dccon", imageTag: "<img ...>", detailIndex: 123},
+        {type: "dccon", imageTag: "<img ...>", detailIndex: 8884844},
     ],
-    headText: {id: 1, name: "말머리", level: 0, selected: false},
+    headText: {no: 0, name: "말머리"},
     mode: "write",  // "write" | "modify"
 });
 ```
@@ -104,13 +95,26 @@ const result = await client.articles.write({
 | `{ type: "image", file }`                  | image    | 이미지 파일 (Blob/File)            |
 | `{ type: "dccon", imageTag, detailIndex }` | dccon    | 디시콘                             |
 
+### headText
+
+말머리가 필요한 갤러리에서 `headText`를 지정합니다. `no`는 말머리 번호, `name`은 말머리 이름입니다. 말머리 목록은 `modifyInfo`로 조회할 수 있습니다.
+
+```ts
+const info = await client.articles.modifyInfo({
+    galleryId: "bjwg64",
+    galleryType: "mini",
+    articleId: 1557,
+});
+console.log(info.headTexts);  // HeadText[]
+```
+
 ## 삭제
 
 ```ts
 const result = await client.articles.delete({
-    galleryId: "rohmoohyunpresident",
+    galleryId: "bjwg64",
     galleryType: "mini",
-    articleId: 249,
+    articleId: 1557,
 });
 ```
 
@@ -126,9 +130,9 @@ await client.articles.hitUpvote({galleryId, galleryType, articleId});
 
 ```ts
 const info = await client.articles.modifyInfo({
-    galleryId: "rohmoohyunpresident",
+    galleryId: "bjwg64",
     galleryType: "mini",
-    articleId: 249,
+    articleId: 1557,
 });
 // info.content: ArticleContent[]
 // info.files: { block, fileSize }[]
@@ -139,9 +143,9 @@ const info = await client.articles.modifyInfo({
 
 ```ts
 const url = await client.articles.reportLink({
-    galleryId: "rohmoohyunpresident",
+    galleryId: "bjwg64",
     galleryType: "mini",
-    articleId: 249,
+    articleId: 1557,
 });
 // → "http://m.dcinside.com/api/report.php?app_id=...&id=...&no=..."
 ```

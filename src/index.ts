@@ -1,7 +1,7 @@
 export {DCInsideClient, type DCInsideClientOptions} from "./client";
 export {AuthManager, createRandomFid} from "./auth";
 export {
-    createAndroidCheckinRequest, parseAndroidCheckinResponse, type AndroidCheckinRequestOptions
+    createAndroidCheckinRequest, parseAndroidCheckinResponse
 } from "./auth/checkin";
 export {
     KyHttpClient,

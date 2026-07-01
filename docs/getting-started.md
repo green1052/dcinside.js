@@ -16,8 +16,7 @@ const client = new DCInsideClient();
 // 미니 갤러리 게시글 목록
 const list = await client.articles.list({
     galleryType: "mini",
-    galleryId: "<galleryId>",
-    page: 1,
+    galleryId: "bjwg64"
 });
 
 console.log(list.gallery.title);    // 갤러리 제목
@@ -32,8 +31,8 @@ console.log(list.articles[0]);       // 첫 게시글
 ```ts
 const article = await client.articles.read({
     galleryType: "mini",
-    galleryId: "<galleryId>",
-    articleId: 249,
+    galleryId: "bjwg64",
+    articleId: 1557,
 });
 
 console.log(article.info.subject);   // 제목
@@ -66,6 +65,19 @@ console.log(client.currentUser);  // User | null
 console.log(client.session);      // Session | null
 ```
 
+## galleryType
+
+`galleryType`은 디시인사이드의 갤러리 네임스페이스를 구분합니다. 생략하면 `"main"`으로 취급합니다.
+
+| 값       | 설명          | 접두사 |
+|----------|---------------|--------|
+| `main`   | 갤러리        | (없음) |
+| `minor`  | 마이너 갤러리 | (없음) |
+| `mini`   | 미니 갤러리   | `mi$`  |
+| `person` | 인물 갤러리   | `pr$`  |
+
+미니/인물 갤러리는 요청 시 자동으로 접두사가 붙습니다. 접두사가 이미 포함된 ID를 전달해도 중복으로 붙지 않습니다.
+
 ## 에러 처리
 
 모든 API 에러는 `DCInsideError` (또는 하위 클래스)를 던집니다.
@@ -86,4 +98,16 @@ try {
         console.log(e.message);
     }
 }
+```
+
+## 프록시
+
+Bun fetch의 `proxy` 옵션을 지원합니다.
+
+```ts
+const client = new DCInsideClient({
+    http: {
+        proxy: "http://127.0.0.1:8080"
+    }
+});
 ```
