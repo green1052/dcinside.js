@@ -1,0 +1,84 @@
+import {type KyHttpClient, postMultipartJson} from "../http";
+import {API_URL} from "../http/constants";
+import {arrayValue, numberValue, objectValue, stringValue} from "../http/json";
+import type {Gallery, GallerySearchResult, GalleryType, SearchArticle, TotalSearchResult} from "../types";
+
+/**
+ * 검색 매니저. 갤러리 검색과 통합 검색 흐름을 다룬다.
+ */
+export class SearchManager {
+    constructor(private readonly http: KyHttpClient) {
+    }
+
+    /** 키워드로 갤러리(메인/마이너/추천)를 검색. */
+    async galleries(keyword: string): Promise<GallerySearchResult> {
+        const json = await this.request(keyword);
+        return {
+            mainGallery: mapGalleries(json["main_gall"], "main"),
+            minorGallery: mapGalleries(json["minor_gall"], "minor"),
+            mainRecommendGallery: mapGalleries(json["main_recomm_gall"], "main"),
+            minorRecommendGallery: mapGalleries(json["minor_recomm_gall"], "minor")
+        };
+    }
+
+    /** 통합 검색(갤러리/위키/게시글/실시간). */
+    async total(keyword: string): Promise<TotalSearchResult> {
+        const json = await this.request(keyword, {search_type: "search_main"});
+        return {
+            mainGallery: mapGalleries(json["main_gall"], "main"),
+            minorGallery: mapGalleries(json["minor_gall"], "minor"),
+            wiki: arrayValue(json["wiki"]).map((item) => {
+                const object = objectValue(item);
+                return {
+                    title: stringValue(object["title"]),
+                    galleryName: stringValue(object["gall_name"]),
+                    url: stringValue(object["url"])
+                };
+            }),
+            board: mapArticles(json["board"]),
+            todayIssue: mapArticles(json["today"]),
+            realTime: arrayValue(json["realtime"]).map((item) => {
+                const object = objectValue(item);
+                return {
+                    rank: numberValue(object["rank"]),
+                    title: stringValue(object["title"]),
+                    url: stringValue(object["url"])
+                };
+            })
+        };
+    }
+
+    /** 검색 API multipart 공용 전송. */
+    private async request(keyword: string, extra: Record<string, string> = {}): Promise<Record<string, unknown>> {
+        const response = await postMultipartJson(this.http, API_URL.search.search, {
+            keyword,
+            ...extra
+        });
+        return objectValue(response);
+    }
+}
+
+function mapGalleries(value: unknown, type: GalleryType): Gallery[] {
+    return arrayValue(value).map((item) => {
+        const object = objectValue(item);
+        return {
+            title: stringValue(object["title"]),
+            id: stringValue(object["id"]),
+            type
+        };
+    });
+}
+
+function mapArticles(value: unknown): SearchArticle[] {
+    return arrayValue(value).map((item) => {
+        const object = objectValue(item);
+        return {
+            title: stringValue(object["title"]),
+            content: stringValue(object["content"]),
+            galleryId: stringValue(object["id"]),
+            galleryName: stringValue(object["gall_name"]),
+            articleId: numberValue(object["no"]),
+            regDate: stringValue(object["regdate"])
+        };
+    });
+}
