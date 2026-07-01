@@ -12,7 +12,7 @@
         "bun-plugin-dtsx": "^0.9.26",
       },
       "peerDependencies": {
-        "typescript": "^5.9.3",
+        "typescript": "^6.0.3",
       },
     },
   },
