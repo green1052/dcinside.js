@@ -157,4 +157,5 @@ describe("DCInsideClient", () => {
         expect(fields).toContainEqual(["write_movie", "0"]);
         expect(fields.filter(([key]) => key === "user_id")).toHaveLength(1);
     });
+
 });

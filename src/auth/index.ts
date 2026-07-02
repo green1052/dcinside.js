@@ -404,7 +404,7 @@ export class AuthManager {
             app: DC_APP.package,
             gcm_ver: FIREBASE.gcmVersion,
             app_ver: DC_APP.versionCode,
-            "User-Agent": "com.google.android.gms/254932038 (Linux; U; Android 16; ko_KR; sdk_gphone64_x86_64; Build/BE4B.251210.005; Cronet/144.0.7500.8)"
+            "User-Agent": "com.google.android.gms/254932038 (Linux; U; Android 16; ko_KR; SM-S928N; Build/BP4A.251205.006; Cronet/144.0.7500.8)"
         };
     }
 

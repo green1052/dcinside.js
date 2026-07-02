@@ -55,11 +55,6 @@ function encodeTextMemoBlock(value: string): string {
     return encodeMemoBlock(`<div>${escapeHtml(value)}</div>`);
 }
 
-function shouldRefreshWriteAppId(value: unknown): boolean {
-    const cause = nullableString(objectValue(value)["cause"]);
-    return cause === "잠시후 다시 이용해주세요." || shouldRefreshAppId(value);
-}
-
 /**
  * 디시인사이드 게시글 API 매니저입니다.
  *

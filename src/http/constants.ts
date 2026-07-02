@@ -113,5 +113,5 @@ export const FIREBASE = {
     apiKey: "AIzaSyDcbVof_4Bi2GwJ1H8NjSwSTaMPPZeCE38",
     sender: "477369754343",
     firebaseAppNameHash: "R1dAH9Ui7M-ynoznwBdw01tLxhI",
-    registerUserAgent: "Dalvik/2.1.0 (Linux; U; Android 16; sdk_gphone64_x86_64 Build/BE4B.251210.005)"
+    registerUserAgent: "Dalvik/2.1.0 (Linux; U; Android 16; SM-S928N Build/BP4A.251205.006)"
 };
