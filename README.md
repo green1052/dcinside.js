@@ -4,8 +4,10 @@
 
 ## 설치
 
+Node.js도 지원은 하는데, 번들링이 안 되어 있어서 수정 전까지는 패키지 인식이 안 됩니다.
+
 ```sh
-bun add dcinside.js
+bun install github:green1052/dcinside.js
 ```
 
 ## 빠른 시작
