@@ -171,4 +171,4 @@ bun run build
 
 ## Special Thanks
 
-- [KotlinInside](https://github.com/jeongukjae/KotlinInside) - 인증 흐름 설계 참고
+- KotlinInside

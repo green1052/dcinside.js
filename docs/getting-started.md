@@ -22,7 +22,7 @@ console.log(list.gallery.title);
 console.log(list.articles.length);
 ```
 
-첫 요청에서는 `client_token`과 `app_id`를 자동 발급합니다. 이후 같은 클라이언트 인스턴스에서는 메모리 값을 재사용하고, `app_id`는 로컬 캐시에도 자동 저장합니다.
+첫 요청에서는 `client_token`과 `app_id`를 자동 발급합니다. 이후 같은 클라이언트 인스턴스에서는 재사용합니다.
 
 ## 게시글 읽기
 
