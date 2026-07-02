@@ -1,25 +1,8 @@
 {
     "name": "dcinside.js",
     "version": "1.0.0",
-    "main": "dist/index.js",
-    "module": "dist/index.js",
-    "types": "dist/index.d.ts",
+    "module": "src/index.ts",
     "type": "module",
-    "files": [
-        "dist",
-        "src"
-    ],
-    "exports": {
-        ".": {
-            "bun": {
-                "types": "./src/index.ts",
-                "import": "./src/index.ts"
-            },
-            "types": "./dist/index.d.ts",
-            "import": "./dist/index.js",
-            "default": "./dist/index.js"
-        }
-    },
     "scripts": {
         "test": "bun test",
         "build": "bun run build.ts"
