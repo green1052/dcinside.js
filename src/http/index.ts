@@ -1,11 +1,14 @@
 import ky, {type KyInstance, type Options} from "ky";
+import type {EnvHttpProxyAgent, ProxyAgent} from "undici-types";
 import {API_URL} from "./constants";
 import {HTTPError} from "./errors";
 import {defaultHeaders} from "./utils";
 
-/** Bun fetch의 proxy 옵션. ky 옵션에는 없지만 런타임에 fetch로 전달됨. */
 export interface ProxyOptions {
+    /** Bun **/
     proxy?: string;
+    /** Node.js **/
+    dispatcher?: ProxyAgent | EnvHttpProxyAgent;
 }
 
 export interface DCInsideRequestContext {
@@ -23,8 +26,15 @@ export class KyHttpClient {
     private context: DCInsideRequestContext | null = null;
 
     constructor(options: Options & ProxyOptions = {}) {
-        const {proxy, ...kyOptions} = options;
+        const {proxy, dispatcher, ...kyOptions} = options;
+        const isBun = typeof process.versions.bun === "string";
+
+        const proxyFetch = async (input: string | URL | Request, init?: RequestInit) =>
+            isBun ? fetch(input, {...init, proxy}) : fetch(input, init);
+
         this.ky = ky.create({
+            fetch: proxyFetch,
+            dispatcher,
             retry: 0,
             timeout: 30_000,
             throwHttpErrors: false,
@@ -91,7 +101,7 @@ export class KyHttpClient {
         }
 
         const contentType = request.headers.get("content-type") ?? "";
-        //  request.headers.delete("accept");
+        request.headers.delete("accept");
 
         if (contentType.startsWith("multipart/form-data")) {
             const body = await request.clone().formData();
@@ -108,45 +118,6 @@ export class KyHttpClient {
             request.headers.delete("content-type");
 
             return new Request(request, {body: next});
-
-            // const boundary = crypto.randomUUID();
-            // const chunks: Buffer[] = [];
-            //
-            // const entries = Array.from(body.entries());
-            // const fieldMap = new Map<string, FormDataEntryValue>();
-            // for (const [k, v] of entries) {
-            //     if (k === "app_id") fieldMap.set(k, appId as FormDataEntryValue);
-            //     else if (k === "user_id" && userId) fieldMap.set(k, userId as FormDataEntryValue);
-            //     else if (k === "client_token" && clientToken) fieldMap.set(k, clientToken as FormDataEntryValue);
-            //     else fieldMap.set(k, v);
-            // }
-            // if (!fieldMap.has("app_id")) fieldMap.set("app_id", appId as FormDataEntryValue);
-            // if (userId && !fieldMap.has("user_id")) fieldMap.set("user_id", userId as FormDataEntryValue);
-            // if (clientToken && !fieldMap.has("client_token")) fieldMap.set("client_token", clientToken as FormDataEntryValue);
-            //
-            // for (const [key, value] of fieldMap) {
-            //     if (value instanceof Blob) {
-            //         chunks.push(Buffer.from(`--${boundary}\r\n`));
-            //         chunks.push(Buffer.from(`Content-Disposition: form-data; name="${key}"; filename="${value.name || "blob"}"\r\n`));
-            //         chunks.push(Buffer.from(`Content-Type: ${value.type || "application/octet-stream"}\r\n`));
-            //         chunks.push(Buffer.from(`Content-Length: ${value.size}\r\n\r\n`));
-            //         chunks.push(Buffer.from(await value.arrayBuffer()));
-            //         chunks.push(Buffer.from("\r\n"));
-            //     } else {
-            //         const str = String(value);
-            //         const encoded = Buffer.from(str, "utf-8");
-            //         chunks.push(Buffer.from(`--${boundary}\r\n`));
-            //         chunks.push(Buffer.from(`Content-Disposition: form-data; name="${key}"\r\n`));
-            //         chunks.push(Buffer.from(`Content-Length: ${encoded.length}\r\n\r\n`));
-            //         chunks.push(encoded);
-            //         chunks.push(Buffer.from("\r\n"));
-            //     }
-            // }
-            // chunks.push(Buffer.from(`--${boundary}--\r\n`));
-            //
-            // const bodyBuffer = Buffer.concat(chunks);
-            // request.headers.set("content-type", `multipart/form-data; boundary=${boundary}`);
-
         }
 
         const body = await request.clone().formData();

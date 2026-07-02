@@ -1,16 +1,17 @@
+import crypto from "node:crypto";
 import {DC_APP} from "./constants";
 
 export function defaultHeaders(): Record<string, string> {
     return {
         "User-Agent": DC_APP.userAgent,
-        Referer: DC_APP.referer
+        Referer: DC_APP.referer,
+        "Accept-Encoding": "gzip",
+        Connection: "Keep-Alive"
     };
 }
 
 export async function sha256Hex(value: string): Promise<string> {
-    const hash = new Bun.CryptoHasher("sha256");
-    hash.update(value);
-    return hash.digest("hex");
+    return crypto.createHash("sha256").update(value).digest("hex");
 }
 
 const HTML_ESCAPE_MAP: Record<string, string> = {

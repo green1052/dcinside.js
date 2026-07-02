@@ -165,8 +165,6 @@ export class ArticleManager {
 
         if (isApiError(json)) throw apiError("write article", json);
 
-        await this.auth.markAppIdWriteVerified();
-
         return {
             result: booleanValue(json["result"]),
             articleId: nullableNumber(json["cause"]),

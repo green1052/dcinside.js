@@ -6,6 +6,7 @@ import {sha256Hex} from "../http/utils";
 import type {
     AndroidCheckinCredentials,
     ClientTokenResult,
+    DeviceCredentials,
     FirebaseInstallation,
     Session,
     SessionDetail,
@@ -14,7 +15,6 @@ import type {
 import {createAndroidCheckinRequest, parseAndroidCheckinResponse} from "./checkin";
 
 const APP_ID_TTL_MS = 39_600_000;
-const WRITE_VERIFIED_APP_ID_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 /**
  * DCInside 앱 인증·세션 관리 매니저.
@@ -23,7 +23,6 @@ const WRITE_VERIFIED_APP_ID_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 export class AuthManager {
     private appId: string | null = null;
     private appIdIssuedAt: number | null = null;
-    private appIdWriteVerifiedAt: number | null = null;
     private clientToken: string | null = null;
     private lastHash: string | null = null;
     private fid: string | null = null;
@@ -59,10 +58,9 @@ export class AuthManager {
     }
 
     /** 외부에서 캡쳐한 app_id를 현재 세션에 주입한다. */
-    useAppId(appId: string, options: { writeVerified?: boolean } = {}): void {
+    useAppId(appId: string): void {
         this.appId = appId;
         this.appIdIssuedAt = Date.now();
-        this.appIdWriteVerifiedAt = options.writeVerified ? Date.now() : null;
         this.lastHash = null;
     }
 
@@ -76,7 +74,6 @@ export class AuthManager {
     async refreshAppId(options: { refreshClientToken?: boolean } = {}): Promise<string> {
         this.appId = null;
         this.appIdIssuedAt = null;
-        this.appIdWriteVerifiedAt = null;
         this.lastHash = null;
         if (options.refreshClientToken) {
             this.clientToken = null;
@@ -87,15 +84,10 @@ export class AuthManager {
         return this.getAppId();
     }
 
-    /** 현재 app_id가 글쓰기 서버에서 실제로 통과했음을 기록한다. */
-    async markAppIdWriteVerified(): Promise<void> {
-        if (!this.appId) return;
-        this.appIdWriteVerifiedAt = Date.now();
-    }
-
     /**
      * 캐시된 app_id를 반환하거나 새로 발급받는다.
      * 공식 앱과 동일하게 발급 후 약 11시간 동안 저장된 app_id를 우선 재사용한다.
+     * 새로 발급받은 app_id는 서버 검증이 완료될 때까지 대기한다.
      */
     async getAppId(): Promise<string> {
         if (this.appId && this.shouldReuseCachedAppId()) {
@@ -108,7 +100,53 @@ export class AuthManager {
         this.appId = await this.fetchAppId(hashedAppKey);
         this.appIdIssuedAt = Date.now();
         this.lastHash = hashedAppKey;
+        await this.waitForAppIdVerification();
         return this.appId;
+    }
+
+    /** Firebase Installations API로 FID/refreshToken/authToken을 발급받는다. */
+    async fetchFirebaseInstallation(options: {
+        fid?: string;
+        refreshToken?: string
+    } = {}): Promise<FirebaseInstallation> {
+        const body: Record<string, string> = {
+            appId: FIREBASE.appId,
+            authVersion: FIREBASE.authVersion,
+            sdkVersion: FIREBASE.sdkVersion
+        };
+
+        if (options.fid ?? this.fid) body["fid"] = options.fid ?? this.fid;
+        if (options.refreshToken ?? this.refreshToken) body["refreshToken"] = options.refreshToken ?? this.refreshToken!;
+
+        const json = objectValue(await this.http.ky.post(API_URL.firebase.installations, {
+            headers: {
+                "Content-Type": "application/json",
+                "X-Android-Package": DC_APP.package,
+                "X-Android-Cert": FIREBASE.cert,
+                "x-firebase-client": FIREBASE.firebaseClient,
+                "x-goog-api-key": FIREBASE.apiKey,
+                "User-Agent": FIREBASE.registerUserAgent
+            },
+            json: body
+        }).json());
+
+        const fid = nullableString(json["fid"]);
+        const refreshToken = nullableString(json["refreshToken"]);
+        const authToken = nullableString(objectValue(json["authToken"])["token"]);
+
+        if (!fid || !refreshToken || !authToken) {
+            throw new AuthenticationError(`Unable to fetch Firebase installation: ${JSON.stringify(json)}`);
+        }
+
+        this.fid = fid;
+        this.refreshToken = refreshToken;
+
+        return {
+            fid,
+            refreshToken,
+            authToken,
+            raw: json
+        };
     }
 
     /** DCInside 아이디/비밀번호로 로그인하여 세션을 생성한다. */
@@ -182,46 +220,21 @@ export class AuthManager {
         return sha256Hex(`dcArdchk_${date}`);
     }
 
-    /** Firebase Installations API로 FID/refreshToken/authToken을 발급받는다. */
-    async fetchFirebaseInstallation(options: {
-        fid?: string;
-        refreshToken?: string
-    } = {}): Promise<FirebaseInstallation> {
-        const body: Record<string, string> = {
-            appId: FIREBASE.appId,
-            authVersion: FIREBASE.authVersion,
-            sdkVersion: FIREBASE.sdkVersion
-        };
-
-        if (options.fid ?? this.fid) body["fid"] = options.fid ?? this.fid;
-        if (options.refreshToken ?? this.refreshToken) body["refreshToken"] = options.refreshToken ?? this.refreshToken!;
-
-        const json = objectValue(await this.http.ky.post(API_URL.firebase.installations, {
-            headers: {
-                "X-Android-Package": DC_APP.package,
-                "X-Android-Cert": FIREBASE.cert,
-                "x-firebase-client": FIREBASE.firebaseClient,
-                "x-goog-api-key": FIREBASE.apiKey
-            },
-            json: body
-        }).json());
-
-        const fid = nullableString(json["fid"]);
-        const refreshToken = nullableString(json["refreshToken"]);
-        const authToken = nullableString(objectValue(json["authToken"])["token"]);
-
-        if (!fid || !refreshToken || !authToken) {
-            throw new AuthenticationError(`Unable to fetch Firebase installation: ${JSON.stringify(json)}`);
+    /** 현재 인증 상태를 직렬화 가능한 객체로 추출한다. 파일/DB에 저장해 재사용할 수 있다. */
+    exportCredentials(): DeviceCredentials | null {
+        if (!this.appId || !this.clientToken || !this.fid || !this.refreshToken || !this.checkinCredentials) {
+            return null;
         }
-
-        this.fid = fid;
-        this.refreshToken = refreshToken;
-
         return {
-            fid,
-            refreshToken,
-            authToken,
-            raw: json
+            androidId: this.checkinCredentials.androidId.toString(),
+            securityToken: this.checkinCredentials.securityToken.toString(),
+            fid: this.fid,
+            refreshToken: this.refreshToken,
+            clientToken: this.clientToken,
+            appId: this.appId,
+            appIdIssuedAt: this.appIdIssuedAt ?? Date.now(),
+            appCheckDate: this.appCheckDate,
+            lastAppCheckTime: this.lastAppCheckTime ? this.lastAppCheckTime.getTime() : null
         };
     }
 
@@ -283,8 +296,6 @@ export class AuthManager {
             client_token: this.clientToken
         });
 
-        console.log(body);
-
         const json = objectValue(await this.http.ky.post(API_URL.auth.appId, {
             headers: {
                 "User-Agent": DC_APP.userAgent,
@@ -341,8 +352,6 @@ export class AuthManager {
         installationAuthToken: string,
         scope: string
     ): Promise<void> {
-        console.log(clientToken);
-
         await this.http.ky.post(API_URL.playService.register3, {
             headers: this.gcmHeaders(checkin),
             body: new URLSearchParams(this.gcmForm({
@@ -356,46 +365,20 @@ export class AuthManager {
         });
     }
 
-    private async fetchRemoteConfig(installationAuthToken: string): Promise<unknown> {
-        const now = new Date();
-        const utc = now.getTime() + now.getTimezoneOffset() * 60_000;
-        const korNow = new Date(utc + 9 * 60 * 60 * 1000);
-        const firstOpenTime = new Date(korNow.getFullYear(), korNow.getMonth(), korNow.getDate(), 12, 0, 0, 0);
-
-        return this.http.ky.post(API_URL.firebase.remoteConfig, {
-            headers: {
-                "X-Goog-Api-Key": FIREBASE.apiKey,
-                "X-Android-Package": DC_APP.package,
-                "X-Android-Cert": FIREBASE.cert,
-                "X-Google-GFE-Can-Retry": "yes",
-                "X-Goog-Firebase-Installations-Auth": installationAuthToken,
-                "X-Firebase-RC-Fetch-Type": "BASE/1",
-                "User-Agent": FIREBASE.registerUserAgent
-                // "Content-Type": "application/json",
-                // Accept: "application/json",
-                // "X-Firebase-RC-Fetch-Type": "BASE/1",
-                // "User-Agent": "Dalvik/2.1.0 (Linux; U; Android 16; SM-S928N Build/BP4A.251205.006)"
-            },
-            json: {
-                platformVersion: FIREBASE.osVersion,
-                appInstanceId: this.fid,
-                packageName: DC_APP.package,
-                appVersion: DC_APP.versionName,
-                countryCode: "KR",
-                sdkVersion: FIREBASE.remoteConfigSdkVersion,
-                appBuild: DC_APP.versionCode,
-                firstOpenTime: firstOpenTime.toISOString(),
-                analyticsUserProperties: {
-                    "installer_name": "com.google.android.packageinstaller",
-                    "store_name": "ONE",
-                    "screen_event_ver": "1"
-                },
-                appId: FIREBASE.appId,
-                languageCode: "ko-KR",
-                appInstanceIdToken: installationAuthToken,
-                timeZone: "Asia/Seoul"
-            }
-        }).json();
+    /** 외부에서 저장한 인증 정보를 복원한다. 모든 발급 절차를 생략한다. */
+    importCredentials(creds: DeviceCredentials): void {
+        this.checkinCredentials = {
+            androidId: BigInt(creds.androidId),
+            securityToken: BigInt(creds.securityToken)
+        };
+        this.fid = creds.fid;
+        this.refreshToken = creds.refreshToken;
+        this.clientToken = creds.clientToken;
+        this.appId = creds.appId;
+        this.appIdIssuedAt = creds.appIdIssuedAt;
+        this.lastHash = null;
+        this.appCheckDate = creds.appCheckDate;
+        this.lastAppCheckTime = creds.lastAppCheckTime != null ? new Date(creds.lastAppCheckTime) : null;
     }
 
     private gcmHeaders(checkin: AndroidCheckinCredentials): Record<string, string> {
@@ -452,14 +435,55 @@ export class AuthManager {
         return date;
     }
 
+    /** app_id를 새로 발급받은 직후 서버 검증이 완료될 때까지 대기한다. */
+    private async waitForAppIdVerification(): Promise<void> {
+        await new Promise((resolve) => setTimeout(resolve, 5000));
+    }
+
+    private async fetchRemoteConfig(installationAuthToken: string): Promise<unknown> {
+        const now = new Date();
+        const utc = now.getTime() + now.getTimezoneOffset() * 60_000;
+        const korNow = new Date(utc + 9 * 60 * 60 * 1000);
+        const firstOpenTime = new Date(korNow.getFullYear(), korNow.getMonth(), korNow.getDate(), 12, 0, 0, 0);
+
+        return this.http.ky.post(API_URL.firebase.remoteConfig, {
+            headers: {
+                "X-Goog-Api-Key": FIREBASE.apiKey,
+                "X-Android-Package": DC_APP.package,
+                "X-Android-Cert": FIREBASE.cert,
+                "X-Google-GFE-Can-Retry": "yes",
+                "X-Goog-Firebase-Installations-Auth": installationAuthToken,
+                "X-Firebase-RC-Fetch-Type": "BASE/1",
+                "User-Agent": FIREBASE.registerUserAgent
+                // "Content-Type": "application/json",
+                // Accept: "application/json",
+                // "X-Firebase-RC-Fetch-Type": "BASE/1",
+                // "User-Agent": "Dalvik/2.1.0 (Linux; U; Android 16; SM-S928N Build/BP4A.251205.006)"
+            },
+            json: {
+                platformVersion: FIREBASE.osVersion,
+                appInstanceId: this.fid,
+                packageName: DC_APP.package,
+                appVersion: DC_APP.versionName,
+                countryCode: "KR",
+                sdkVersion: FIREBASE.remoteConfigSdkVersion,
+                appBuild: DC_APP.versionCode,
+                firstOpenTime: firstOpenTime.toISOString(),
+                analyticsUserProperties: {
+                    "installer_name": "unknown",
+                    "store_name": "ONE",
+                    "screen_event_ver": "1"
+                },
+                appId: FIREBASE.appId,
+                languageCode: "ko-KR",
+                appInstanceIdToken: installationAuthToken,
+                timeZone: "GMT"
+            }
+        }).json();
+    }
+
     private shouldReuseCachedAppId(): boolean {
         if (!this.appIdIssuedAt) return false;
-        return isReusableCachedAppId(this.appIdIssuedAt, this.appIdWriteVerifiedAt);
+        return Date.now() - this.appIdIssuedAt < APP_ID_TTL_MS;
     }
-}
-
-function isReusableCachedAppId(issuedAt: number, writeVerifiedAt: number | null): boolean {
-    const now = Date.now();
-    return now - issuedAt < APP_ID_TTL_MS
-        || (writeVerifiedAt != null && now - writeVerifiedAt < WRITE_VERIFIED_APP_ID_TTL_MS);
 }

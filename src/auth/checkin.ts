@@ -5,20 +5,22 @@ type Field = Uint8Array;
 export function createAndroidCheckinRequest(): Uint8Array {
     const locale = "ko_KR";
     const timeZone = "Asia/Seoul";
-    const buildFingerprint = "samsung/e2sxxx/e2s:16/BP4A.251205.006/S928NKSU5AYE1:user/release-keys";
     const deviceCode = "e2s";
+    const buildFingerprint = "samsung/e2sxxx/e2s:16/BP4A.251205.006/S928NKSU5AYE1:user/release-keys";
+    const model = "SM-S928N";
+    const brand = "samsung";
 
     const build = message([
         stringField(1, buildFingerprint),
         stringField(2, deviceCode),
         boolField(3, false),
         stringField(4, buildFingerprint),
-        stringField(6, "android-google"),
+        stringField(6, brand),
         varintField(7, BigInt(Date.now())),
         stringField(9, deviceCode),
         varintField(10, 36n),
-        stringField(11, "SM-S928N"),
-        stringField(12, "samsung"),
+        stringField(11, model),
+        stringField(12, brand),
         stringField(13, deviceCode)
     ]);
 
@@ -29,8 +31,11 @@ export function createAndroidCheckinRequest(): Uint8Array {
     ]);
 
     return message([
+        varintField(1, 0n),
         varintField(2, 0n),
+        varintField(3, 3n),
         bytesField(4, checkin),
+        stringField(5, model),
         stringField(6, locale),
         varintField(7, BigInt(Date.now() * 1000 + Math.floor(Math.random() * 1000))),
         stringField(9, randomHex(12)),

@@ -113,28 +113,19 @@ describe("DCInside write integration", () => {
     });
 
     test("writes an anonymous article and comment", async () => {
-        const nickname = `ㅇㅇ`;
-        const password = `${Date.now()}`;
         const client = createClient();
-        client.useAnonymous(nickname, password);
-        if (process.env.DCINSIDE_TEST_APP_ID) {
-            client.auth.useAppId(process.env.DCINSIDE_TEST_APP_ID, {writeVerified: true});
-        }
+        client.useAnonymous("ㅇㅇ", `${Date.now()}`);
 
-        const stamp = new Date().toISOString();
         const written = await client.articles.write({
             galleryId,
             galleryType,
-            subject: `test ${stamp}`,
+            subject: "dcinside.js",
             headText: {
                 no: 0,
                 name: "일반"
             },
             content: [
-                {
-                    type: "text",
-                    text: `dcinside.js ${stamp}`
-                }
+                "dcinside.js"
             ]
         });
 
@@ -148,9 +139,19 @@ describe("DCInside write integration", () => {
             galleryId,
             galleryType,
             articleId,
-            content: `dcinside.js comment integration test ${stamp}`
+            content: "dcinside.js"
         });
 
         expect(comment.result).toBe(true);
+
+        const reply = await client.comments.reply({
+            galleryId,
+            galleryType,
+            articleId,
+            content: "dcinside.js reply",
+            replyToCommentId: comment.commentId!
+        });
+
+        expect(reply.result).toBe(true);
     }, liveTimeout);
 });

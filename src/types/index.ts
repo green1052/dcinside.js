@@ -53,6 +53,28 @@ export interface ClientTokenResult {
     remoteConfig: unknown;
 }
 
+/** 재사용 가능한 디바이스 인증 정보. exportCredentials/importCredentials로 저장/복원한다. */
+export interface DeviceCredentials {
+    /** Google checkin으로 발급받은 기기 식별값. */
+    androidId: string;
+    /** Google checkin으로 발급받은 보안 토큰. */
+    securityToken: string;
+    /** Firebase Installation ID. */
+    fid: string;
+    /** Firebase Installation refresh token. */
+    refreshToken: string;
+    /** GCM register3으로 발급받은 FCM client_token. */
+    clientToken: string;
+    /** DCInside 서버에서 발급받은 app_id. */
+    appId: string;
+    /** app_id 발급 시각 (epoch ms). */
+    appIdIssuedAt: number;
+    /** app_check date 캐시 값. */
+    appCheckDate: string | null;
+    /** app_check 마지막 호출 시각 (epoch ms). */
+    lastAppCheckTime: number | null;
+}
+
 export interface HeadText {
     no: string | number;
     name: string;

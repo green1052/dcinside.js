@@ -7,12 +7,14 @@ import {GalleryManager} from "./galleries";
 import {KyHttpClient, type ProxyOptions} from "./http";
 import {ManagementManager} from "./management";
 import {SearchManager} from "./search";
-import type {Session, User} from "./types";
+import type {DeviceCredentials, Session, User} from "./types";
 import {UserManager} from "./user";
 
 export interface DCInsideClientOptions {
     /** ky에 전달할 HTTP 옵션입니다. Bun 런타임에서는 `proxy`도 함께 사용할 수 있습니다. */
     http?: KyOptions & ProxyOptions;
+    /** 외부에서 저장한 디바이스 인증 정보를 복원합니다. 모든 발급 절차를 생략합니다. */
+    credentials?: DeviceCredentials;
 }
 
 /**
@@ -42,6 +44,7 @@ export class DCInsideClient {
     constructor(options: DCInsideClientOptions = {}) {
         this.http = new KyHttpClient(options.http);
         this.auth = new AuthManager(this.http);
+        if (options.credentials) this.auth.importCredentials(options.credentials);
         this.http.useDCInsideContext({
             getAppId: () => this.auth.getAppId(),
             getClientToken: () => this.auth.fcmToken,
