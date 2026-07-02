@@ -32,6 +32,7 @@ new DCInsideClient()
       │   └─ clientToken 캐싱
       │
       ├─ getAppId()  [필요 시에만]
+      │   ├─ 저장된 app_id가 11시간 이내면 즉시 반환
       │   ├─ generateHashedAppKey()
       │   │   ├─ needsAppCheckRefresh() → 같은 시간대면 캐시 재사용
       │   │   ├─ fetchAppCheckDate()
@@ -54,8 +55,12 @@ new DCInsideClient()
 | `checkinCredentials`   | 최초 1회 발급 후 영구 캐싱          | `refreshAppId({refreshClientToken: true})` |
 | `clientToken`          | 발급 후 영구 캐싱                   | `refreshAppId({refreshClientToken: true})` |
 | `fid` / `refreshToken` | clientToken 갱신 시마다 새 fid 생성 | 자동                                       |
-| `appCheckDate`         | 같은 시(서울 기준) 내에서 재사용    | 시간가 바뀌면 자동 갱신                    |
-| `lastHash` / `appId`   | hash가 같으면 재사용                | hash가 바뀌면 자동 재발급                  |
+| `appId`                | 공식 앱과 동일하게 약 11시간 재사용 | `refreshAppId()`                           |
+| `appCheckDate`         | 같은 시(서울 기준) 내에서 재사용    | 시간이 바뀌면 자동 갱신                    |
+| `lastHash`             | 같은 프로세스의 중복 발급 방지      | hash가 바뀌면 자동 갱신                    |
+
+공식 앱은 `app_id`를 저장소에 보관한 뒤 일정 시간 재사용합니다. 이 라이브러리도 `app_id`와 발급 시각을 로컬 캐시에 자동 저장하고 약 11시간 동안 재사용합니다. 기본 저장 위치는 운영체제 캐시
+디렉터리 아래 `dcinside.js/auth-cache.json`이며, `DCINSIDE_JS_CACHE_DIR` 환경변수로 기준 디렉터리를 바꿀 수 있습니다.
 
 ## HTTP 훅
 

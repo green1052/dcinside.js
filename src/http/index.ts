@@ -92,12 +92,36 @@ export class KyHttpClient {
         if (contentType.startsWith("multipart/form-data")) {
             const next = new FormData();
             const entries = Array.from(body.entries());
+            let hasAppId = false;
+            let hasClientToken = false;
+            let hasUserId = false;
+
+            const appendAuthFields = (after: "id" | "mode" | "memo_block[0]"): void => {
+                if (after === "id" && !hasAppId) {
+                    next.append("app_id", appId);
+                    hasAppId = true;
+                }
+                if (after === "mode" && clientToken && !hasClientToken) {
+                    next.append("client_token", clientToken);
+                    hasClientToken = true;
+                }
+                if (after === "memo_block[0]" && userId && !hasUserId) {
+                    next.append("user_id", userId);
+                    hasUserId = true;
+                }
+            };
+
             for (const [key, value] of entries) {
+                if (key === "app_id") hasAppId = true;
+                if (key === "client_token") hasClientToken = true;
+                if (key === "user_id") hasUserId = true;
                 next.append(key, value);
-                if (key === "id") next.append("app_id", appId);
-                if (key === "mode" && clientToken) next.append("client_token", clientToken);
-                if (key === "memo_block[0]" && userId) next.append("user_id", userId);
+                if (key === "id" || key === "mode" || key === "memo_block[0]") appendAuthFields(key);
             }
+
+            appendAuthFields("id");
+            appendAuthFields("mode");
+            appendAuthFields("memo_block[0]");
             return new Request(request.url, {method: "POST", headers, body: next});
         }
 

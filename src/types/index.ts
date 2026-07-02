@@ -1,3 +1,4 @@
+/** 디시인사이드 갤러리 네임스페이스. `mini`와 `person`은 요청 시 접두사를 자동으로 붙입니다. */
 export type GalleryType = "main" | "minor" | "mini" | "person";
 
 export type User =
@@ -84,13 +85,21 @@ export type CommentContent =
 };
 
 export interface ArticleListOptions {
+    /** 갤러리 ID. `mi$`/`pr$` 접두사가 이미 붙어 있으면 중복으로 붙이지 않습니다. */
     galleryId: string;
+    /** 갤러리 네임스페이스. 생략하면 `main`입니다. */
     galleryType?: GalleryType;
+    /** 1부터 시작하는 페이지 번호. 생략하면 `1`입니다. */
     page?: number;
+    /** 검색어. 생략하면 일반 목록을 조회합니다. */
     searchKeyword?: string;
+    /** 검색 대상. `searchKeyword`와 함께 사용하며 생략하면 `all`입니다. */
     searchType?: "all" | "subject" | "memo" | "name" | "subject_m";
+    /** 추천글만 조회할지 여부입니다. */
     recommend?: boolean;
+    /** 공지만 조회할지 여부입니다. */
     notice?: boolean;
+    /** 말머리 ID 필터입니다. */
     headId?: number;
 }
 
@@ -145,8 +154,11 @@ export interface ArticleListResult {
 }
 
 export interface ArticleReadOptions {
+    /** 갤러리 ID. */
     galleryId: string;
+    /** 갤러리 네임스페이스. 생략하면 `main`입니다. */
     galleryType?: GalleryType;
+    /** 게시글 번호. DCInside API의 `no` 값입니다. */
     articleId: number;
 }
 
@@ -201,43 +213,68 @@ export interface ArticleReadResult {
 }
 
 export type ArticleContent =
+/** 일반 텍스트 블록. HTML 이스케이프 후 `<div>`로 감싸 전송합니다. */
     | string
     | {
+    /** 일반 텍스트 블록. HTML 이스케이프 후 `<div>`로 감싸 전송합니다. */
     type: "text";
+    /** 이 블록에 들어갈 텍스트입니다. */
     text: string;
 }
     | {
+    /** 원본 HTML 블록. 신뢰한 HTML에만 사용하세요. */
     type: "html";
+    /** 하나의 memo block으로 전송할 HTML입니다. */
     html: string;
 }
     | {
+    /** Markdown 형태의 텍스트 블록. 현재는 렌더링하지 않고 이스케이프된 텍스트로 전송합니다. */
     type: "markdown";
+    /** 이스케이프된 텍스트로 전송할 Markdown 원문입니다. */
     markdown: string;
 }
     | {
+    /** 업로드 이미지 블록입니다. */
     type: "image";
+    /** 첨부할 이미지 Blob/File입니다. */
     file: Blob | File;
+    /** 호출 측에서 MIME 메타데이터를 보관해야 할 때 사용할 수 있는 값입니다. */
     mimeType?: string;
 }
     | {
+    /** `client.dccons.insert(...)`로 발급받은 디시콘 블록입니다. */
     type: "dccon";
+    /** 디시콘 삽입 API가 반환한 `imageTag` 값입니다. */
     imageTag: string;
+    /** 디시콘 상세 인덱스입니다. */
     detailIndex: number;
 };
 
 export interface ArticleWriteOptions {
+    /** 갤러리 ID. */
     galleryId: string;
+    /** 갤러리 네임스페이스. 생략하면 `main`입니다. */
     galleryType?: GalleryType;
+    /** 게시글 제목. 공백뿐이면 요청 전에 거부합니다. */
     subject: string;
+    /** 순서대로 전송할 본문 블록. 최소 한 개가 필요합니다. */
     content: ArticleContent[];
+    /** 기존 게시글 번호. `mode`가 `modify`이면 필수입니다. */
+    articleId?: number;
+    /** 말머리가 필요하거나 지원되는 갤러리에서 선택한 말머리입니다. */
     headText?: Pick<HeadText, "no" | "name">;
+    /** 새 글 작성 또는 기존 글 수정 모드. 생략하면 `write`입니다. */
     mode?: "write" | "modify";
 }
 
 export interface ArticleWriteResult {
+    /** 작성/수정 요청 성공 여부입니다. */
     result: boolean;
+    /** API가 게시글 번호를 반환한 경우의 새 글 또는 수정 글 번호입니다. */
     articleId: number | null;
+    /** 서버가 반환한 cause/message입니다. 일부 성공 응답은 이 필드에 글 번호를 넣습니다. */
     cause: string | null;
+    /** API가 반환한 갤러리 ID입니다. */
     galleryId: string | null;
 }
 

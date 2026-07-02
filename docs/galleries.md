@@ -1,49 +1,41 @@
-# 갤러리 (Galleries)
+# 갤러리
 
-`client.galleries`로 갤러리 정보, 메인 페이지, 영상 업로드, 랭킹을 다룹니다.
+`client.galleries`는 마이너/미니 갤러리 정보, 앱 메인 페이지, 랭킹, 영상 업로드를 담당합니다.
 
-## 마이너 갤러리 정보
+## 마이너/미니 갤러리 정보
 
 ```ts
-const info = await client.galleries.minorInfo({
-    galleryId: "bjwg64",
-    galleryType: "minor",
-});
+const info = await client.galleries.minorInfo("bjwg64");
 
-console.log(info.title);       // 갤러리 제목
-console.log(info.manager);    // 관리자 정보
-console.log(info.headTexts);  // 말머리 목록
+console.log(info.koName);
+console.log(info.manager);
+console.log(info.subManagers);
+console.log(info.mini);
 ```
 
-## 메인 페이지
+`minorInfo`는 갤러리 ID 문자열을 직접 받습니다. 미니 갤러리 정보가 있으면 `mini` 필드에 가입자 수, 제한 수, 가입 여부가 들어갑니다.
+
+## 앱 메인 페이지
 
 ```ts
 const main = await client.galleries.mainPage();
-console.log(main.raw);  // 원본 응답
+
+console.log(main.hit);
+console.log(main.best);
+console.log(main.issueZoom);
+console.log(main.newGallery);
 ```
 
 ## 랭킹
 
 ```ts
-// 메인 갤러리 랭킹
-const mainRanking = await client.galleries.ranking.main();
-
-// 마이너 갤러리 랭킹
-const minorRanking = await client.galleries.ranking.minor();
-
-// 미니 갤러리 랭킹
-const miniRanking = await client.galleries.ranking.mini();
-
-// 인물 갤러리 랭킹
-const personRanking = await client.galleries.ranking.person();
+const mainRanking = await client.galleries.rankings.main();
+const minorRanking = await client.galleries.rankings.minor();
+const miniRanking = await client.galleries.rankings.mini();
+const personRanking = await client.galleries.rankings.person();
 ```
 
-### GalleryRankingItem
-
-| 필드    | 타입     | 설명        |
-|---------|----------|-------------|
-| `id`    | `string` | 갤러리 ID   |
-| `title` | `string` | 갤러리 제목 |
+랭킹 항목은 `galleryLink`, `galleryId`, `galleryName`, `rankType`, `rank`, `rankDelta`를 포함합니다.
 
 ## 영상 업로드
 
@@ -52,9 +44,11 @@ const result = await client.galleries.uploadMovie({
     galleryId: "bjwg64",
     galleryType: "mini",
     file: videoBlob,
-    checkRestriction: true,  // 기본 true
+    checkRestriction: true,
 });
 
-console.log(result.fileId);       // 파일 번호
-console.log(result.thumbnailUrls); // 썸네일 URL 배열
+console.log(result.fileId);
+console.log(result.thumbnailUrls);
 ```
+
+`checkRestriction`은 기본값이 `true`입니다. 업로드 제한이 있으면 업로드 전에 에러를 던집니다.

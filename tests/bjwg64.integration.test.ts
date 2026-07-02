@@ -112,7 +112,6 @@ describe("DCInside write integration", () => {
         }).catch(() => null);
     });
 
-    // write API는 rate limit에 걸릴 수 있으므로 실패 시 스킵
     test("writes an anonymous article and comment", async () => {
         const nickname = `ㅇㅇ`;
         const password = `${Date.now()}`;
@@ -123,7 +122,11 @@ describe("DCInside write integration", () => {
         const written = await client.articles.write({
             galleryId,
             galleryType,
-            subject: `test`,
+            subject: `test ${stamp}`,
+            headText: {
+                no: 0,
+                name: "일반"
+            },
             content: [
                 {
                     type: "text",

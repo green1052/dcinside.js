@@ -39,8 +39,16 @@ import type {
     Session
 } from "../types";
 
+function encodeFormValue(value: string): string {
+    return encodeURIComponent(value).replace(/%20/g, "+");
+}
+
 /**
- * 게시글 매니저. 디시인사이드 게시글 목록/읽기/쓰기/삭제/추천/신고 흐름을 다룬다.
+ * 디시인사이드 게시글 API 매니저입니다.
+ *
+ * 목록/읽기 요청은 app_id가 만료되면 한 번 자동 갱신해 재시도합니다.
+ * 작성, 삭제, 추천처럼 세션이 필요한 작업은 `client.login(...)` 또는
+ * `client.useAnonymous(...)`를 먼저 호출해야 합니다.
  */
 export class ArticleManager {
     constructor(
@@ -50,23 +58,50 @@ export class ArticleManager {
     ) {
     }
 
-    /** 게시글 목록을 불러온다. app_id 만료 시 자동 갱신 후 재시도. */
+    /**
+     * 게시글 목록과 갤러리 메타데이터를 불러옵니다.
+     *
+     * @param options 갤러리 ID, 갤러리 타입, 페이지, 검색 조건, 추천글/공지/말머리 필터입니다.
+     * @returns 갤러리 정보, 게시글 목록, 원본 응답입니다.
+     */
     async list(options: ArticleListOptions): Promise<ArticleListResult> {
         return this.listWithAppId(options, true);
     }
 
-    /** 단일 게시글 본문+메타데이터를 읽어온다. app_id 만료 시 자동 갱신 후 재시도. */
+    /**
+     * 단일 게시글의 메타데이터와 본문을 읽습니다.
+     *
+     * @param options 갤러리 ID, 갤러리 타입, 게시글 번호입니다.
+     * @returns 게시글 정보, 본문/추천수 정보, 원본 응답입니다.
+     */
     async read(options: ArticleReadOptions): Promise<ArticleReadResult> {
         return this.readWithAppId(options, true);
     }
 
-    /** 게시글을 작성/수정한다. 세션 필요. */
+    /**
+     * 게시글을 작성하거나 수정합니다.
+     *
+     * `mode: "modify"`를 사용할 때는 `articleId`가 필요합니다. 익명 세션은
+     * 닉네임과 비밀번호를, 로그인 세션은 confirm_id/user_id를 자동 전송합니다.
+     *
+     * @param options 작성 대상 갤러리, 제목, 본문 블록, 말머리, 작성/수정 모드입니다.
+     * @returns 성공 여부, 생성/수정된 게시글 번호, 서버 메시지입니다.
+     */
     async write(options: ArticleWriteOptions): Promise<ArticleWriteResult> {
         const session = this.requireSession("write articles");
         const galleryId = normalizeGalleryId(options.galleryId, options.galleryType);
+        const subject = options.subject.trim();
+
+        if (!subject) throw new Error("Article subject is required.");
+        if (options.content.length === 0) throw new Error("Article content must contain at least one block.");
+        if (options.mode === "modify" && !options.articleId) {
+            throw new Error("articleId is required when writing with mode: \"modify\".");
+        }
+
         const multipart: Record<string, string | number | boolean | Blob | File | null | undefined> = {
             id: galleryId,
-            mode: options.mode ?? "write"
+            mode: options.mode ?? "write",
+            no: options.mode === "modify" ? options.articleId : undefined
         };
 
         if (options.headText) {
@@ -74,36 +109,36 @@ export class ArticleManager {
             multipart["head_no"] = String(options.headText.no);
         }
 
-        multipart["subject"] = encodeURIComponent(options.subject);
+        multipart["subject"] = encodeFormValue(subject);
 
         if (session.user.type === "anonymous") {
-            multipart["name"] = encodeURIComponent(session.user.id);
-            multipart["password"] = encodeURIComponent(session.user.password);
+            multipart["name"] = encodeFormValue(session.user.id);
+            multipart["password"] = encodeFormValue(session.user.password);
+        } else if (session.detail) {
+            multipart["user_id"] = session.detail.userId;
         }
 
         let imageCount = 0;
-        let dcconCount = 0;
         options.content.forEach((content, index) => {
             const normalized = normalizeArticleContent(content);
 
             if (normalized.type === "text") {
-                multipart[`memo_block[${index}]`] = encodeURIComponent(`<div>${escapeHtml(normalized.text)}</div>`);
+                multipart[`memo_block[${index}]`] = encodeFormValue(`<div>${escapeHtml(normalized.text)}</div>`);
             } else if (normalized.type === "html") {
-                multipart[`memo_block[${index}]`] = encodeURIComponent(normalized.html);
+                multipart[`memo_block[${index}]`] = encodeFormValue(normalized.html);
             } else if (normalized.type === "markdown") {
-                multipart[`memo_block[${index}]`] = encodeURIComponent(`<div>${escapeHtml(normalized.markdown)}</div>`);
+                multipart[`memo_block[${index}]`] = encodeFormValue(`<div>${escapeHtml(normalized.markdown)}</div>`);
             } else if (normalized.type === "image") {
                 multipart[`memo_block[${index}]`] = `Dc_App_Img_${imageCount}`;
                 multipart[`upload[${imageCount}]`] = normalized.file;
                 imageCount++;
             } else {
-                multipart[`memo_block[${index}]`] = normalized.imageTag;
-                multipart[`detail_idx[${dcconCount}]`] = normalized.detailIndex;
-                dcconCount++;
+                multipart[`memo_block[${index}]`] = encodeFormValue(normalized.imageTag);
+                multipart[`detail_idx[${index}]`] = normalized.detailIndex;
             }
         });
 
-        multipart["fix"] = "0";
+        multipart["fix"] = "";
         multipart["secret_use"] = "0";
         multipart["is_quick"] = "0";
         multipart["use_gall_nickname"] = "0";
@@ -112,6 +147,7 @@ export class ArticleManager {
         const raw = await postMultipartJson(this.http, API_URL.article.write, multipart);
         const json = firstObject(raw);
         if (isApiError(json)) throw apiError("write article", json);
+        await this.auth.markAppIdWriteVerified();
 
         return {
             result: booleanValue(json["result"]),
@@ -121,7 +157,12 @@ export class ArticleManager {
         };
     }
 
-    /** 게시글을 삭제한다. 세션 필요. */
+    /**
+     * 게시글을 삭제합니다.
+     *
+     * @param options 갤러리 ID, 갤러리 타입, 삭제할 게시글 번호입니다.
+     * @returns 삭제 성공 여부와 서버 메시지입니다.
+     */
     async delete(options: ArticleDeleteOptions): Promise<ArticleDeleteResult> {
         const session = this.requireSession("delete articles");
         const galleryId = normalizeGalleryId(options.galleryId, options.galleryType);
@@ -140,22 +181,42 @@ export class ArticleManager {
         };
     }
 
-    /** 게시글 추천. */
+    /**
+     * 게시글을 추천합니다.
+     *
+     * @param options 갤러리 ID, 갤러리 타입, 게시글 번호입니다.
+     * @returns 추천 성공 여부와 서버 응답 정보입니다.
+     */
     async upvote(options: ArticleVoteOptions): Promise<ArticleVoteResult> {
         return this.vote(API_URL.article.upvote, options);
     }
 
-    /** 게시글 비추천. */
+    /**
+     * 게시글을 비추천합니다.
+     *
+     * @param options 갤러리 ID, 갤러리 타입, 게시글 번호입니다.
+     * @returns 비추천 성공 여부와 서버 응답 정보입니다.
+     */
     async downvote(options: ArticleVoteOptions): Promise<ArticleVoteResult> {
         return this.vote(API_URL.article.downvote, options);
     }
 
-    /** 조회수 기반 추천(hit_recommend). */
+    /**
+     * hit_recommend 엔드포인트로 게시글을 추천합니다.
+     *
+     * @param options 갤러리 ID, 갤러리 타입, 게시글 번호입니다.
+     * @returns 추천 성공 여부와 서버 응답 정보입니다.
+     */
     async hitUpvote(options: ArticleVoteOptions): Promise<ArticleVoteResult> {
         return this.vote(API_URL.article.hitUpvote, options);
     }
 
-    /** 신고 링크 URL을 생성한다. (웹 신고 페이지) */
+    /**
+     * 모바일 웹 신고 페이지 URL을 생성합니다.
+     *
+     * @param options 갤러리 ID, 갤러리 타입, 신고할 게시글 번호입니다.
+     * @returns app_id와 로그인 confirm_id가 포함된 신고 URL입니다.
+     */
     async reportLink(options: ArticleVoteOptions): Promise<string> {
         const appId = await this.auth.getAppId();
         const galleryId = normalizeGalleryId(options.galleryId, options.galleryType);
@@ -170,7 +231,12 @@ export class ArticleManager {
         return url.toString();
     }
 
-    /** 수정용 게시글 정보(본문/첨부/말머리)를 불러온다. 세션 필요. */
+    /**
+     * 게시글 수정 화면에 필요한 기존 본문, 첨부, 말머리 정보를 불러옵니다.
+     *
+     * @param options 갤러리 ID, 갤러리 타입, 수정할 게시글 번호입니다.
+     * @returns 기존 제목/본문/첨부/말머리 정보입니다.
+     */
     async modifyInfo(options: ArticleModifyInfoOptions): Promise<ArticleModifyInfoResult> {
         const session = this.requireSession("load article modify info");
         const galleryId = normalizeGalleryId(options.galleryId, options.galleryType);

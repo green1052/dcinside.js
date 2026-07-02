@@ -1,6 +1,6 @@
-# 댓글 (Comments)
+# 댓글
 
-`client.comments`로 댓글 목록, 작성, 답글, 삭제를 다룹니다.
+`client.comments`는 댓글 목록, 댓글 작성, 답글 작성, 삭제를 담당합니다.
 
 ## 목록
 
@@ -12,30 +12,18 @@ const comments = await client.comments.list({
     page: 1,
 });
 
-console.log(comments.page);       // 현재 페이지
-console.log(comments.totalPages); // 전체 페이지 수
-console.log(comments.comments);   // Comment[]
+console.log(comments.totalComments);
+console.log(comments.totalPages);
+console.log(comments.comments);
 ```
 
-### Comment
-
-| 필드        | 타입      | 설명          |
-|-------------|-----------|---------------|
-| `id`        | `number`  | 댓글 번호     |
-| `articleId` | `number`  | 원글 번호     |
-| `userId`    | `string`  | 작성자 ID     |
-| `name`      | `string`  | 작성자 닉네임 |
-| `content`   | `string`  | 댓글 내용     |
-| `dateTime`  | `string`  | 작성일시      |
-| `isReply`   | `boolean` | 답글 여부     |
-| `isDccon`   | `boolean` | 디시콘 여부   |
-| `parentId`  | `number?` | 부모 댓글 ID  |
+`CommentData.content`는 일반 텍스트 또는 디시콘 정보입니다. 삭제된 댓글은 `deleteFlag` 값이 채워질 수 있습니다.
 
 ## 작성
 
-세션이 필요합니다.
-
 ```ts
+client.useAnonymous("닉네임", "비밀번호");
+
 const result = await client.comments.write({
     galleryId: "bjwg64",
     galleryType: "mini",
@@ -44,14 +32,32 @@ const result = await client.comments.write({
 });
 ```
 
-## 답글
+디시콘 댓글은 `CommentContent` 형태로 보냅니다.
 
 ```ts
-const result = await client.comments.reply({
+await client.comments.write({
     galleryId: "bjwg64",
     galleryType: "mini",
     articleId: 1557,
-    commentId: 12345,
+    content: {
+        type: "dccon",
+        dccon: {
+            detailIndex: 8884844,
+            imgLink: "https://...",
+            memo: "디시콘 설명",
+        },
+    },
+});
+```
+
+## 답글
+
+```ts
+await client.comments.reply({
+    galleryId: "bjwg64",
+    galleryType: "mini",
+    articleId: 1557,
+    replyToCommentId: 12345,
     content: "답글 내용",
 });
 ```
@@ -59,9 +65,10 @@ const result = await client.comments.reply({
 ## 삭제
 
 ```ts
-const comments = await client.comments.list({
+await client.comments.delete({
     galleryId: "bjwg64",
     galleryType: "mini",
     articleId: 1557,
+    commentId: 12345,
 });
 ```

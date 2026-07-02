@@ -66,6 +66,7 @@ export class CommentManager {
             multipart["board_id"] = "";
         } else {
             multipart["board_id"] = session.user.id;
+            if (session.detail) multipart["user_id"] = session.detail.userId;
         }
 
         const raw = await postMultipartJson(this.http, API_URL.comment.delete, multipart);
@@ -136,6 +137,7 @@ export class CommentManager {
             multipart["comment_pw"] = session.user.password;
         } else {
             multipart["board_id"] = session.user.id;
+            if (session.detail) multipart["user_id"] = session.detail.userId;
         }
 
         const raw = await postMultipartJson(this.http, API_URL.comment.ok, multipart);

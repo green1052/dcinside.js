@@ -137,6 +137,37 @@ describe("JSON and utility helpers", () => {
         expect(keys[keys.indexOf("user_id") - 1]).toBe("memo_block[0]");
     });
 
+    test("adds missing auth fields even when expected anchor fields are absent", async () => {
+        const fields: [string, string][] = [];
+        const http = new KyHttpClient({
+            hooks: {
+                beforeRequest: [
+                    async ({request}) => {
+                        for (const [key, value] of await request.clone().formData()) {
+                            fields.push([key, String(value)]);
+                        }
+                        return new Response("{}");
+                    }
+                ]
+            }
+        });
+        http.useDCInsideContext({
+            getAppId: async () => "app-id",
+            getClientToken: () => "client-token",
+            getUserId: () => "user-no"
+        });
+
+        await postMultipartJson(http, "https://app.dcinside.com/api/comment_ok.php", {
+            id: "mi$bjwg64",
+            no: 1,
+            comment_memo: "test"
+        });
+
+        expect(fields).toContainEqual(["app_id", "app-id"]);
+        expect(fields).toContainEqual(["client_token", "client-token"]);
+        expect(fields).toContainEqual(["user_id", "user-no"]);
+    });
+
     test("normalizes typed gallery ids", () => {
         expect(normalizeGalleryId("football_new9", "main")).toBe("football_new9");
         expect(normalizeGalleryId("krstock", "minor")).toBe("krstock");

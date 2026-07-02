@@ -13,12 +13,17 @@ import type {
 } from "../types";
 import {createAndroidCheckinRequest, parseAndroidCheckinResponse} from "./checkin";
 
+const APP_ID_TTL_MS = 39_600_000;
+const WRITE_VERIFIED_APP_ID_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
 /**
  * DCInside 앱 인증·세션 관리 매니저.
  * Android checkin → Firebase installation → GCM register3 → app_id 발급 흐름을 캡슐화한다.
  */
 export class AuthManager {
     private appId: string | null = null;
+    private appIdIssuedAt: number | null = null;
+    private appIdWriteVerifiedAt: number | null = null;
     private clientToken: string | null = null;
     private lastHash: string | null = null;
     private fid: string;
@@ -63,6 +68,8 @@ export class AuthManager {
     /** 캐시된 app_id/client_token/checkin을 무효화하고 다시 발급받는다. */
     async refreshAppId(options: { refreshClientToken?: boolean } = {}): Promise<string> {
         this.appId = null;
+        this.appIdIssuedAt = null;
+        this.appIdWriteVerifiedAt = null;
         this.lastHash = null;
         if (options.refreshClientToken) {
             this.clientToken = null;
@@ -73,16 +80,26 @@ export class AuthManager {
         return this.getAppId();
     }
 
+    /** 현재 app_id가 글쓰기 서버에서 실제로 통과했음을 기록한다. */
+    async markAppIdWriteVerified(): Promise<void> {
+        if (!this.appId) return;
+        this.appIdWriteVerifiedAt = Date.now();
+    }
+
     /**
      * 캐시된 app_id를 반환하거나 새로 발급받는다.
-     * KotlinInside와 동일: hashedAppKey가 이전과 같으면 캐시된 app_id 반환,
-     * 다르면(날짜/시간 변경) client_token 갱신 포함 새 app_id 발급.
+     * 공식 앱과 동일하게 발급 후 약 11시간 동안 저장된 app_id를 우선 재사용한다.
      */
     async getAppId(): Promise<string> {
+        if (this.appId && this.shouldReuseCachedAppId()) {
+            return this.appId;
+        }
+
         const hashedAppKey = await this.generateHashedAppKey();
         if (this.lastHash === hashedAppKey && this.appId) return this.appId;
 
         this.appId = await this.fetchAppId(hashedAppKey);
+        this.appIdIssuedAt = Date.now();
         this.lastHash = hashedAppKey;
         return this.appId;
     }
@@ -226,9 +243,6 @@ export class AuthManager {
 
     /** 이미 받은 checkin 자격증명으로 client_token 발급 흐름을 실행한다. */
     async fetchClientTokenWithCheckin(checkin: AndroidCheckinCredentials): Promise<ClientTokenResult> {
-        // free-dcinside처럼 매번 새 fid로 installation 발급
-        this.fid = createRandomFid();
-        this.refreshToken = null;
         const installation = await this.fetchFirebaseInstallation();
         const clientToken = await this.registerGcm(checkin, installation.authToken);
 
@@ -258,7 +272,7 @@ export class AuthManager {
 
         const json = objectValue(await this.http.ky.post(API_URL.auth.appId, {
             headers: {
-                "User-Agent": DC_APP.userAgent,
+                "User-Agent": "okhttp/4.12.0",
                 Referer: DC_APP.referer
             },
             body: buildFormData({
@@ -431,12 +445,25 @@ export class AuthManager {
         const yearStart = new Date(seoul.getFullYear(), 0, 1);
         const dayOfYear = Math.floor((seoul.getTime() - yearStart.getTime()) / 86_400_000) + 1;
         const day = seoul.getDay();
-        const mondayBased = day === 0 ? 7 : day;
         const week = Math.ceil((dayOfYear + yearStart.getDay()) / 7);
         const weekday = seoul.toLocaleString("en-US", {weekday: "short", timeZone: "Asia/Seoul"});
+        const month = seoul.getMonth() + 1;
+        const dayOfMonth = seoul.getDate();
 
-        return `${weekday}${dayOfYear - 1}d${mondayBased}${day - 1}${String(week).padStart(2, "0")}MddMM`;
+        return `${weekday}${dayOfYear - 1}${dayOfMonth}${day}${day}${String(week).padStart(2, "0")}${month}`
+            + `${String(dayOfMonth).padStart(2, "0")}${String(month).padStart(2, "0")}`;
     }
+
+    private shouldReuseCachedAppId(): boolean {
+        if (!this.appIdIssuedAt) return false;
+        return isReusableCachedAppId(this.appIdIssuedAt, this.appIdWriteVerifiedAt);
+    }
+}
+
+function isReusableCachedAppId(issuedAt: number, writeVerifiedAt: number | null): boolean {
+    const now = Date.now();
+    return now - issuedAt < APP_ID_TTL_MS
+        || (writeVerifiedAt != null && now - writeVerifiedAt < WRITE_VERIFIED_APP_ID_TTL_MS);
 }
 
 /** Firebase Installation 규격에 맞는 22자리 FID를 무작위로 생성한다. */

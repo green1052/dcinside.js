@@ -48,6 +48,14 @@ describe("auth helpers", () => {
         expect(auth.fcmToken).toBeNull();
     });
 
+    test("generates the current APK fallback app_check token shape", () => {
+        const auth = new AuthManager(new KyHttpClient()) as unknown as {
+            fallbackDateToken(date: Date): string;
+        };
+
+        expect(auth.fallbackDateToken(new Date("2026-07-01T23:18:00.000Z"))).toBe("Thu1822442770207");
+    });
+
     test("ready() returns the same instance", async () => {
         const auth = new AuthManager(new KyHttpClient());
 
