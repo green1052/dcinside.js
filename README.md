@@ -31,7 +31,7 @@ console.log(firstArticle.main.content);
 ```
 
 첫 요청에서는 앱 인증에 필요한 `client_token`과 `app_id`를 자동 발급합니다. 이 과정은 몇 초 걸릴 수 있고, 이후 요청은 캐시된 값을 재사용합니다. `app_id`는 공식 앱처럼 약 11시간
-동안 로컬 캐시에 자동 저장되며, 캐시 위치는 `DCINSIDE_JS_CACHE_DIR` 환경변수로 바꿀 수 있습니다.
+동안 로컬 캐시에 자동 저장됩니다.
 
 ## 세션
 
