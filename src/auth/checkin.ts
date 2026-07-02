@@ -7,17 +7,17 @@ export function createAndroidCheckinRequest(): Uint8Array {
     const timeZone = "Asia/Seoul";
 
     const build = message([
-        stringField(1, "samsung/e3quew/e3q:16/BP4A.251205.006/S928NKSU1AXB5:user/release-keys"),
-        stringField(2, "e3q"),
+        stringField(1, "samsung/e2sxxx/e2s:16/BP4A.251205.006/S928NKSU5AYE1:user/release-keys"),
+        stringField(2, "e2s"),
         boolField(3, false),
-        stringField(4, "S928NKSU1AXB5"),
-        stringField(6, "samsung"),
+        stringField(4, "samsung/e2sxxx/e2s:16/BP4A.251205.006/S928NKSU5AYE1:user/release-keys"),
+        stringField(6, "android-google"),
         varintField(7, BigInt(Date.now())),
-        stringField(9, "e3quew"),
+        stringField(9, "e2s"),
         varintField(10, 36n),
         stringField(11, "SM-S928N"),
         stringField(12, "samsung"),
-        stringField(13, "e3quew")
+        stringField(13, "e2s")
     ]);
 
     const checkin = message([
@@ -35,7 +35,7 @@ export function createAndroidCheckinRequest(): Uint8Array {
         stringField(10, randomDigits(14)),
         stringField(12, timeZone),
         varintField(14, 3n),
-        stringField(15, "S928NKSU1AXB5"),
+        stringField(15, "71Q6Rn2DDZl1zPDVaaeEHItd"),
         stringField(19, "wifi"),
         varintField(20, 0n),
         varintField(22, 0n)

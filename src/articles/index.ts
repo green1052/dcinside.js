@@ -40,7 +40,24 @@ import type {
 } from "../types";
 
 function encodeFormValue(value: string): string {
-    return encodeURIComponent(value).replace(/%20/g, "+");
+    return encodeURIComponent(value)
+        .replace(/[!'()~]/g, (character) => `%${character.charCodeAt(0).toString(16).toUpperCase()}`)
+        .replace(/%20/g, "+");
+}
+
+/** APK의 Gy()와 동일: URLEncoder.encode 후 %0A만 \n으로 복원한다. */
+function encodeMemoBlock(value: string): string {
+    return encodeFormValue(value)
+        .replace(/%0A/g, "\n");
+}
+
+function encodeTextMemoBlock(value: string): string {
+    return encodeMemoBlock(`<div>${escapeHtml(value)}</div>`);
+}
+
+function shouldRefreshWriteAppId(value: unknown): boolean {
+    const cause = nullableString(objectValue(value)["cause"]);
+    return cause === "잠시후 다시 이용해주세요." || shouldRefreshAppId(value);
 }
 
 /**
@@ -98,9 +115,13 @@ export class ArticleManager {
             throw new Error("articleId is required when writing with mode: \"modify\".");
         }
 
+        const appId = await this.auth.getAppId();
+
         const multipart: Record<string, string | number | boolean | Blob | File | null | undefined> = {
             id: galleryId,
+            app_id: appId,
             mode: options.mode ?? "write",
+            client_token: this.auth.fcmToken ?? "",
             no: options.mode === "modify" ? options.articleId : undefined
         };
 
@@ -123,11 +144,11 @@ export class ArticleManager {
             const normalized = normalizeArticleContent(content);
 
             if (normalized.type === "text") {
-                multipart[`memo_block[${index}]`] = encodeFormValue(`<div>${escapeHtml(normalized.text)}</div>`);
+                multipart[`memo_block[${index}]`] = encodeTextMemoBlock(normalized.text);
             } else if (normalized.type === "html") {
-                multipart[`memo_block[${index}]`] = encodeFormValue(normalized.html);
+                multipart[`memo_block[${index}]`] = encodeMemoBlock(normalized.html);
             } else if (normalized.type === "markdown") {
-                multipart[`memo_block[${index}]`] = encodeFormValue(`<div>${escapeHtml(normalized.markdown)}</div>`);
+                multipart[`memo_block[${index}]`] = encodeTextMemoBlock(normalized.markdown);
             } else if (normalized.type === "image") {
                 multipart[`memo_block[${index}]`] = `Dc_App_Img_${imageCount}`;
                 multipart[`upload[${imageCount}]`] = normalized.file;
@@ -146,7 +167,9 @@ export class ArticleManager {
 
         const raw = await postMultipartJson(this.http, API_URL.article.write, multipart);
         const json = firstObject(raw);
+
         if (isApiError(json)) throw apiError("write article", json);
+
         await this.auth.markAppIdWriteVerified();
 
         return {

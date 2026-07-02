@@ -117,6 +117,9 @@ describe("DCInside write integration", () => {
         const password = `${Date.now()}`;
         const client = createClient();
         client.useAnonymous(nickname, password);
+        if (process.env.DCINSIDE_TEST_APP_ID) {
+            client.auth.useAppId(process.env.DCINSIDE_TEST_APP_ID, {writeVerified: true});
+        }
 
         const stamp = new Date().toISOString();
         const written = await client.articles.write({

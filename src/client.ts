@@ -45,6 +45,7 @@ export class DCInsideClient {
         this.http.useDCInsideContext({
             getAppId: () => this.auth.getAppId(),
             getClientToken: () => this.auth.fcmToken,
+            ensureClientToken: () => this.auth.fetchClientToken(),
             getUserId: () => this.session?.detail?.userId ?? null
         });
         this.articles = new ArticleManager(this.http, this.auth, () => this.session);

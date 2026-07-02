@@ -3,9 +3,7 @@ import {DC_APP} from "./constants";
 export function defaultHeaders(): Record<string, string> {
     return {
         "User-Agent": DC_APP.userAgent,
-        Referer: DC_APP.referer,
-        Connection: "Keep-Alive",
-        "Accept-Encoding": "gzip"
+        Referer: DC_APP.referer
     };
 }
 

@@ -93,7 +93,7 @@ export const DC_APP = {
     package: "com.dcinside.app.android",
     versionCode: "100166",
     versionName: "5.2.17",
-    targetVersion: "33",
+    targetVersion: "36",
     userAgent: "dcinside.app",
     referer: "http://www.dcinside.com"
 };
@@ -106,12 +106,12 @@ export const FIREBASE = {
     remoteConfigSdkVersion: "22.0.0",
     cert: "43BD70DFC365EC1749F0424D28174DA44EE7659D",
     osVersion: "36",
-    targetVer: "33",
-    cliv: "fcm-23.1.1",
-    info: "Q2U3ar09NyAToOhBO1boBVw1nzmBjxg",
-    gcmVersion: "232512022",
+    targetVer: "35",
+    cliv: "fcm-24.0.2",
+    info: "g4IHbGFOdmkToOhBO1boBVxFgO7Wuhk",
+    gcmVersion: "254932038",
     apiKey: "AIzaSyDcbVof_4Bi2GwJ1H8NjSwSTaMPPZeCE38",
     sender: "477369754343",
     firebaseAppNameHash: "R1dAH9Ui7M-ynoznwBdw01tLxhI",
-    registerUserAgent: "Android-GCM/1.5 (generic_x86 KK)"
+    registerUserAgent: "Dalvik/2.1.0 (Linux; U; Android 16; sdk_gphone64_x86_64 Build/BE4B.251210.005)"
 };

@@ -1,5 +1,5 @@
 export {DCInsideClient, type DCInsideClientOptions} from "./client";
-export {AuthManager, createRandomFid} from "./auth";
+export {AuthManager} from "./auth";
 export {
     createAndroidCheckinRequest, parseAndroidCheckinResponse
 } from "./auth/checkin";

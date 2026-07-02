@@ -11,6 +11,7 @@ export interface ProxyOptions {
 export interface DCInsideRequestContext {
     getAppId: () => Promise<string>;
     getClientToken: () => string | null;
+    ensureClientToken: () => Promise<string>;
     getUserId: () => string | null;
 }
 
@@ -81,56 +82,84 @@ export class KyHttpClient {
     private async injectPostContext(request: Request): Promise<Request> {
         const appId = await this.context!.getAppId();
         const userId = this.context!.getUserId();
-        const clientToken = this.context!.getClientToken();
-
-        const contentType = request.headers.get("content-type") ?? "";
-        const body = await request.clone().formData();
-        const headers = new Headers(request.headers);
-        headers.delete("content-type");
-        headers.delete("accept");
-
-        if (contentType.startsWith("multipart/form-data")) {
-            const next = new FormData();
-            const entries = Array.from(body.entries());
-            let hasAppId = false;
-            let hasClientToken = false;
-            let hasUserId = false;
-
-            const appendAuthFields = (after: "id" | "mode" | "memo_block[0]"): void => {
-                if (after === "id" && !hasAppId) {
-                    next.append("app_id", appId);
-                    hasAppId = true;
-                }
-                if (after === "mode" && clientToken && !hasClientToken) {
-                    next.append("client_token", clientToken);
-                    hasClientToken = true;
-                }
-                if (after === "memo_block[0]" && userId && !hasUserId) {
-                    next.append("user_id", userId);
-                    hasUserId = true;
-                }
-            };
-
-            for (const [key, value] of entries) {
-                if (key === "app_id") hasAppId = true;
-                if (key === "client_token") hasClientToken = true;
-                if (key === "user_id") hasUserId = true;
-                next.append(key, value);
-                if (key === "id" || key === "mode" || key === "memo_block[0]") appendAuthFields(key);
+        let clientToken = this.context!.getClientToken();
+        if (!clientToken) {
+            try {
+                clientToken = await this.context!.ensureClientToken();
+            } catch {
             }
-
-            appendAuthFields("id");
-            appendAuthFields("mode");
-            appendAuthFields("memo_block[0]");
-            return new Request(request.url, {method: "POST", headers, body: next});
         }
 
+        const contentType = request.headers.get("content-type") ?? "";
+        //  request.headers.delete("accept");
+
+        if (contentType.startsWith("multipart/form-data")) {
+            const body = await request.clone().formData();
+
+            const next = new FormData();
+
+            for (const [key, value] of body.entries())
+                next.set(key, value);
+
+            next.set("app_id", appId);
+            if (userId) next.set("user_id", userId);
+            if (clientToken) next.set("client_token", clientToken);
+
+            request.headers.delete("content-type");
+
+            return new Request(request, {body: next});
+
+            // const boundary = crypto.randomUUID();
+            // const chunks: Buffer[] = [];
+            //
+            // const entries = Array.from(body.entries());
+            // const fieldMap = new Map<string, FormDataEntryValue>();
+            // for (const [k, v] of entries) {
+            //     if (k === "app_id") fieldMap.set(k, appId as FormDataEntryValue);
+            //     else if (k === "user_id" && userId) fieldMap.set(k, userId as FormDataEntryValue);
+            //     else if (k === "client_token" && clientToken) fieldMap.set(k, clientToken as FormDataEntryValue);
+            //     else fieldMap.set(k, v);
+            // }
+            // if (!fieldMap.has("app_id")) fieldMap.set("app_id", appId as FormDataEntryValue);
+            // if (userId && !fieldMap.has("user_id")) fieldMap.set("user_id", userId as FormDataEntryValue);
+            // if (clientToken && !fieldMap.has("client_token")) fieldMap.set("client_token", clientToken as FormDataEntryValue);
+            //
+            // for (const [key, value] of fieldMap) {
+            //     if (value instanceof Blob) {
+            //         chunks.push(Buffer.from(`--${boundary}\r\n`));
+            //         chunks.push(Buffer.from(`Content-Disposition: form-data; name="${key}"; filename="${value.name || "blob"}"\r\n`));
+            //         chunks.push(Buffer.from(`Content-Type: ${value.type || "application/octet-stream"}\r\n`));
+            //         chunks.push(Buffer.from(`Content-Length: ${value.size}\r\n\r\n`));
+            //         chunks.push(Buffer.from(await value.arrayBuffer()));
+            //         chunks.push(Buffer.from("\r\n"));
+            //     } else {
+            //         const str = String(value);
+            //         const encoded = Buffer.from(str, "utf-8");
+            //         chunks.push(Buffer.from(`--${boundary}\r\n`));
+            //         chunks.push(Buffer.from(`Content-Disposition: form-data; name="${key}"\r\n`));
+            //         chunks.push(Buffer.from(`Content-Length: ${encoded.length}\r\n\r\n`));
+            //         chunks.push(encoded);
+            //         chunks.push(Buffer.from("\r\n"));
+            //     }
+            // }
+            // chunks.push(Buffer.from(`--${boundary}--\r\n`));
+            //
+            // const bodyBuffer = Buffer.concat(chunks);
+            // request.headers.set("content-type", `multipart/form-data; boundary=${boundary}`);
+
+        }
+
+        const body = await request.clone().formData();
         const next = new URLSearchParams();
-        next.append("app_id", appId);
-        if (userId) next.append("user_id", userId);
-        if (clientToken) next.append("client_token", clientToken);
-        for (const [key, value] of body.entries()) next.append(key, String(value));
-        return new Request(request.url, {method: "POST", headers, body: next});
+
+        for (const [key, value] of body.entries())
+            next.set(key, value);
+
+        next.set("app_id", appId);
+        if (userId) next.set("user_id", userId);
+        if (clientToken) next.set("client_token", clientToken);
+
+        return new Request(request, {body: next});
     }
 }
 

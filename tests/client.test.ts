@@ -128,7 +128,7 @@ describe("DCInsideClient", () => {
             galleryId: "bjwg64",
             galleryType: "mini",
             subject: "hello world",
-            headText: {no: 999, name: "일반"},
+            headText: {no: 0, name: "일반"},
             content: [
                 "hello world",
                 {type: "dccon", imageTag: "<img src=\"x\">", detailIndex: 1380306681}
@@ -140,12 +140,16 @@ describe("DCInsideClient", () => {
         expect(fields).toContainEqual(["app_id", "app-id"]);
         expect(fields).toContainEqual(["mode", "write"]);
         expect(fields).toContainEqual(["client_token", "client-token"]);
-        expect(fields).toContainEqual(["head_no", "999"]);
+        expect(fields).toContainEqual(["head_no", "0"]);
         expect(fields).toContainEqual(["subject", "hello+world"]);
         expect(fields).toContainEqual(["user_id", "user-no"]);
         expect(fields).toContainEqual(["memo_block[0]", "%3Cdiv%3Ehello+world%3C%2Fdiv%3E"]);
         expect(fields).toContainEqual(["memo_block[1]", "%3Cimg+src%3D%22x%22%3E"]);
         expect(fields).toContainEqual(["detail_idx[1]", "1380306681"]);
+        expect(fields).toContainEqual([
+            "memo_block[2]",
+            "%3Cspan+id%3D%27dcappfooter%27+style%3D%27color%3A%23ABABAB%3B%27%3E+-+dc+official+App%3C%2Fspan%3E"
+        ]);
         expect(fields).toContainEqual(["fix", ""]);
         expect(fields).toContainEqual(["secret_use", "0"]);
         expect(fields).toContainEqual(["is_quick", "0"]);
