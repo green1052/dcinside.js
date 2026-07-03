@@ -100,6 +100,7 @@ export interface DCCon {
     imgLink?: string;
     memo?: string;
     title?: string;
+    type?: string | null;
 }
 
 export type CommentContent =
@@ -365,6 +366,7 @@ export type CommentReadOptions = GalleryTarget & {
 };
 
 export interface CommentData {
+    nonuserNumber: number | null;
     memberIcon: number;
     ip: string | null;
     gallerCon: string | null;
@@ -375,6 +377,7 @@ export interface CommentData {
     dateTime: string;
     isReply: boolean;
     deleteFlag: string | null;
+    deleteScope: number | null;
 }
 
 export interface CommentReadResult {

@@ -518,7 +518,7 @@ function mapGalleryInfo(gallInfo: Record<string, unknown>): GalleryInfo {
         headTextUpdatedAt: nullableNumber(gallInfo["head_text_up_dt"]),
         placeholders: mapPlaceholders(gallInfo["placeholder"]),
         mustRead: mapMustRead(gallInfo["must_read"]),
-        nickname: nullableString(gallInfo["anonymous"]),
+        anonymousNickname: nullableString(gallInfo["anonymous"]),
         captureNickname: nullableString(gallInfo["capture_nickname"]),
         galleryNickname: nullableString(gallInfo["gall_nickname"]),
         relationGallery: objectValue(gallInfo["relation_gall"]) as Record<string, string>,
@@ -580,7 +580,7 @@ function mapArticleListItem(item: Record<string, unknown>): ArticleListItem {
         subject: stringValue(item["subject"]),
         name: stringValue(item["name"]),
         dateTime: stringValue(item["date_time"]),
-        headText: nullableString(item["head_text"])
+        headText: nullableString(item["head_text"] ?? item["headtext"])
     };
 }
 

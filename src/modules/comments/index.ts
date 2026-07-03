@@ -6,6 +6,7 @@ import {
     arrayValue,
     booleanValue,
     firstObject,
+    nullableNumber,
     nullableString,
     numberValue,
     objectValue,
@@ -118,6 +119,8 @@ export class CommentManager {
         url.searchParams.set("re_page", String(options.page ?? 1));
 
         const raw = await this.http.ky.get(url.toString()).json();
+
+        console.log(JSON.stringify(raw));
         const root = firstObject(raw);
         if (isApiError(root)) {
             if (retryOnRefresh && shouldRefreshAppId(root)) {
@@ -225,14 +228,15 @@ function mapComment(comment: Record<string, unknown>): CommentData {
     return {
         memberIcon: numberValue(comment["member_icon"]),
         ip: nullableString(comment["ipData"]),
-        gallerCon: nullableString(comment["gallercon"]),
         name: stringValue(comment["name"]),
         userId: stringValue(comment["user_id"]),
         content: mapContent(comment),
-        id: numberValue(comment["comment_no"]),
         dateTime: stringValue(comment["date_time"]),
         isReply: booleanValue(comment["under_step"]),
-        deleteFlag: nullableString(comment["is_delete_flag"])
+        mention: comment["mention"],
+        id: numberValue(comment["comment_no"]),
+        deleteFlag: nullableString(comment["is_delete_flag"]),
+        deleteScope: nullableNumber(comment["del_scope"])
     };
 }
 
@@ -250,7 +254,8 @@ function mapContent(comment: Record<string, unknown>): CommentContent {
         dccon: {
             imgLink: dccon,
             memo: stringValue(comment["comment_memo"]),
-            detailIndex: numberValue(comment["dccon_detail_idx"])
+            detailIndex: numberValue(comment["dccon_detail_idx"]),
+            type: nullableString(comment["dccon_type"])
         }
     };
 }

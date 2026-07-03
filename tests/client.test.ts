@@ -451,12 +451,84 @@ describe("DCInsideClient", () => {
             {no: 10, name: "🎨창작", level: 0, selected: false, recommUnused: false}
         ]);
         expect(result.main).toEqual({
-            content: "&lt;p&gt;본문&lt;/p&gt;",
+            content: "<p>본문</p>",
             upvotes: 17,
             memberUpvotes: 15,
             downvotes: 0,
             nonrecommendEnabled: true,
             isManager: false
+        });
+    });
+
+    test("maps comment list responses with anonymous and DCCon metadata", async () => {
+        const rawResponse = [{
+            total_comment: "16",
+            total_page: "1",
+            re_page: "1",
+            comment_list: [
+                {
+                    nonuser_num: "1",
+                    member_icon: "3",
+                    ipData: "59.28",
+                    name: "ㅇㅇ",
+                    user_id: "",
+                    comment_memo: "미스릴 &lt; 애매함",
+                    comment_no: "38518580",
+                    date_time: "2026.07.03 16:53",
+                    del_scope: "2"
+                },
+                {
+                    member_icon: "1",
+                    ipData: "",
+                    name: "로일",
+                    user_id: "gflever",
+                    comment_memo: "지킴이",
+                    dccon: "https://example.com/dccon.png",
+                    dccon_detail_idx: "171100",
+                    dccon_type: "bigdccon",
+                    comment_no: "38518610",
+                    date_time: "2026.07.03 16:55"
+                }
+            ]
+        }];
+        const client = new DCInsideClient({
+            credentials: testCredentials,
+            http: {
+                hooks: {
+                    beforeRequest: [
+                        () => new Response(JSON.stringify(rawResponse), {
+                            headers: {"content-type": "application/json"}
+                        })
+                    ]
+                }
+            }
+        });
+
+        const result = await client.gallery("mi$bser").article(11179370).comments.list();
+
+        expect(result.totalComments).toBe(16);
+        expect(result.totalPages).toBe(1);
+        expect(result.page).toBe(1);
+        expect(result.comments[0]).toMatchObject({
+            nonuserNumber: 1,
+            memberIcon: 3,
+            ip: "59.28",
+            userId: "",
+            id: 38518580,
+            deleteScope: 2,
+            content: {
+                type: "text",
+                memo: "미스릴 &lt; 애매함"
+            }
+        });
+        expect(result.comments[1]?.content).toEqual({
+            type: "dccon",
+            dccon: {
+                imgLink: "https://example.com/dccon.png",
+                memo: "지킴이",
+                detailIndex: 171100,
+                type: "bigdccon"
+            }
         });
     });
 
