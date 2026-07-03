@@ -119,8 +119,6 @@ export class CommentManager {
         url.searchParams.set("re_page", String(options.page ?? 1));
 
         const raw = await this.http.ky.get(url.toString()).json();
-
-        console.log(JSON.stringify(raw));
         const root = firstObject(raw);
         if (isApiError(root)) {
             if (retryOnRefresh && shouldRefreshAppId(root)) {
