@@ -235,4 +235,229 @@ describe("DCInsideClient", () => {
         expect(target).toContain("id=krstock");
     });
 
+    test("maps gall_list_new object responses with gall_info and gall_list arrays", async () => {
+        const rawResponse = {
+            gall_info: [{
+                gall_title: "이터널 리턴",
+                category: "21",
+                file_cnt: "50",
+                file_size: "20971520",
+                is_minor: true,
+                is_person: true,
+                captcha: true,
+                code_count: "2",
+                use_ai_write: true,
+                head_text_up_dt: 1780247964,
+                notify_recent: "20251001",
+                placeholder: [
+                    {no: 0, msg: "기본 안내"},
+                    {no: 60, msg: "망호 안내"}
+                ],
+                must_read: {
+                    subject: "이터널 리턴 쿠폰 모음집(26.06.30)",
+                    no: 9719379
+                },
+                anonymous: "ㅇㅇ",
+                capture_nickname: "ㅇㅇ",
+                gall_nickname: "ㅇㅇ",
+                prgall_profile: [
+                    {name: "본명", value: "[\"Jon Jones\"]"},
+                    {name: "출생일", value: "19870719"}
+                ],
+                prgall_img: "https://example.com/person.png",
+                is_prgall_certified: false,
+                profile_img: "https://example.com/profile.png",
+                head_text: [
+                    {no: "0", name: "일반", level: "0", selected: true, recomm_unused: false},
+                    {no: "60", name: "🚢망호", level: "0", selected: false, recomm_unused: true}
+                ]
+            }],
+            gall_list: [{
+                no: "11179531",
+                headnum: "-11137175",
+                hit: "44",
+                recommend: "0",
+                img_icon: "N",
+                movie_icon: "N",
+                recommend_icon: "N",
+                best_chk: "N",
+                realtime_chk: "N",
+                realtime_l_chk: "N",
+                voice_icon: "N",
+                winnerta_icon: "N",
+                level: "10",
+                total_comment: "0",
+                total_voice: "0",
+                user_id: "",
+                member_icon: "3",
+                ip: "210.206",
+                subject: "일망호 출격!!ㄹ",
+                name: "ㅇㅇ",
+                date_time: "17:40",
+                headtext: "🚢망호"
+            }]
+        };
+        const client = new DCInsideClient({
+            credentials: testCredentials,
+            http: {
+                hooks: {
+                    beforeRequest: [
+                        () => new Response(JSON.stringify(rawResponse), {
+                            headers: {"content-type": "application/json"}
+                        })
+                    ]
+                }
+            }
+        });
+
+        const result = await client.gallery("mi$bser").articles.list();
+
+        expect(result.gallery.title).toBe("이터널 리턴");
+        expect(result.gallery.isMinor).toBe(true);
+        expect(result.gallery.isPerson).toBe(true);
+        expect(result.gallery.captcha).toBe(true);
+        expect(result.gallery.codeCount).toBe(2);
+        expect(result.gallery.useAiWrite).toBe(true);
+        expect(result.gallery.notifyRecent).toBe(20251001);
+        expect(result.gallery.headTextUpdatedAt).toBe(1780247964);
+        expect(result.gallery.placeholders).toEqual([
+            {no: 0, message: "기본 안내"},
+            {no: 60, message: "망호 안내"}
+        ]);
+        expect(result.gallery.mustRead).toEqual({
+            subject: "이터널 리턴 쿠폰 모음집(26.06.30)",
+            articleId: 9719379
+        });
+        expect(result.gallery.anonymousNickname).toBe("ㅇㅇ");
+        expect(result.gallery.captureNickname).toBe("ㅇㅇ");
+        expect(result.gallery.galleryNickname).toBe("ㅇㅇ");
+        expect(result.gallery.personGalleryImage).toBe("https://example.com/person.png");
+        expect(result.gallery.isPersonGalleryCertified).toBe(false);
+        expect(result.gallery.personGalleryProfile).toEqual([
+            {name: "본명", value: "[\"Jon Jones\"]"},
+            {name: "출생일", value: "19870719"}
+        ]);
+        expect(result.gallery.headTexts).toEqual([
+            {no: 0, name: "일반", level: 0, selected: true, recommUnused: false},
+            {no: 60, name: "🚢망호", level: 0, selected: false, recommUnused: true}
+        ]);
+        expect(result.articles).toHaveLength(1);
+        expect(result.articles[0]).toMatchObject({
+            id: 11179531,
+            headNumber: -11137175,
+            views: 44,
+            hasMovie: false,
+            isRealtime: false,
+            isRealtimeLatest: false,
+            headText: "🚢망호",
+            subject: "일망호 출격!!ㄹ",
+            ip: "210.206"
+        });
+    });
+
+    test("maps article read responses with view_info and view_main sections", async () => {
+        const rawResponse = [{
+            view_info: {
+                galltitle: "이터널 리턴",
+                category: "21",
+                subject: "수비게일 그려옴..",
+                no: "11179370",
+                name: "ttatti",
+                level: "9",
+                member_icon: "2",
+                total_comment: "14",
+                ip: "",
+                img_chk: "Y",
+                recommend_chk: "Y",
+                winnerta_chk: "N",
+                voice_chk: "N",
+                hit: "999",
+                write_type: "V",
+                user_id: "rental1612",
+                prev_link: "",
+                prev_subject: "",
+                headtitle: "🎨창작",
+                headid: "10",
+                next_link: "",
+                next_subject: "",
+                best_chk: "N",
+                realtime_l_chk: "N",
+                isNotice: "N",
+                date_time: "2026.07.03 17:04",
+                alarm_flag: 2,
+                gallercon: "https://example.com/gonick.png",
+                is_minor: true,
+                head_text: [
+                    {no: "0", name: "일반", level: "0", selected: true, recomm_unused: false},
+                    {no: "10", name: "🎨창작", level: "0", selected: false, recomm_unused: false}
+                ],
+                comment_captcha: true,
+                comment_code_count: "2",
+                recommend_captcha: true,
+                recommend_captcha_type: "U",
+                recommend_code_count: "4",
+                anonymous: "ㅇㅇ",
+                use_auto_delete: 1,
+                use_list_fix: "N",
+                capture_nickname: "ㅇㅇ",
+                gall_nickname: "ㅇㅇ",
+                profile_img: "https://example.com/profile.png"
+            },
+            view_main: {
+                memo: "&lt;p&gt;본문&lt;/p&gt;",
+                recommend: "17",
+                recommend_member: "15",
+                nonrecommend: "0",
+                nonrecomm_use: true
+            }
+        }];
+        const client = new DCInsideClient({
+            credentials: testCredentials,
+            http: {
+                hooks: {
+                    beforeRequest: [
+                        () => new Response(JSON.stringify(rawResponse), {
+                            headers: {"content-type": "application/json"}
+                        })
+                    ]
+                }
+            }
+        });
+
+        const result = await client.gallery("mi$bser").article(11179370).read();
+
+        expect(result.info).toMatchObject({
+            galleryTitle: "이터널 리턴",
+            subject: "수비게일 그려옴..",
+            id: 11179370,
+            headTitle: "🎨창작",
+            headId: 10,
+            views: 999,
+            alarmFlag: 2,
+            commentCaptcha: true,
+            commentCodeCount: 2,
+            recommendCaptcha: true,
+            recommendCaptchaType: "U",
+            recommendCodeCount: 4,
+            anonymousNickname: "ㅇㅇ",
+            useAutoDelete: 1,
+            useListFix: false,
+            captureNickname: "ㅇㅇ",
+            galleryNickname: "ㅇㅇ",
+            profileImage: "https://example.com/profile.png"
+        });
+        expect(result.info.headTexts).toEqual([
+            {no: 0, name: "일반", level: 0, selected: true, recommUnused: false},
+            {no: 10, name: "🎨창작", level: 0, selected: false, recommUnused: false}
+        ]);
+        expect(result.main).toEqual({
+            content: "&lt;p&gt;본문&lt;/p&gt;",
+            upvotes: 17,
+            memberUpvotes: 15,
+            downvotes: 0,
+            nonrecommendEnabled: true,
+            isManager: false
+        });
+    });
+
 });

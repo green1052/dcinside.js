@@ -80,6 +80,7 @@ export interface HeadText {
     name: string;
     level: number;
     selected: boolean;
+    recommUnused: boolean;
 }
 
 export interface Gallery {
@@ -134,27 +135,42 @@ export interface GalleryInfo {
     noWrite: boolean;
     captcha: boolean | null;
     codeCount: number | null;
+    useAiWrite: boolean | null;
     isMinor: boolean;
     isMini: boolean;
+    isPerson: boolean;
     isManager: boolean;
     membership: boolean | null;
     profileImage: string | null;
+    personGalleryImage: string | null;
+    isPersonGalleryCertified: boolean | null;
+    personGalleryProfile: Array<{ name: string; value: string }>;
     totalMember: number | null;
     memberJoin: boolean | null;
     useAutoDelete: number | null;
     useListFix: boolean | null;
     notifyRecent: number | null;
+    headTextUpdatedAt: number | null;
+    placeholders: Array<{ no: number; message: string }>;
+    mustRead: { articleId: number; subject: string } | null;
+    anonymousNickname: string | null;
+    captureNickname: string | null;
+    galleryNickname: string | null;
     relationGallery: Record<string, string>;
     headTexts: HeadText[];
 }
 
 export interface ArticleListItem {
     id: number;
+    headNumber: number;
     views: number;
     upvotes: number;
     hasImage: boolean;
+    hasMovie: boolean;
     hasUpvoteIcon: boolean;
     isBest: boolean;
+    isRealtime: boolean;
+    isRealtimeLatest: boolean;
     hasVoice: boolean;
     hasWinnerta: boolean;
     level: number;
@@ -173,7 +189,6 @@ export interface ArticleListItem {
 export interface ArticleListResult {
     gallery: GalleryInfo;
     articles: ArticleListItem[];
-    raw: unknown;
 }
 
 export type ArticleReadOptions = GalleryTarget & {
@@ -201,10 +216,13 @@ export interface ArticleViewInfo {
     previousId: number;
     previousSubject: string;
     headTitle: string;
+    headId: number | null;
     nextId: number;
     nextSubject: string;
     isBest: boolean;
+    isRealtimeLatest: boolean;
     isNotice: boolean;
+    alarmFlag: number | null;
     gallerCon: string | null;
     dateTime: string;
     isMinor: boolean;
@@ -213,6 +231,15 @@ export interface ArticleViewInfo {
     useListFix: boolean | null;
     membership: boolean | null;
     memberGrant: number | null;
+    commentCaptcha: boolean | null;
+    commentCodeCount: number | null;
+    recommendCaptcha: boolean | null;
+    recommendCaptchaType: string | null;
+    recommendCodeCount: number | null;
+    anonymousNickname: string | null;
+    captureNickname: string | null;
+    galleryNickname: string | null;
+    profileImage: string | null;
     headTexts: HeadText[];
     commentDeleteScope: boolean;
 }
@@ -222,13 +249,13 @@ export interface ArticleViewMain {
     upvotes: number;
     memberUpvotes: number;
     downvotes: number;
+    nonrecommendEnabled: boolean | null;
     isManager: boolean;
 }
 
 export interface ArticleReadResult {
     info: ArticleViewInfo;
     main: ArticleViewMain;
-    raw: unknown;
 }
 
 export type ArticleContent =

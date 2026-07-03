@@ -329,10 +329,12 @@ export class ArticleManager {
             throw apiError("load article list", root);
         }
 
+        const gallInfo = firstObject(root["gall_info"]);
+        const gallList = arrayValue(root["gall_list"]);
+
         return {
-            gallery: mapGalleryInfo(firstObject(root["gall_info"])),
-            articles: arrayValue(root["gall_list"]).map((item) => mapArticleListItem(objectValue(item))),
-            raw
+            gallery: mapGalleryInfo(gallInfo),
+            articles: gallList.map((item) => mapArticleListItem(objectValue(item)))
         };
     }
 
@@ -357,8 +359,7 @@ export class ArticleManager {
 
         return {
             info: mapArticleViewInfo(objectValue(root["view_info"])),
-            main: mapArticleViewMain(objectValue(root["view_main"])),
-            raw
+            main: mapArticleViewMain(objectValue(root["view_main"]))
         };
     }
 
@@ -484,7 +485,8 @@ function mapHeadTexts(value: unknown): HeadText[] {
             no: numberValue(object["no"]),
             name: stringValue(object["name"]),
             level: numberValue(object["level"]),
-            selected: booleanValue(object["selected"])
+            selected: booleanValue(object["selected"]),
+            ...(object["recomm_unused"] == null ? {} : {recommUnused: booleanValue(object["recomm_unused"])})
         };
     });
 }
@@ -498,29 +500,74 @@ function mapGalleryInfo(gallInfo: Record<string, unknown>): GalleryInfo {
         noWrite: booleanValue(gallInfo["no_write"]),
         captcha: nullableBoolean(gallInfo["captcha"]),
         codeCount: nullableNumber(gallInfo["code_count"]),
+        useAiWrite: nullableBoolean(gallInfo["use_ai_write"]),
         isMinor: booleanValue(gallInfo["is_minor"]),
         isMini: booleanValue(gallInfo["is_mini"]),
+        isPerson: booleanValue(gallInfo["is_person"]),
         isManager: booleanValue(gallInfo["managerskill"]),
         membership: nullableBoolean(gallInfo["membership"]),
         profileImage: nullableString(gallInfo["profile_img"]),
+        personGalleryImage: nullableString(gallInfo["prgall_img"]),
+        isPersonGalleryCertified: nullableBoolean(gallInfo["is_prgall_certified"]),
+        personGalleryProfile: mapPersonGalleryProfile(gallInfo["prgall_profile"]),
         totalMember: nullableNumber(gallInfo["total_member"]),
         memberJoin: nullableBoolean(gallInfo["member_join"]),
         useAutoDelete: nullableNumber(gallInfo["use_auto_delete"]),
         useListFix: nullableYnBoolean(gallInfo["use_list_fix"]),
         notifyRecent: nullableNumber(gallInfo["notify_recent"]),
+        headTextUpdatedAt: nullableNumber(gallInfo["head_text_up_dt"]),
+        placeholders: mapPlaceholders(gallInfo["placeholder"]),
+        mustRead: mapMustRead(gallInfo["must_read"]),
+        nickname: nullableString(gallInfo["anonymous"]),
+        captureNickname: nullableString(gallInfo["capture_nickname"]),
+        galleryNickname: nullableString(gallInfo["gall_nickname"]),
         relationGallery: objectValue(gallInfo["relation_gall"]) as Record<string, string>,
         headTexts: mapHeadTexts(gallInfo["head_text"])
     };
 }
 
+function mapPlaceholders(value: unknown): Array<{ no: number; message: string }> {
+    return arrayValue(value).map((item) => {
+        const object = objectValue(item);
+        return {
+            no: numberValue(object["no"]),
+            message: stringValue(object["msg"])
+        };
+    });
+}
+
+function mapMustRead(value: unknown): { articleId: number; subject: string } | null {
+    const object = objectValue(value);
+    if (Object.keys(object).length === 0) return null;
+
+    return {
+        articleId: numberValue(object["no"]),
+        subject: stringValue(object["subject"])
+    };
+}
+
+function mapPersonGalleryProfile(value: unknown): Array<{ name: string; value: string }> {
+    return arrayValue(value).map((item) => {
+        const object = objectValue(item);
+        return {
+            name: stringValue(object["name"]),
+            value: stringValue(object["value"])
+        };
+    });
+}
+
 function mapArticleListItem(item: Record<string, unknown>): ArticleListItem {
     return {
         id: numberValue(item["no"]),
+        headNumber: numberValue(item["headnum"]),
         views: numberValue(item["hit"]),
         upvotes: numberValue(item["recommend"]),
         hasImage: ynBoolean(item["img_icon"]),
+        hasMovie: ynBoolean(item["movie_icon"]),
         hasUpvoteIcon: ynBoolean(item["recommend_icon"]),
         isBest: ynBoolean(item["best_chk"]),
+        isRealtime: ynBoolean(item["realtime_chk"]),
+        isRealtimeLatest: ynBoolean(item["realtime_l_chk"]),
         hasVoice: ynBoolean(item["voice_icon"]),
         hasWinnerta: ynBoolean(item["winnerta_icon"]),
         level: numberValue(item["level"]),
@@ -558,18 +605,31 @@ function mapArticleViewInfo(viewInfo: Record<string, unknown>): ArticleViewInfo 
         previousId: numberValue(viewInfo["prev_link"]),
         previousSubject: stringValue(viewInfo["prev_subject"]),
         headTitle: stringValue(viewInfo["headtitle"]),
+        headId: nullableNumber(viewInfo["headid"]),
         nextId: numberValue(viewInfo["next_link"]),
         nextSubject: stringValue(viewInfo["next_subject"]),
         isBest: ynBoolean(viewInfo["best_chk"]),
+        isRealtimeLatest: ynBoolean(viewInfo["realtime_l_chk"]),
         isNotice: ynBoolean(viewInfo["isNotice"]),
+        alarmFlag: nullableNumber(viewInfo["alarm_flag"]),
         gallerCon: nullableString(viewInfo["gallercon"]),
         dateTime: stringValue(viewInfo["date_time"]),
         isMinor: booleanValue(viewInfo["is_minor"]),
         isMini: booleanValue(viewInfo["is_mini"]),
+        isPerson: booleanValue(viewInfo["is_person"]),
         useAutoDelete: nullableNumber(viewInfo["use_auto_delete"]),
         useListFix: nullableYnBoolean(viewInfo["use_list_fix"]),
         membership: nullableBoolean(viewInfo["membership"]),
         memberGrant: nullableNumber(viewInfo["member_grant"]),
+        commentCaptcha: nullableBoolean(viewInfo["comment_captcha"]),
+        commentCodeCount: nullableNumber(viewInfo["comment_code_count"]),
+        recommendCaptcha: nullableBoolean(viewInfo["recommend_captcha"]),
+        recommendCaptchaType: nullableString(viewInfo["recommend_captcha_type"]),
+        recommendCodeCount: nullableNumber(viewInfo["recommend_code_count"]),
+        anonymousNickname: nullableString(viewInfo["anonymous"]),
+        captureNickname: nullableString(viewInfo["capture_nickname"]),
+        galleryNickname: nullableString(viewInfo["gall_nickname"]),
+        profileImage: nullableString(viewInfo["profile_img"]),
         headTexts: mapHeadTexts(viewInfo["head_text"]),
         commentDeleteScope: booleanValue(viewInfo["commentDel_scope"])
     };
@@ -577,10 +637,11 @@ function mapArticleViewInfo(viewInfo: Record<string, unknown>): ArticleViewInfo 
 
 function mapArticleViewMain(viewMain: Record<string, unknown>): ArticleViewMain {
     return {
-        content: stringValue(viewMain["memo"]),
+        content: decodeHtml(stringValue(viewMain["memo"])),
         upvotes: numberValue(viewMain["recommend"]),
         memberUpvotes: numberValue(viewMain["recommend_member"]),
         downvotes: numberValue(viewMain["nonrecommend"]),
+        nonrecommendEnabled: nullableBoolean(viewMain["nonrecomm_use"]),
         isManager: booleanValue(viewMain["managerskill"])
     };
 }

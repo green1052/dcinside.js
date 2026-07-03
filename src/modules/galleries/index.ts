@@ -1,6 +1,6 @@
-import {inferGalleryType} from "../../../dist";
 import {type KyHttpClient, postMultipartJson} from "../../core/http";
 import {API_URL} from "../../core/http/constants";
+import {inferGalleryType} from "../../core/http/gallery-id";
 import {
     arrayValue,
     booleanValue,
