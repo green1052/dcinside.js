@@ -1,6 +1,6 @@
 import {describe, expect, test} from "bun:test";
 import {TextEncoder} from "util";
-import {createAndroidCheckinRequest, parseAndroidCheckinResponse} from "../src/auth/checkin";
+import {createAndroidCheckinRequest, parseAndroidCheckinResponse} from "../src/core/auth/checkin";
 
 function fixed64Field(fieldNumber: number, value: bigint): Uint8Array {
     const output = new Uint8Array(9);
@@ -19,10 +19,10 @@ describe("Android checkin protobuf helpers", () => {
         expect(request.byteLength).toBeGreaterThan(80);
     });
 
-    test("includes samsung SM-S928N build fingerprint in the request", () => {
+    test("includes the current samsung SM-S928N build fingerprint in the request", () => {
         const request = createAndroidCheckinRequest();
         const text = new TextEncoder();
-        const fingerprint = text.encode("samsung/e3quew/e3q");
+        const fingerprint = text.encode("samsung/e2sxxx/e2s:16/BP4A.251205.006/S928NKSU5AYE1:user/release-keys");
         const found = request.byteLength >= fingerprint.byteLength
             && request.some((_, i) =>
                 fingerprint.every((b, j) => request[i + j] === b)

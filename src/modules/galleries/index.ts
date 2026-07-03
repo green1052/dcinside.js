@@ -1,6 +1,5 @@
-import {type KyHttpClient, postMultipartJson} from "../http";
-import {API_URL} from "../http/constants";
-import {normalizeGalleryId} from "../http/gallery-id";
+import {type KyHttpClient, postMultipartJson} from "../../core/http";
+import {API_URL} from "../../core/http/constants";
 import {
     arrayValue,
     booleanValue,
@@ -10,20 +9,21 @@ import {
     numberValue,
     objectValue,
     stringValue
-} from "../http/json";
+} from "../../core/http/json";
 import type {
     GalleryManagerInfo,
     GalleryRankingItem,
-    MainPageArticle,
+    MainPageHitArticle,
+    MainPageLiveBestArticle,
     MainPageResult,
     MinorGalleryInfo,
     MovieUploadOptions,
     MovieUploadResult,
     RankingType
-} from "../types";
+} from "../../core/types";
 
 /**
- * 갤러리 매니저. 갤러리 정보/메인 페이지/영상 업로드/랭킹 흐름을 다룬다.
+ * 갤러리 정보, 앱 메인 페이지, 영상 업로드, 랭킹 흐름을 처리합니다.
  */
 export class GalleryManager {
     readonly rankings = {
@@ -36,7 +36,12 @@ export class GalleryManager {
     constructor(private readonly http: KyHttpClient) {
     }
 
-    /** 마이너 갤러리 정보를 불러온다. */
+    /**
+     * 마이너 갤러리 정보를 불러옵니다.
+     *
+     * @param galleryId 마이너 갤러리 ID입니다.
+     * @returns 갤러리 소개, 매니저, 회원 정보입니다.
+     */
     async minorInfo(galleryId: string): Promise<MinorGalleryInfo> {
         const response = await postMultipartJson(this.http, API_URL.gallery.minorInfo, {
             id: galleryId
@@ -71,27 +76,30 @@ export class GalleryManager {
         };
     }
 
-    /** 앱 메인 페이지(히트/베스트/이슈줌/신규 갤러리)를 불러온다. */
+    /**
+     * 앱 메인 페이지 구성을 불러옵니다.
+     *
+     * @returns 히트글, 베스트글, 이슈줌, 신규 갤러리 목록입니다.
+     */
     async mainPage(): Promise<MainPageResult> {
         const response = await this.http.ky.get(API_URL.mainInfo.appMain).json();
+
         const json = firstObject(response);
         return {
-            hit: arrayValue(json["hit"]).map(mapMainArticle),
-            best: arrayValue(json["best"]).map(mapMainArticle),
-            issueZoom: arrayValue(json["issuezoom"]).map(mapMainArticle),
-            newGallery: arrayValue(json["new_gallery"]).map((item) => {
-                const object = objectValue(item);
-                return {
-                    id: stringValue(object["id"]),
-                    title: stringValue(object["title"])
-                };
-            })
+            hit: arrayValue(json["hit"]).map(mapHitArticle),
+            liveBest: arrayValue(json["livebest"]).map(mapLiveBestArticle),
+            newGallery: arrayValue(json["new_gallery"]).map(mapNewGallery)
         };
     }
 
-    /** 영상을 업로드한다. checkRestriction(기본 true) 시 제한을 먼저 확인. */
+    /**
+     * 게시글에 첨부할 영상을 업로드합니다.
+     *
+     * @param options 대상 갤러리, 영상 파일, 업로드 제한 확인 여부입니다.
+     * @returns 업로드된 파일 번호, 썸네일, 영상 크기 정보입니다.
+     */
     async uploadMovie(options: MovieUploadOptions): Promise<MovieUploadResult> {
-        const galleryId = normalizeGalleryId(options.galleryId, options.galleryType);
+        const galleryId = options.gallery;
 
         if (options.checkRestriction ?? true) {
             const url = new URL(API_URL.upload.checkUploadRestriction);
@@ -117,20 +125,20 @@ export class GalleryManager {
         };
     }
 
-    /** 메인/마이너/미니/인물 갤러리 랭킹을 불러온다. */
+    /** 메인, 마이너, 미니, 인물 갤러리 랭킹을 불러옵니다. */
     private async ranking(url: string, kind: "main" | "minor" | "mini" | "person"): Promise<GalleryRankingItem[]> {
         const text = await this.http.ky.get(url).text();
         const response = parseRankingResponse(text);
         return arrayValue(response).map((item) => {
             const object = objectValue(item);
-            const isMainOrPerson = kind === "main" || kind === "person";
+            const isMain = kind === "main";
             return {
                 galleryLink: stringValue(object["link"]),
                 galleryId: stringValue(object["id"]),
-                galleryName: stringValue(isMainOrPerson ? object["category"] : object["ko_name"]),
+                galleryName: stringValue(isMain ? object["category"] : object["ko_name"]),
                 rankType: mapRankType(object["rank_type"]),
-                rank: numberValue(isMainOrPerson ? object["num"] : object["rank"]),
-                rankDelta: numberValue(isMainOrPerson ? object["rank"] : object["rank_updown"])
+                rank: numberValue(isMain ? object["num"] : object["rank"]),
+                rankDelta: numberValue(isMain ? object["rank"] : object["rank_updown"])
             };
         });
     }
@@ -145,14 +153,40 @@ function mapGalleryManager(value: unknown): GalleryManagerInfo {
     };
 }
 
-function mapMainArticle(value: unknown): MainPageArticle {
+function mapHitArticle(value: unknown): MainPageHitArticle {
     const object = objectValue(value);
     return {
         galleryId: stringValue(object["id"]),
         articleId: numberValue(object["no"]),
-        galleryName: nullableString(object["gall_name"]),
         title: stringValue(object["title"]),
+        galleryAlias: nullableString(object["gall_alias"]),
         thumbnail: stringValue(object["thumbnail"])
+    };
+}
+
+function mapLiveBestArticle(value: unknown): MainPageLiveBestArticle {
+    const object = objectValue(value);
+    return {
+        galleryId: stringValue(object["id"]),
+        articleId: numberValue(object["no"]),
+        galleryName: stringValue(object["gall_name"]),
+        title: stringValue(object["title"]),
+        comment: stringValue(object["comment"]),
+        hit: numberValue(object["hit"]),
+        recommend: numberValue(object["recommend"]),
+        isTop: booleanValue(object["is_top"]),
+        regTime: stringValue(object["reg_time"]),
+        thumbnail: stringValue(object["thumbnail"]),
+        category: stringValue(object["category"]),
+        galleryAlias: nullableString(object["gall_alias"])
+    };
+}
+
+function mapNewGallery(value: unknown) {
+    const object = objectValue(value);
+    return {
+        id: stringValue(object["id"]),
+        title: stringValue(object["title"])
     };
 }
 
@@ -161,7 +195,7 @@ function mapRankType(value: unknown): RankingType {
     return "unknown";
 }
 
-/** 랭킹 응답은 JSON이 아닌 JS 배열 `([...])` 형태로 오므로 괄호를 벗겨 파싱. */
+/** 랭킹 응답은 JSON이 아닌 JS 배열 `([...])` 형태로 오므로 괄호를 벗겨 파싱합니다. */
 function parseRankingResponse(text: string): unknown {
     const trimmed = text.trim();
     if (trimmed.startsWith("(") && trimmed.endsWith(")")) {

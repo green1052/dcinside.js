@@ -14,11 +14,9 @@ bun install github:green1052/dcinside.js
 import {DCInsideClient} from "dcinside.js";
 
 const client = new DCInsideClient();
+const gallery = client.gallery("mi$bjwg64");
 
-const list = await client.articles.list({
-    galleryType: "mini",
-    galleryId: "bjwg64",
-});
+const list = await gallery.articles.list();
 
 console.log(list.gallery.title);
 console.log(list.articles.length);
@@ -29,16 +27,15 @@ console.log(list.articles.length);
 ## 게시글 읽기
 
 ```ts
-const article = await client.articles.read({
-    galleryType: "mini",
-    galleryId: "bjwg64",
-    articleId: 1557,
-});
+const article = await gallery.article(1557).read();
 
 console.log(article.info.subject);
 console.log(article.info.views);
 console.log(article.main.content);
 ```
+
+`client.gallery(...)`에는 `football_new9`, `krstock`, `mi$bjwg64`, `pr$dororong`처럼 하나의 식별자만 넘기면 됩니다. 목록/작성은
+`gallery.articles.*`, 읽기/댓글은 `gallery.article(id).*`로 내려가면 됩니다.
 
 ## 세션 설정
 
@@ -57,28 +54,13 @@ console.log(client.currentUser);
 console.log(client.session);
 ```
 
-## 갤러리 타입
-
-`galleryType`은 갤러리 ID를 어떤 네임스페이스로 보낼지 정합니다.
-
-| 값       | 설명          | 접두사 |
-|----------|---------------|--------|
-| `main`   | 일반 갤러리   | 없음   |
-| `minor`  | 마이너 갤러리 | 없음   |
-| `mini`   | 미니 갤러리   | `mi$`  |
-| `person` | 인물 갤러리   | `pr$`  |
-
-`mini`와 `person`은 접두사를 자동으로 붙입니다. 이미 접두사가 붙은 ID는 그대로 사용합니다.
-
 ## 에러 처리
 
 ```ts
 import {AuthenticationError, DCInsideError, HTTPError} from "dcinside.js";
 
 try {
-    await client.articles.write({
-        galleryId: "bjwg64",
-        galleryType: "mini",
+    await client.gallery("mi$bjwg64").articles.write({
         subject: "제목",
         content: ["본문"],
     });

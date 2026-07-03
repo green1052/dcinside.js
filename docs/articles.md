@@ -1,13 +1,14 @@
 # 게시글
 
-`client.articles`는 게시글 목록, 읽기, 작성/수정, 삭제, 추천, 신고 링크 생성을 담당합니다.
+`client.gallery(...).articles`는 게시글 목록/작성 같은 갤러리 단위 작업을, `client.gallery(...).article(id)`는 읽기/삭제/추천/신고 같은 게시글 단위 작업을
+담당합니다.
 
 ## 목록
 
 ```ts
-const list = await client.articles.list({
-    galleryId: "bjwg64",
-    galleryType: "mini",
+const gallery = client.gallery("mi$bjwg64");
+
+const list = await gallery.articles.list({
     page: 1,
     searchKeyword: "키워드",
     searchType: "all",
@@ -17,27 +18,21 @@ const list = await client.articles.list({
 });
 ```
 
-| 옵션            | 타입                                                     | 설명                                                       |
-|-----------------|----------------------------------------------------------|------------------------------------------------------------|
-| `galleryId`     | `string`                                                 | 갤러리 ID입니다. `mini`/`person` 접두사는 자동 처리됩니다. |
-| `galleryType`   | `GalleryType?`                                           | 생략하면 `main`입니다.                                     |
-| `page`          | `number?`                                                | 1부터 시작하는 페이지 번호입니다.                          |
-| `searchKeyword` | `string?`                                                | 검색어입니다.                                              |
-| `searchType`    | `"all" \| "subject" \| "memo" \| "name" \| "subject_m"?` | 검색 대상입니다.                                           |
-| `recommend`     | `boolean?`                                               | 추천글만 조회합니다.                                       |
-| `notice`        | `boolean?`                                               | 공지만 조회합니다.                                         |
-| `headId`        | `number?`                                                | 말머리 ID로 필터링합니다.                                  |
+| 옵션            | 타입                                                     | 설명                              |
+|-----------------|----------------------------------------------------------|-----------------------------------|
+| `page`          | `number?`                                                | 1부터 시작하는 페이지 번호입니다. |
+| `searchKeyword` | `string?`                                                | 검색어입니다.                     |
+| `searchType`    | `"all" \| "subject" \| "memo" \| "name" \| "subject_m"?` | 검색 대상입니다.                  |
+| `recommend`     | `boolean?`                                               | 추천글만 조회합니다.              |
+| `notice`        | `boolean?`                                               | 공지만 조회합니다.                |
+| `headId`        | `number?`                                                | 말머리 ID로 필터링합니다.         |
 
 반환값은 `{gallery, articles, raw}`입니다. `raw`에는 DCInside 원본 응답이 들어갑니다.
 
 ## 읽기
 
 ```ts
-const article = await client.articles.read({
-    galleryId: "bjwg64",
-    galleryType: "mini",
-    articleId: 1557,
-});
+const article = await client.gallery("mi$bjwg64").article(1557).read();
 
 console.log(article.info.subject);
 console.log(article.main.content);
@@ -51,10 +46,9 @@ console.log(article.main.content);
 
 ```ts
 client.useAnonymous("ㅇㅇ", "password");
+const gallery = client.gallery("mi$bjwg64");
 
-const result = await client.articles.write({
-    galleryId: "bjwg64",
-    galleryType: "mini",
+const result = await gallery.articles.write({
     subject: "제목",
     content: [
         "단순 텍스트",
@@ -84,15 +78,11 @@ console.log(result.articleId);
 ## 수정
 
 ```ts
-const info = await client.articles.modifyInfo({
-    galleryId: "bjwg64",
-    galleryType: "mini",
-    articleId: 1557,
-});
+const gallery = client.gallery("mi$bjwg64");
+const article = gallery.article(1557);
+const info = await article.modifyInfo();
 
-await client.articles.write({
-    galleryId: "bjwg64",
-    galleryType: "mini",
+await gallery.articles.write({
     articleId: 1557,
     mode: "modify",
     subject: info.subject ?? "수정 제목",
@@ -105,11 +95,7 @@ await client.articles.write({
 ## 삭제
 
 ```ts
-const deleted = await client.articles.delete({
-    galleryId: "bjwg64",
-    galleryType: "mini",
-    articleId: 1557,
-});
+const deleted = await client.gallery("mi$bjwg64").article(1557).delete();
 ```
 
 익명 글은 작성 당시 비밀번호와 같은 익명 세션으로 삭제해야 합니다.
@@ -117,13 +103,11 @@ const deleted = await client.articles.delete({
 ## 추천과 신고
 
 ```ts
-await client.articles.upvote({galleryId, galleryType, articleId});
-await client.articles.downvote({galleryId, galleryType, articleId});
-await client.articles.hitUpvote({galleryId, galleryType, articleId});
+const article = client.gallery("mi$bjwg64").article(articleId);
 
-const reportUrl = await client.articles.reportLink({
-    galleryId,
-    galleryType,
-    articleId,
-});
+await article.upvote();
+await article.downvote();
+await article.hitUpvote();
+
+const reportUrl = await article.reportLink();
 ```

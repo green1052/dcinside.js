@@ -1,10 +1,10 @@
-import {type KyHttpClient, postMultipartJson} from "../http";
-import {API_URL} from "../http/constants";
-import {arrayValue, numberValue, objectValue, stringValue} from "../http/json";
-import type {Gallery, GallerySearchResult, GalleryType, SearchArticle, TotalSearchResult} from "../types";
+import {type KyHttpClient, postMultipartJson} from "../../core/http";
+import {API_URL} from "../../core/http/constants";
+import {arrayValue, numberValue, objectValue, stringValue} from "../../core/http/json";
+import type {Gallery, GallerySearchResult, GalleryType, SearchArticle, TotalSearchResult} from "../../core/types";
 
 /**
- * 검색 매니저. 갤러리 검색과 통합 검색 흐름을 다룬다.
+ * 갤러리 검색과 통합 검색 흐름을 처리합니다.
  */
 export class SearchManager {
     constructor(private readonly http: KyHttpClient) {
@@ -48,7 +48,7 @@ export class SearchManager {
         };
     }
 
-    /** 검색 API multipart 공용 전송. */
+    /** 검색 API multipart 요청을 전송합니다. */
     private async request(keyword: string, extra: Record<string, string> = {}): Promise<Record<string, unknown>> {
         const response = await postMultipartJson(this.http, API_URL.search.search, {
             keyword,

@@ -1,22 +1,8 @@
 import {describe, expect, test} from "bun:test";
-import {AuthManager, createRandomFid, KyHttpClient} from "../src";
-import {API_URL, DC_APP} from "../src/http/constants";
+import {AuthManager, KyHttpClient} from "../src";
+import {API_URL, DC_APP} from "../src/core/http/constants";
 
 describe("auth helpers", () => {
-    test("creates Firebase installation IDs in the expected FID shape", () => {
-        const fid = createRandomFid();
-
-        expect(fid).toHaveLength(22);
-        expect(fid).toMatch(/^[A-Za-z0-9_-]{22}$/);
-        expect(fid[0]).toMatch(/[cdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0-9_-]/i);
-    });
-
-    test("creates unique FIDs on each call", () => {
-        const fids = new Set(Array.from({length: 100}, () => createRandomFid()));
-
-        expect(fids.size).toBe(100);
-    });
-
     test("creates anonymous sessions without network calls", () => {
         const auth = new AuthManager(new KyHttpClient());
         const session = auth.createAnonymousSession("id", "pw");
@@ -31,14 +17,14 @@ describe("auth helpers", () => {
         });
     });
 
-    test("starts without remote auth state and generates local Firebase identity state", () => {
+    test("starts without remote auth state", () => {
         const auth = new AuthManager(new KyHttpClient());
 
         expect(auth.fcmToken).toBeNull();
-        expect(auth.firebaseInstallationId).toHaveLength(22);
+        expect(auth.firebaseInstallationId).toBeNull();
     });
 
-    test("setCheckinCredentials stores provided credentials", () => {
+    test("setCheckinCredentials stores provided credentials for later auth flows", () => {
         const auth = new AuthManager(new KyHttpClient());
 
         auth.setCheckinCredentials({
@@ -47,14 +33,16 @@ describe("auth helpers", () => {
         });
 
         expect(auth.fcmToken).toBeNull();
+        expect(auth.exportCredentials()).toBeNull();
     });
 
-    test("generates the current APK fallback app_check token shape", () => {
-        const auth = new AuthManager(new KyHttpClient()) as unknown as {
-            fallbackDateToken(date: Date): string;
-        };
+    test("generateAidLogin formats AidLogin tokens", () => {
+        const auth = new AuthManager(new KyHttpClient());
 
-        expect(auth.fallbackDateToken(new Date("2026-07-01T23:18:00.000Z"))).toBe("Thu1822442770207");
+        expect(auth.generateAidLogin({
+            androidId: 123456789n,
+            securityToken: 987654321n
+        })).toBe("AidLogin 123456789:987654321");
     });
 
     test("ready() returns the same instance", async () => {
@@ -65,23 +53,20 @@ describe("auth helpers", () => {
         expect(typeof auth.ready).toBe("function");
     });
 
-    test("builds GCM headers with FirebaseMessaging request_type values", () => {
+    test("builds GCM headers with AidLogin auth and app metadata", () => {
         const auth = new AuthManager(new KyHttpClient()) as unknown as {
             gcmHeaders(checkin: {
                 androidId: bigint;
                 securityToken: bigint
-            }, requestType: "0" | "2"): Record<string, string>;
+            }): Record<string, string>;
         };
         const checkin = {androidId: 123n, securityToken: 456n};
 
-        expect(auth.gcmHeaders(checkin, "0")).toMatchObject({
-            Authorization: "AidLogin 123:456",
+        expect(auth.gcmHeaders(checkin)).toMatchObject({
+            authorization: "AidLogin 123:456",
             app: DC_APP.package,
             app_ver: DC_APP.versionCode,
-            request_type: "0"
-        });
-        expect(auth.gcmHeaders(checkin, "2")).toMatchObject({
-            request_type: "2"
+            gcm_ver: expect.any(String)
         });
     });
 
@@ -112,8 +97,9 @@ describe("auth helpers", () => {
         await expect(auth.fetchAppId("hashed-token")).resolves.toBe("app-id");
 
         expect(capturedContentType).toStartWith("multipart/form-data; boundary=");
-        expect(capturedBody).toContain("Content-Disposition: form-data; name=\"value_token\"\r\nContent-Length: 12");
-        expect(capturedBody).toContain("Content-Disposition: form-data; name=\"client_token\"\r\nContent-Length: 12");
+        expect(capturedBody).toContain("Content-Disposition: form-data; name=\"value_token\"");
+        expect(capturedBody).toContain("Content-Disposition: form-data; name=\"client_token\"");
+        expect(capturedBody).toContain("hashed-token");
         expect(capturedBody).toContain("client-token");
     });
 });

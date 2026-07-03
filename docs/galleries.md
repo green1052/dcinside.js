@@ -41,8 +41,7 @@ const personRanking = await client.galleries.rankings.person();
 
 ```ts
 const result = await client.galleries.uploadMovie({
-    galleryId: "bjwg64",
-    galleryType: "mini",
+    gallery: "mi$bjwg64",
     file: videoBlob,
     checkRestriction: true,
 });

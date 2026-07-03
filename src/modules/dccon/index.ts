@@ -1,6 +1,14 @@
-import {type KyHttpClient, postMultipartJson} from "../http";
-import {API_URL} from "../http/constants";
-import {arrayValue, booleanValue, nullableString, numberValue, objectValue, stringValue, ynBoolean} from "../http/json";
+import {type KyHttpClient, postMultipartJson} from "../../core/http";
+import {API_URL} from "../../core/http/constants";
+import {
+    arrayValue,
+    booleanValue,
+    nullableString,
+    numberValue,
+    objectValue,
+    stringValue,
+    ynBoolean
+} from "../../core/http/json";
 import type {
     DCCon,
     DCConBuyResult,
@@ -9,10 +17,10 @@ import type {
     DCConInsertResult,
     DCConListResult,
     Session
-} from "../types";
+} from "../../core/types";
 
 /**
- * 디시콘 매니저. 디시콘 탭/상세/삽입/구매 흐름을 다룬다.
+ * 디시콘 탭, 상세 정보, 본문 삽입, 구매 흐름을 처리합니다.
  */
 export class DCConManager {
     constructor(
@@ -21,7 +29,11 @@ export class DCConManager {
     ) {
     }
 
-    /** 디시콘 탭과 목록을 불러온다. */
+    /**
+     * 디시콘 탭과 탭별 디시콘 목록을 불러옵니다.
+     *
+     * @returns 탭 목록과 각 탭의 디시콘 목록입니다.
+     */
     async list(): Promise<DCConListResult> {
         const response = await this.request({
             type: "list"
@@ -33,7 +45,12 @@ export class DCConManager {
         };
     }
 
-    /** 패키지 상세 정보를 불러온다. */
+    /**
+     * 디시콘 패키지 상세 정보를 불러옵니다.
+     *
+     * @param dccon 조회할 패키지 인덱스입니다. 생략하면 `0`을 사용합니다.
+     * @returns 패키지 정보와 상세 디시콘 목록입니다.
+     */
     async detail(dccon: Pick<DCCon, "packageIndex">): Promise<DCConDetailResult> {
         const response = await this.request({
             package_idx: dccon.packageIndex ?? 0,
@@ -70,7 +87,12 @@ export class DCConManager {
         };
     }
 
-    /** 디시콘 패키지를 구매한다. 로그인 세션 필요. */
+    /**
+     * 디시콘 패키지를 구매합니다.
+     *
+     * @param dccon 구매할 패키지 인덱스입니다.
+     * @returns 서버가 반환한 구매 결과와 메시지입니다.
+     */
     async buy(dccon: Pick<DCCon, "packageIndex">): Promise<DCConBuyResult> {
         this.requireLogin("buy DCCons");
         const response = await this.request({
@@ -84,13 +106,13 @@ export class DCConManager {
         };
     }
 
-    /** 디시콘 API multipart 공용 전송. objectValue로 래핑해 반환. */
+    /** 디시콘 API multipart 요청을 전송하고 객체 응답으로 반환합니다. */
     private async request(multipart: Record<string, string | number | boolean | null | undefined>): Promise<Record<string, unknown>> {
         const response = await postMultipartJson(this.http, API_URL.dccon.dccon, multipart);
         return objectValue(response);
     }
 
-    /** 로그인 세션이 필요한 작업에서 세션을 가져오거나 에러를 던진다. */
+    /** 로그인 세션이 필요한 작업에서 현재 세션을 가져오거나 에러를 던집니다. */
     private requireLogin(action: string): Session {
         const session = this.getSession();
         if (!session?.detail) {

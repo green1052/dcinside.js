@@ -1,8 +1,7 @@
-import type {AuthManager} from "../auth";
-import {type KyHttpClient, postMultipartJson} from "../http";
-import {apiError, isApiError, shouldRefreshAppId} from "../http/api-error";
-import {API_URL} from "../http/constants";
-import {normalizeGalleryId} from "../http/gallery-id";
+import type {AuthManager} from "../../core/auth";
+import {type KyHttpClient, postMultipartJson} from "../../core/http";
+import {apiError, isApiError, shouldRefreshAppId} from "../../core/http/api-error";
+import {API_URL} from "../../core/http/constants";
 import {
     arrayValue,
     booleanValue,
@@ -11,7 +10,7 @@ import {
     numberValue,
     objectValue,
     stringValue
-} from "../http/json";
+} from "../../core/http/json";
 import type {
     CommentContent,
     CommentData,
@@ -22,10 +21,15 @@ import type {
     CommentWriteOptions,
     Session,
     WriteResult
-} from "../types";
+} from "../../core/types";
+
+export type ArticleCommentScopedOptions<T extends {
+    gallery: string;
+    articleId: number
+}> = Omit<T, "gallery" | "articleId">;
 
 /**
- * 댓글 매니저. 댓글 목록/작성/대댓글/삭제 흐름을 다룬다.
+ * 댓글 목록 조회, 작성, 대댓글 작성, 삭제 흐름을 처리합니다.
  */
 export class CommentManager {
     constructor(
@@ -35,25 +39,49 @@ export class CommentManager {
     ) {
     }
 
-    /** 댓글 목록을 불러온다. app_id 만료 시 자동 갱신 후 재시도. */
+    article(gallery: string, articleId: number): ScopedArticleCommentManager {
+        return new ScopedArticleCommentManager(this, gallery, articleId);
+    }
+
+    /**
+     * 게시글의 댓글 목록을 불러옵니다.
+     *
+     * @param options 갤러리 ID, 게시글 번호, 댓글 페이지 번호입니다.
+     * @returns 페이지 정보와 댓글 목록입니다.
+     */
     async list(options: CommentReadOptions): Promise<CommentReadResult> {
         return this.listWithAppId(options, true);
     }
 
-    /** 댓글을 작성한다. 세션 필요. */
+    /**
+     * 게시글에 댓글을 작성합니다.
+     *
+     * @param options 갤러리 ID, 게시글 번호, 댓글 본문입니다.
+     * @returns 작성 성공 여부와 서버 응답 정보입니다.
+     */
     async write(options: CommentWriteOptions): Promise<WriteResult> {
         return this.send(options, "com_write");
     }
 
-    /** 대댓글을 작성한다. replyToCommentId 필수. 세션 필요. */
+    /**
+     * 기존 댓글에 대댓글을 작성합니다.
+     *
+     * @param options 갤러리 ID, 게시글 번호, 부모 댓글 번호, 대댓글 본문입니다.
+     * @returns 작성 성공 여부와 서버 응답 정보입니다.
+     */
     async reply(options: CommentWriteOptions & { replyToCommentId: number }): Promise<WriteResult> {
         return this.send(options, "com_reple");
     }
 
-    /** 댓글을 삭제한다. 세션 필요. */
+    /**
+     * 댓글을 삭제합니다.
+     *
+     * @param options 갤러리 ID, 게시글 번호, 삭제할 댓글 번호입니다.
+     * @returns 삭제 성공 여부와 서버 메시지입니다.
+     */
     async delete(options: CommentDeleteOptions): Promise<CommentDeleteResult> {
         const session = this.requireSession("delete comments");
-        const galleryId = normalizeGalleryId(options.galleryId, options.galleryType);
+        const galleryId = options.gallery;
         const multipart: Record<string, string | number | boolean | null | undefined> = {
             id: galleryId,
             no: options.articleId,
@@ -83,7 +111,7 @@ export class CommentManager {
         options: CommentReadOptions,
         retryOnRefresh: boolean
     ): Promise<CommentReadResult> {
-        const galleryId = normalizeGalleryId(options.galleryId, options.galleryType);
+        const galleryId = options.gallery;
         const url = new URL(API_URL.comment.read);
         url.searchParams.set("id", galleryId);
         url.searchParams.set("no", String(options.articleId));
@@ -107,10 +135,10 @@ export class CommentManager {
         };
     }
 
-    /** 댓글/대댓글 작성 공용 전송. */
+    /** 댓글과 대댓글 작성 요청을 공통 형식으로 전송합니다. */
     private async send(options: CommentWriteOptions, mode: "com_write" | "com_reple"): Promise<WriteResult> {
         const session = this.requireSession("write comments");
-        const galleryId = normalizeGalleryId(options.galleryId, options.galleryType);
+        const galleryId = options.gallery;
         const content = normalizeContent(options.content);
         const multipart: Record<string, string | number | boolean | null | undefined> = {
             id: galleryId,
@@ -152,13 +180,40 @@ export class CommentManager {
         };
     }
 
-    /** 세션이 필요한 작업에서 세션을 가져오거나 에러를 던진다. */
+    /** 세션이 필요한 작업에서 현재 세션을 가져오거나 에러를 던집니다. */
     private requireSession(action: string): Session {
         const session = this.getSession();
         if (!session) {
             throw new Error(`A session is required to ${action}. Call client.login(...) or client.useAnonymous(...).`);
         }
         return session;
+    }
+}
+
+export class ScopedArticleCommentManager {
+    constructor(
+        private readonly manager: CommentManager,
+        private readonly gallery: string,
+        private readonly articleId: number
+    ) {
+    }
+
+    list(options: ArticleCommentScopedOptions<CommentReadOptions> = {}): Promise<CommentReadResult> {
+        return this.manager.list({...options, gallery: this.gallery, articleId: this.articleId});
+    }
+
+    write(options: ArticleCommentScopedOptions<CommentWriteOptions>): Promise<WriteResult> {
+        return this.manager.write({...options, gallery: this.gallery, articleId: this.articleId});
+    }
+
+    reply(
+        options: ArticleCommentScopedOptions<CommentWriteOptions> & { replyToCommentId: number }
+    ): Promise<WriteResult> {
+        return this.manager.reply({...options, gallery: this.gallery, articleId: this.articleId});
+    }
+
+    delete(options: ArticleCommentScopedOptions<CommentDeleteOptions>): Promise<CommentDeleteResult> {
+        return this.manager.delete({...options, gallery: this.gallery, articleId: this.articleId});
     }
 }
 

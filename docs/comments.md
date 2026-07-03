@@ -1,14 +1,11 @@
 # 댓글
 
-`client.comments`는 댓글 목록, 댓글 작성, 답글 작성, 삭제를 담당합니다.
+댓글은 `client.gallery(...).article(id).comments` 아래에서 다룹니다.
 
 ## 목록
 
 ```ts
-const comments = await client.comments.list({
-    galleryId: "bjwg64",
-    galleryType: "mini",
-    articleId: 1557,
+const comments = await client.gallery("mi$bjwg64").article(1557).comments.list({
     page: 1,
 });
 
@@ -24,10 +21,7 @@ console.log(comments.comments);
 ```ts
 client.useAnonymous("닉네임", "비밀번호");
 
-const result = await client.comments.write({
-    galleryId: "bjwg64",
-    galleryType: "mini",
-    articleId: 1557,
+const result = await client.gallery("mi$bjwg64").article(1557).comments.write({
     content: "댓글 내용",
 });
 ```
@@ -35,10 +29,7 @@ const result = await client.comments.write({
 디시콘 댓글은 `CommentContent` 형태로 보냅니다.
 
 ```ts
-await client.comments.write({
-    galleryId: "bjwg64",
-    galleryType: "mini",
-    articleId: 1557,
+await client.gallery("mi$bjwg64").article(1557).comments.write({
     content: {
         type: "dccon",
         dccon: {
@@ -53,10 +44,7 @@ await client.comments.write({
 ## 답글
 
 ```ts
-await client.comments.reply({
-    galleryId: "bjwg64",
-    galleryType: "mini",
-    articleId: 1557,
+await client.gallery("mi$bjwg64").article(1557).comments.reply({
     replyToCommentId: 12345,
     content: "답글 내용",
 });
@@ -65,10 +53,7 @@ await client.comments.reply({
 ## 삭제
 
 ```ts
-await client.comments.delete({
-    galleryId: "bjwg64",
-    galleryType: "mini",
-    articleId: 1557,
+await client.gallery("mi$bjwg64").article(1557).comments.delete({
     commentId: 12345,
 });
 ```

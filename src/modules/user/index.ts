@@ -1,6 +1,6 @@
-import {type KyHttpClient, postMultipartJson} from "../http";
-import {API_URL} from "../http/constants";
-import {arrayValue, booleanValue, firstObject, numberValue, objectValue, stringValue} from "../http/json";
+import {type KyHttpClient, postMultipartJson} from "../../core/http";
+import {API_URL} from "../../core/http/constants";
+import {arrayValue, booleanValue, firstObject, numberValue, objectValue, stringValue} from "../../core/http/json";
 import type {
     Gallery,
     JoinedMiniGallery,
@@ -12,11 +12,12 @@ import type {
     ModifyMyGalleryResult,
     MyGalleryResult,
     Session
-} from "../types";
+} from "../../core/types";
 
 /**
- * 유저 매니저. 내 갤러리/관리 갤러리/미니 갤러리 가입·탈퇴 흐름을 다룬다.
- * 로그인 세션(상세 정보 포함)이 필요하다.
+ * 내 갤러리, 관리 갤러리, 미니 갤러리 가입과 탈퇴 흐름을 처리합니다.
+ *
+ * 모든 요청에는 상세 정보가 포함된 로그인 세션이 필요합니다.
  */
 export class UserManager {
     constructor(
@@ -25,7 +26,11 @@ export class UserManager {
     ) {
     }
 
-    /** 내 갤러리와 즐겨찾기 목록을 불러온다. */
+    /**
+     * 내 갤러리와 즐겨찾기 목록을 불러옵니다.
+     *
+     * @returns 내 갤러리 목록과 즐겨찾기 갤러리 목록입니다.
+     */
     async myGalleries(): Promise<MyGalleryResult> {
         const json = await this.uploadUser(API_URL.user.myGall);
         return {
@@ -34,7 +39,12 @@ export class UserManager {
         };
     }
 
-    /** 갤러리를 즐겨찾기에 추가. */
+    /**
+     * 갤러리를 즐겨찾기에 추가합니다.
+     *
+     * @param gallery 즐겨찾기에 추가할 갤러리 ID와 이름입니다.
+     * @returns 즐겨찾기 수정 성공 여부와 서버 메시지입니다.
+     */
     async addFavoriteGallery(gallery: Gallery): Promise<ModifyMyGalleryResult> {
         const json = await this.uploadUser(API_URL.user.myGallModify, {
             gall_nm: gallery.title,
@@ -48,7 +58,11 @@ export class UserManager {
         };
     }
 
-    /** 내가 관리 중인 갤러리 목록을 불러온다. */
+    /**
+     * 내가 관리 중인 갤러리 목록을 불러옵니다.
+     *
+     * @returns 관리 중인 갤러리 목록입니다.
+     */
     async managedGalleries(): Promise<ManagedGallery[]> {
         const json = await this.uploadUser(API_URL.user.myManageGallCheck);
         return arrayValue(json["mymanageList"]).map((item) => {
@@ -63,7 +77,11 @@ export class UserManager {
         });
     }
 
-    /** 가입/대기/탈퇴한 미니 갤러리 목록을 불러온다. */
+    /**
+     * 가입, 대기, 탈퇴 상태의 미니 갤러리 목록을 불러옵니다.
+     *
+     * @returns 상태별 미니 갤러리 목록입니다.
+     */
     async joinedMiniGalleries(): Promise<JoinedMiniGalleryResult> {
         const json = await this.uploadUser(API_URL.user.myMiniJoinCheck);
         return {
@@ -73,7 +91,12 @@ export class UserManager {
         };
     }
 
-    /** 미니 갤러리 가입 요청 + 확인을 한 번에 실행. */
+    /**
+     * 미니 갤러리 가입 요청과 확인 요청을 순서대로 실행합니다.
+     *
+     * @param galleryId 가입할 미니 갤러리 ID입니다.
+     * @returns 가입 요청 결과와 확인 요청 결과입니다.
+     */
     async joinMiniGallery(galleryId: string): Promise<{
         join: MiniGalleryJoinResult;
         confirm: MiniGalleryJoinOkResult
@@ -83,7 +106,12 @@ export class UserManager {
         return {join, confirm};
     }
 
-    /** 미니 갤러리 가입 요청. */
+    /**
+     * 미니 갤러리 가입을 요청합니다.
+     *
+     * @param galleryId 가입할 미니 갤러리 ID입니다.
+     * @returns 가입 요청 성공 여부와 가입 질문입니다.
+     */
     async requestMiniJoin(galleryId: string): Promise<MiniGalleryJoinResult> {
         const json = await this.uploadUser(API_URL.miniGallery.join, {id: galleryId});
         return {
@@ -92,7 +120,12 @@ export class UserManager {
         };
     }
 
-    /** 미니 갤러리 가입 확인. */
+    /**
+     * 미니 갤러리 가입을 확인합니다.
+     *
+     * @param galleryId 가입 확인할 미니 갤러리 ID입니다.
+     * @returns 가입 확인 성공 여부와 서버 상태입니다.
+     */
     async confirmMiniJoin(galleryId: string): Promise<MiniGalleryJoinOkResult> {
         const json = await this.uploadUser(API_URL.miniGallery.joinOk, {id: galleryId});
         return {
@@ -102,7 +135,12 @@ export class UserManager {
         };
     }
 
-    /** 미니 갤러리 탈퇴. */
+    /**
+     * 미니 갤러리에서 탈퇴합니다.
+     *
+     * @param galleryId 탈퇴할 미니 갤러리 ID입니다.
+     * @returns 탈퇴 성공 여부입니다.
+     */
     async quitMiniGallery(galleryId: string): Promise<MiniGalleryQuitResult> {
         const json = await this.uploadUser(API_URL.miniGallery.quit, {id: galleryId});
         return {
@@ -110,14 +148,14 @@ export class UserManager {
         };
     }
 
-    /** 유저 API multipart 공용 전송. firstObject로 래핑해 반환. */
+    /** 유저 API multipart 요청을 전송하고 첫 번째 객체 응답으로 반환합니다. */
     private async uploadUser(url: string, multipart: Record<string, string | number | boolean | null | undefined> = {}): Promise<Record<string, unknown>> {
         this.requireLogin();
         const response = await postMultipartJson(this.http, url, multipart);
         return firstObject(response);
     }
 
-    /** 로그인(상세 포함) 세션을 요구하거나 에러를 던진다. */
+    /** 상세 정보가 포함된 로그인 세션을 가져오거나 에러를 던집니다. */
     private requireLogin(): Session {
         const session = this.getSession();
         if (!session?.detail) {

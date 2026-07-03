@@ -29,14 +29,14 @@ console.log(detail.detail);
 게시글 본문에 디시콘을 넣으려면 먼저 삽입용 태그를 발급받은 뒤 `articles.write`의 `content`에 전달합니다.
 
 ```ts
+const gallery = client.gallery("mi$bjwg64");
+
 const inserted = await client.dccons.insert({
     packageIndex: 123,
     detailIndex: 8884844,
 });
 
-await client.articles.write({
-    galleryId: "bjwg64",
-    galleryType: "mini",
+await gallery.articles.write({
     subject: "디시콘 테스트",
     content: [
         {

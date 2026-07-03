@@ -1,5 +1,5 @@
 /**
- * dcinside.js의 모든 에러는 이 클래스(또는 하위 클래스)를 상속한다.
+ * dcinside.js의 모든 에러가 상속하는 기본 에러 클래스입니다.
  */
 export class DCInsideError extends Error {
     override name = "DCInsideError";

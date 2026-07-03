@@ -1,8 +1,7 @@
-import type {AuthManager} from "../auth";
-import {type KyHttpClient, postMultipartJson} from "../http";
-import {apiError, isApiError, shouldRefreshAppId} from "../http/api-error";
-import {API_URL} from "../http/constants";
-import {normalizeGalleryId} from "../http/gallery-id";
+import type {AuthManager} from "../../core/auth";
+import {type KyHttpClient, postMultipartJson} from "../../core/http";
+import {apiError, isApiError, shouldRefreshAppId} from "../../core/http/api-error";
+import {API_URL} from "../../core/http/constants";
 import {
     arrayValue,
     booleanValue,
@@ -15,8 +14,8 @@ import {
     objectValue,
     stringValue,
     ynBoolean
-} from "../http/json";
-import {decodeHtml, escapeHtml} from "../http/utils";
+} from "../../core/http/json";
+import {decodeHtml, escapeHtml} from "../../core/http/utils";
 import type {
     ArticleContent,
     ArticleDeleteOptions,
@@ -37,7 +36,13 @@ import type {
     GalleryInfo,
     HeadText,
     Session
-} from "../types";
+} from "../../core/types";
+
+export type GalleryArticleScopedOptions<T extends { gallery: string }> = Omit<T, "gallery">;
+export type ArticleEntryScopedOptions<T extends {
+    gallery: string;
+    articleId: number
+}> = Omit<T, "gallery" | "articleId">;
 
 function encodeFormValue(value: string): string {
     return encodeURIComponent(value)
@@ -45,7 +50,7 @@ function encodeFormValue(value: string): string {
         .replace(/%20/g, "+");
 }
 
-/** APK의 Gy()와 동일: URLEncoder.encode 후 %0A만 \n으로 복원한다. */
+/** APK의 Gy()와 동일하게 `URLEncoder.encode` 후 `%0A`만 줄바꿈으로 복원합니다. */
 function encodeMemoBlock(value: string): string {
     return encodeFormValue(value)
         .replace(/%0A/g, "\n");
@@ -68,6 +73,14 @@ export class ArticleManager {
         private readonly auth: AuthManager,
         private readonly getSession: () => Session | null
     ) {
+    }
+
+    gallery(gallery: string): ScopedGalleryArticleManager {
+        return new ScopedGalleryArticleManager(this, gallery);
+    }
+
+    article(gallery: string, articleId: number): ScopedArticleEntryManager {
+        return new ScopedArticleEntryManager(this, gallery, articleId);
     }
 
     /**
@@ -101,7 +114,7 @@ export class ArticleManager {
      */
     async write(options: ArticleWriteOptions): Promise<ArticleWriteResult> {
         const session = this.requireSession("write articles");
-        const galleryId = normalizeGalleryId(options.galleryId, options.galleryType);
+        const galleryId = options.gallery;
         const subject = options.subject.trim();
 
         if (!subject) throw new Error("Article subject is required.");
@@ -181,7 +194,7 @@ export class ArticleManager {
      */
     async delete(options: ArticleDeleteOptions): Promise<ArticleDeleteResult> {
         const session = this.requireSession("delete articles");
-        const galleryId = normalizeGalleryId(options.galleryId, options.galleryType);
+        const galleryId = options.gallery;
         const json = await this.uploadArticleAction(API_URL.article.delete, {
             id: galleryId,
             no: options.articleId,
@@ -235,7 +248,7 @@ export class ArticleManager {
      */
     async reportLink(options: ArticleVoteOptions): Promise<string> {
         const appId = await this.auth.getAppId();
-        const galleryId = normalizeGalleryId(options.galleryId, options.galleryType);
+        const galleryId = options.gallery;
         const url = new URL(API_URL.article.report);
         url.searchParams.set("app_id", appId);
         url.searchParams.set("id", galleryId);
@@ -255,7 +268,7 @@ export class ArticleManager {
      */
     async modifyInfo(options: ArticleModifyInfoOptions): Promise<ArticleModifyInfoResult> {
         const session = this.requireSession("load article modify info");
-        const galleryId = normalizeGalleryId(options.galleryId, options.galleryType);
+        const galleryId = options.gallery;
         const multipart: Record<string, string | number | boolean | null | undefined> = {
             id: galleryId,
             no: options.articleId
@@ -293,7 +306,7 @@ export class ArticleManager {
         options: ArticleListOptions,
         retryOnRefresh: boolean
     ): Promise<ArticleListResult> {
-        const galleryId = normalizeGalleryId(options.galleryId, options.galleryType);
+        const galleryId = options.gallery;
         const url = new URL(API_URL.article.list);
         url.searchParams.set("id", galleryId);
         url.searchParams.set("page", String(options.page ?? 1));
@@ -327,7 +340,7 @@ export class ArticleManager {
         options: ArticleReadOptions,
         retryOnRefresh: boolean
     ): Promise<ArticleReadResult> {
-        const galleryId = normalizeGalleryId(options.galleryId, options.galleryType);
+        const galleryId = options.gallery;
         const url = new URL(API_URL.article.read);
         url.searchParams.set("id", galleryId);
         url.searchParams.set("no", String(options.articleId));
@@ -350,7 +363,7 @@ export class ArticleManager {
     }
 
     private async vote(url: string, options: ArticleVoteOptions): Promise<ArticleVoteResult> {
-        const galleryId = normalizeGalleryId(options.galleryId, options.galleryType);
+        const galleryId = options.gallery;
         const json = await this.uploadArticleAction(url, {
             id: galleryId,
             no: options.articleId
@@ -363,7 +376,7 @@ export class ArticleManager {
         };
     }
 
-    /** 추천/비추천/삭제 등 multipart POST 액션의 공용 전송+에러 처리. */
+    /** 추천, 비추천, 삭제 같은 multipart POST 액션을 전송하고 API 에러를 처리합니다. */
     private async uploadArticleAction(
         url: string,
         multipart: Record<string, string | number | boolean | Blob | File | null | undefined>
@@ -374,13 +387,66 @@ export class ArticleManager {
         return json;
     }
 
-    /** 세션이 필요한 작업에서 세션을 가져오거나 에러를 던진다. */
+    /** 세션이 필요한 작업에서 현재 세션을 가져오거나 에러를 던집니다. */
     private requireSession(action: string): Session {
         const session = this.getSession();
         if (!session) {
             throw new Error(`A session is required to ${action}. Call client.login(...) or client.useAnonymous(...).`);
         }
         return session;
+    }
+}
+
+export class ScopedGalleryArticleManager {
+    constructor(
+        private readonly manager: ArticleManager,
+        private readonly gallery: string
+    ) {
+    }
+
+    list(options: GalleryArticleScopedOptions<ArticleListOptions> = {}): Promise<ArticleListResult> {
+        return this.manager.list({...options, gallery: this.gallery});
+    }
+
+    write(options: GalleryArticleScopedOptions<ArticleWriteOptions>): Promise<ArticleWriteResult> {
+        return this.manager.write({...options, gallery: this.gallery});
+    }
+}
+
+export class ScopedArticleEntryManager {
+    constructor(
+        private readonly manager: ArticleManager,
+        private readonly gallery: string,
+        readonly articleId: number
+    ) {
+    }
+
+    read(): Promise<ArticleReadResult> {
+        return this.manager.read({gallery: this.gallery, articleId: this.articleId});
+    }
+
+    delete(): Promise<ArticleDeleteResult> {
+        return this.manager.delete({gallery: this.gallery, articleId: this.articleId});
+    }
+
+    upvote(): Promise<ArticleVoteResult> {
+        return this.manager.upvote({gallery: this.gallery, articleId: this.articleId});
+    }
+
+    downvote(): Promise<ArticleVoteResult> {
+        return this.manager.downvote({gallery: this.gallery, articleId: this.articleId});
+    }
+
+    hitUpvote(): Promise<ArticleVoteResult> {
+        return this.manager.hitUpvote({gallery: this.gallery, articleId: this.articleId});
+    }
+
+    reportLink(): Promise<string> {
+        return this.manager.reportLink({gallery: this.gallery, articleId: this.articleId});
+    }
+
+    modifyInfo(): Promise<ArticleModifyInfoResult> {
+        return this.manager.modifyInfo({gallery: this.gallery, articleId: this.articleId});
     }
 }
 

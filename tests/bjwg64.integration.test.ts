@@ -1,5 +1,5 @@
 import {afterAll, describe, expect, test} from "bun:test";
-import {DCInsideClient, type GalleryType} from "../src";
+import {type ArticleListResult, DCInsideClient} from "../src";
 
 const liveTimeout = 30_000;
 
@@ -9,11 +9,8 @@ function createClient(): DCInsideClient {
     return new DCInsideClient();
 }
 
-async function fetchFirstArticle(client: DCInsideClient, galleryId: string, galleryType: GalleryType): Promise<number> {
-    const list = await client.articles.list({
-        galleryId,
-        galleryType
-    });
+async function fetchFirstArticle(client: DCInsideClient, gallery: string): Promise<number> {
+    const list = await client.gallery(gallery).articles.list();
 
     const article = list.articles.find((item) => item.id > 0);
 
@@ -23,7 +20,7 @@ async function fetchFirstArticle(client: DCInsideClient, galleryId: string, gall
     return article!.id;
 }
 
-function expectNonEmptyGalleryTitle(list: Awaited<ReturnType<DCInsideClient["articles"]["list"]>>): void {
+function expectNonEmptyGalleryTitle(list: ArticleListResult): void {
     if (list.gallery.title.length === 0) {
         throw new Error(`Expected non-empty gallery title. Response shape: ${summarizeJson(list.raw)}`);
     }
@@ -43,25 +40,17 @@ function summarizeJson(value: unknown): string {
 }
 
 describe("DCInside live integration", () => {
-    const galleryId = "bjwg64";
-    const galleryType: GalleryType = "mini";
+    const gallery = "mi$bjwg64";
 
     afterAll(async () => {
         if (!writtenArticle) return;
 
-        await writtenArticle.client.articles.delete({
-            galleryId,
-            galleryType,
-            articleId: writtenArticle.articleId
-        }).catch(() => null);
+        await writtenArticle.client.gallery(gallery).article(writtenArticle.articleId).delete().catch(() => null);
     });
 
     test("loads the first article list page", async () => {
         const client = createClient();
-        const list = await client.articles.list({
-            galleryId,
-            galleryType
-        });
+        const list = await client.gallery(gallery).articles.list();
 
         expectNonEmptyGalleryTitle(list);
         expect(list.articles.length).toBeGreaterThan(0);
@@ -71,12 +60,8 @@ describe("DCInside live integration", () => {
 
     test("reads an article from a typed gallery list", async () => {
         const client = createClient();
-        const articleId = await fetchFirstArticle(client, galleryId, galleryType);
-        const article = await client.articles.read({
-            galleryId,
-            galleryType,
-            articleId
-        });
+        const articleId = await fetchFirstArticle(client, gallery);
+        const article = await client.gallery(gallery).article(articleId).read();
 
         expect(article.info.id).toBe(articleId);
         expect(article.info.subject.length).toBeGreaterThan(0);
@@ -85,12 +70,8 @@ describe("DCInside live integration", () => {
 
     test("loads comments for an article from a typed gallery list", async () => {
         const client = createClient();
-        const articleId = await fetchFirstArticle(client, galleryId, galleryType);
-        const comments = await client.comments.list({
-            galleryId,
-            galleryType,
-            articleId
-        });
+        const articleId = await fetchFirstArticle(client, gallery);
+        const comments = await client.gallery(gallery).article(articleId).comments.list();
 
         expect(comments.page).toBeGreaterThanOrEqual(1);
         expect(comments.totalPages).toBeGreaterThanOrEqual(0);
@@ -99,26 +80,20 @@ describe("DCInside live integration", () => {
 });
 
 describe("DCInside write integration", () => {
-    const galleryId = "bjwg64";
-    const galleryType: GalleryType = "mini";
+    const gallery = "mi$bjwg64";
 
     afterAll(async () => {
         if (!writtenArticle) return;
 
-        await writtenArticle.client.articles.delete({
-            galleryId,
-            galleryType,
-            articleId: writtenArticle.articleId
-        }).catch(() => null);
+        await writtenArticle.client.gallery(gallery).article(writtenArticle.articleId).delete().catch(() => null);
     });
 
     test("writes an anonymous article and comment", async () => {
         const client = createClient();
         client.useAnonymous("ㅇㅇ", `${Date.now()}`);
+        const galleryClient = client.gallery(gallery);
 
-        const written = await client.articles.write({
-            galleryId,
-            galleryType,
+        const written = await galleryClient.articles.write({
             subject: "dcinside.js",
             headText: {
                 no: 0,
@@ -134,22 +109,17 @@ describe("DCInside write integration", () => {
 
         const articleId = written.articleId!;
         writtenArticle = {client, articleId};
+        const article = galleryClient.article(articleId);
 
-        const comment = await client.comments.write({
-            galleryId,
-            galleryType,
-            articleId,
+        const comment = await article.comments.write({
             content: "dcinside.js"
         });
 
         expect(comment.result).toBe(true);
 
-        const reply = await client.comments.reply({
-            galleryId,
-            galleryType,
-            articleId,
+        const reply = await article.comments.reply({
             content: "dcinside.js reply",
-            replyToCommentId: comment.commentId!
+            replyToCommentId: comment.data!
         });
 
         expect(reply.result).toBe(true);

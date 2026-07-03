@@ -5,16 +5,20 @@ import {HTTPError} from "./errors";
 import {defaultHeaders} from "./utils";
 
 export interface ProxyOptions {
-    /** Bun **/
+    /** Bun 런타임에서 사용할 HTTP/HTTPS 프록시 URL입니다. */
     proxy?: string;
-    /** Node.js **/
+    /** Node.js 런타임에서 ky/fetch에 전달할 undici dispatcher입니다. */
     dispatcher?: ProxyAgent | EnvHttpProxyAgent;
 }
 
 export interface DCInsideRequestContext {
+    /** 요청에 넣을 `app_id`를 반환합니다. 필요하면 내부에서 새로 발급합니다. */
     getAppId: () => Promise<string>;
+    /** 이미 발급된 `client_token`을 반환합니다. 없으면 `null`입니다. */
     getClientToken: () => string | null;
+    /** 요청 전에 `client_token`이 필요할 때 새로 발급하거나 캐시 값을 반환합니다. */
     ensureClientToken: () => Promise<string>;
+    /** 로그인 세션의 DCInside 사용자 식별자를 반환합니다. 익명 세션이면 `null`입니다. */
     getUserId: () => string | null;
 }
 
@@ -120,11 +124,15 @@ export class KyHttpClient {
             return new Request(request, {body: next});
         }
 
+        if (!contentType.startsWith("application/x-www-form-urlencoded")) return request;
+
         const body = await request.clone().formData();
         const next = new URLSearchParams();
 
-        for (const [key, value] of body.entries())
+        for (const [key, value] of body.entries()) {
+            if (typeof value !== "string") continue;
             next.set(key, value);
+        }
 
         next.set("app_id", appId);
         if (userId) next.set("user_id", userId);

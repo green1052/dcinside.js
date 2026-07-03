@@ -84,7 +84,7 @@ export const API_URL = {
         galleryRanking: "http://json2.dcinside.com/json3/ranking_gallery.php",
         minorGalleryRanking: "http://json2.dcinside.com/json1/mgallmain/mgallery_ranking.php",
         miniGalleryRanking: "http://json2.dcinside.com/json1/migallmain/migallery_ranking.php",
-        personGalleryRanking: "http://json2.dcinside.com/json3/ranking_gallery.php"
+        personGalleryRanking: "http://json2.dcinside.com/json1/prgallmain/prgallery_ranking.php"
     }
 } as const;
 

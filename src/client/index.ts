@@ -1,14 +1,15 @@
 import type {Options as KyOptions} from "ky";
-import {ArticleManager} from "./articles";
-import {AuthManager} from "./auth";
-import {CommentManager} from "./comments";
-import {DCConManager} from "./dccon";
-import {GalleryManager} from "./galleries";
-import {KyHttpClient, type ProxyOptions} from "./http";
-import {ManagementManager} from "./management";
-import {SearchManager} from "./search";
-import type {DeviceCredentials, Session, User} from "./types";
-import {UserManager} from "./user";
+import {AuthManager} from "../core/auth";
+import {KyHttpClient, type ProxyOptions} from "../core/http";
+import type {DeviceCredentials, Session, User} from "../core/types";
+import {ArticleManager} from "../modules/articles";
+import {CommentManager} from "../modules/comments";
+import {DCConManager} from "../modules/dccon";
+import {GalleryManager} from "../modules/galleries";
+import {ManagementManager} from "../modules/management";
+import {SearchManager} from "../modules/search";
+import {UserManager} from "../modules/user";
+import {GalleryClient} from "./gallery";
 
 export interface DCInsideClientOptions {
     /** ky에 전달할 HTTP 옵션입니다. Bun 런타임에서는 `proxy`도 함께 사용할 수 있습니다. */
@@ -26,15 +27,14 @@ export interface DCInsideClientOptions {
 export class DCInsideClient {
     readonly http: KyHttpClient;
     readonly auth: AuthManager;
-    readonly articles: ArticleManager;
-    readonly comments: CommentManager;
     readonly dccons: DCConManager;
     readonly galleries: GalleryManager;
     readonly management: ManagementManager;
     readonly search: SearchManager;
     readonly user: UserManager;
-
     session: Session | null = null;
+    private readonly articleManager: ArticleManager;
+    private readonly commentManager: CommentManager;
 
     /**
      * 새 클라이언트를 생성합니다.
@@ -51,8 +51,8 @@ export class DCInsideClient {
             ensureClientToken: () => this.auth.fetchClientToken(),
             getUserId: () => this.session?.detail?.userId ?? null
         });
-        this.articles = new ArticleManager(this.http, this.auth, () => this.session);
-        this.comments = new CommentManager(this.http, this.auth, () => this.session);
+        this.articleManager = new ArticleManager(this.http, this.auth, () => this.session);
+        this.commentManager = new CommentManager(this.http, this.auth, () => this.session);
         this.dccons = new DCConManager(this.http, () => this.session);
         this.galleries = new GalleryManager(this.http);
         this.management = new ManagementManager(this.http, this.auth, () => this.session);
@@ -98,5 +98,16 @@ export class DCInsideClient {
     useSession(session: Session): this {
         this.session = session;
         return this;
+    }
+
+    /**
+     * 갤러리 컨텍스트를 고정한 하위 클라이언트를 반환합니다.
+     *
+     * `client.gallery("mi$bjwg64").articles.list()` 또는
+     * `client.gallery("mi$bjwg64").article(123).comments.write(...)`처럼
+     * 호출하면 이후 갤러리/게시글 식별자를 반복해서 넘기지 않아도 됩니다.
+     */
+    gallery(gallery: string): GalleryClient {
+        return new GalleryClient(gallery, this.articleManager, this.commentManager);
     }
 }

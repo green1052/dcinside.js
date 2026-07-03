@@ -1,6 +1,6 @@
 import {describe, expect, test} from "bun:test";
 import {inferGalleryType, KyHttpClient, normalizeGalleryId, normalizeGalleryType} from "../src";
-import {postMultipartJson} from "../src/http";
+import {postMultipartJson} from "../src/core/http";
 import {
     arrayValue,
     booleanValue,
@@ -10,8 +10,8 @@ import {
     objectValue,
     stringValue,
     ynBoolean
-} from "../src/http/json";
-import {escapeHtml} from "../src/http/utils";
+} from "../src/core/http/json";
+import {escapeHtml} from "../src/core/http/utils";
 
 describe("JSON and utility helpers", () => {
     test("coerces primitive API values", () => {
@@ -85,6 +85,7 @@ describe("JSON and utility helpers", () => {
         http.useDCInsideContext({
             getAppId: async () => "app-id",
             getClientToken: () => "client-token",
+            ensureClientToken: async () => "client-token",
             getUserId: () => "user-no"
         });
 
@@ -114,6 +115,7 @@ describe("JSON and utility helpers", () => {
         http.useDCInsideContext({
             getAppId: async () => "app-id",
             getClientToken: () => "client-token",
+            ensureClientToken: async () => "client-token",
             getUserId: () => "user-no"
         });
 
@@ -129,12 +131,7 @@ describe("JSON and utility helpers", () => {
         expect(keys).toContain("client_token");
         expect(keys).toContain("user_id");
 
-        // app_id should be injected right after id
-        expect(keys[keys.indexOf("app_id") - 1]).toBe("id");
-        // client_token should be injected right after mode
-        expect(keys[keys.indexOf("client_token") - 1]).toBe("mode");
-        // user_id should be injected right after memo_block[0]
-        expect(keys[keys.indexOf("user_id") - 1]).toBe("memo_block[0]");
+        expect(keys.slice(-3)).toEqual(["app_id", "user_id", "client_token"]);
     });
 
     test("adds missing auth fields even when expected anchor fields are absent", async () => {
@@ -154,6 +151,7 @@ describe("JSON and utility helpers", () => {
         http.useDCInsideContext({
             getAppId: async () => "app-id",
             getClientToken: () => "client-token",
+            ensureClientToken: async () => "client-token",
             getUserId: () => "user-no"
         });
 

@@ -1,4 +1,4 @@
-/** 디시인사이드 갤러리 네임스페이스. `mini`와 `person`은 요청 시 접두사를 자동으로 붙입니다. */
+/** 디시인사이드 갤러리 네임스페이스입니다. `mini`와 `person`은 요청 시 접두사를 자동으로 붙입니다. */
 export type GalleryType = "main" | "minor" | "mini" | "person";
 
 export type User =
@@ -53,7 +53,7 @@ export interface ClientTokenResult {
     remoteConfig: unknown;
 }
 
-/** 재사용 가능한 디바이스 인증 정보. exportCredentials/importCredentials로 저장/복원한다. */
+/** 재사용 가능한 디바이스 인증 정보입니다. `exportCredentials`와 `importCredentials`로 저장하고 복원합니다. */
 export interface DeviceCredentials {
     /** Google checkin으로 발급받은 기기 식별값. */
     androidId: string;
@@ -88,6 +88,11 @@ export interface Gallery {
     type?: GalleryType;
 }
 
+export interface GalleryTarget {
+    /** 요청 대상 갤러리 ID입니다. 예: `football_new9`, `krstock`, `mi$bjwg64`, `pr$dororong` */
+    gallery: string;
+}
+
 export interface DCCon {
     packageIndex?: number;
     detailIndex: number;
@@ -106,11 +111,7 @@ export type CommentContent =
     dccon: DCCon;
 };
 
-export interface ArticleListOptions {
-    /** 갤러리 ID. `mi$`/`pr$` 접두사가 이미 붙어 있으면 중복으로 붙이지 않습니다. */
-    galleryId: string;
-    /** 갤러리 네임스페이스. 생략하면 `main`입니다. */
-    galleryType?: GalleryType;
+export type ArticleListOptions = GalleryTarget & {
     /** 1부터 시작하는 페이지 번호. 생략하면 `1`입니다. */
     page?: number;
     /** 검색어. 생략하면 일반 목록을 조회합니다. */
@@ -123,7 +124,7 @@ export interface ArticleListOptions {
     notice?: boolean;
     /** 말머리 ID 필터입니다. */
     headId?: number;
-}
+};
 
 export interface GalleryInfo {
     title: string;
@@ -175,14 +176,10 @@ export interface ArticleListResult {
     raw: unknown;
 }
 
-export interface ArticleReadOptions {
-    /** 갤러리 ID. */
-    galleryId: string;
-    /** 갤러리 네임스페이스. 생략하면 `main`입니다. */
-    galleryType?: GalleryType;
+export type ArticleReadOptions = GalleryTarget & {
     /** 게시글 번호. DCInside API의 `no` 값입니다. */
     articleId: number;
-}
+};
 
 export interface ArticleViewInfo {
     galleryTitle: string;
@@ -272,11 +269,7 @@ export type ArticleContent =
     detailIndex: number;
 };
 
-export interface ArticleWriteOptions {
-    /** 갤러리 ID. */
-    galleryId: string;
-    /** 갤러리 네임스페이스. 생략하면 `main`입니다. */
-    galleryType?: GalleryType;
+export type ArticleWriteOptions = GalleryTarget & {
     /** 게시글 제목. 공백뿐이면 요청 전에 거부합니다. */
     subject: string;
     /** 순서대로 전송할 본문 블록. 최소 한 개가 필요합니다. */
@@ -287,7 +280,7 @@ export interface ArticleWriteOptions {
     headText?: Pick<HeadText, "no" | "name">;
     /** 새 글 작성 또는 기존 글 수정 모드. 생략하면 `write`입니다. */
     mode?: "write" | "modify";
-}
+};
 
 export interface ArticleWriteResult {
     /** 작성/수정 요청 성공 여부입니다. */
@@ -300,11 +293,9 @@ export interface ArticleWriteResult {
     galleryId: string | null;
 }
 
-export interface ArticleDeleteOptions {
-    galleryId: string;
-    galleryType?: GalleryType;
+export type ArticleDeleteOptions = GalleryTarget & {
     articleId: number;
-}
+};
 
 export interface ArticleDeleteResult {
     result: boolean;
@@ -313,11 +304,9 @@ export interface ArticleDeleteResult {
     status: number | null;
 }
 
-export interface ArticleVoteOptions {
-    galleryId: string;
-    galleryType?: GalleryType;
+export type ArticleVoteOptions = GalleryTarget & {
     articleId: number;
-}
+};
 
 export interface ArticleVoteResult {
     result: boolean;
@@ -325,11 +314,9 @@ export interface ArticleVoteResult {
     member: number | null;
 }
 
-export interface ArticleModifyInfoOptions {
-    galleryId: string;
-    galleryType?: GalleryType;
+export type ArticleModifyInfoOptions = GalleryTarget & {
     articleId: number;
-}
+};
 
 export interface ArticleModifyInfoResult {
     result: boolean;
@@ -345,12 +332,10 @@ export interface ArticleModifyInfoResult {
     cause: string | null;
 }
 
-export interface CommentReadOptions {
-    galleryId: string;
-    galleryType?: GalleryType;
+export type CommentReadOptions = GalleryTarget & {
     articleId: number;
     page?: number;
-}
+};
 
 export interface CommentData {
     memberIcon: number;
@@ -372,20 +357,16 @@ export interface CommentReadResult {
     comments: CommentData[];
 }
 
-export interface CommentWriteOptions {
-    galleryId: string;
-    galleryType?: GalleryType;
+export type CommentWriteOptions = GalleryTarget & {
     articleId: number;
     content: CommentContent | string;
     replyToCommentId?: number;
-}
+};
 
-export interface CommentDeleteOptions {
-    galleryId: string;
-    galleryType?: GalleryType;
+export type CommentDeleteOptions = GalleryTarget & {
     articleId: number;
     commentId: number;
-}
+};
 
 export interface CommentDeleteResult {
     result: boolean;
@@ -456,11 +437,13 @@ export interface DCConBuyResult {
     message: string;
 }
 
-export type RankingType = "up" | "down" | "stop" | "unknown";
+export type RankingType = "up" | "down" | "stop";
 
 export interface GalleryRankingItem {
     galleryLink: string;
     galleryId: string;
+
+
     galleryName: string;
     rankType: RankingType;
     rank: number;
@@ -503,11 +486,33 @@ export interface MainPageArticle {
     thumbnail: string;
 }
 
+export interface MainPageHitArticle {
+    galleryId: string;
+    articleId: number;
+    title: string;
+    galleryAlias: string;
+    thumbnail: string;
+}
+
+export interface MainPageLiveBestArticle {
+    galleryId: string;
+    articleId: number;
+    galleryName: string;
+    title: string;
+    comment: string;
+    hit: string;
+    recommend: string;
+    isTop: boolean;
+    regTime: string;
+    thumbnail: string;
+    category: "best" | "light";
+    gallAlias: string;
+}
+
 export interface MainPageResult {
-    hit: MainPageArticle[];
-    best: MainPageArticle[];
-    issueZoom: MainPageArticle[];
-    newGallery: Gallery[];
+    hit: MainPageHitArticle[];
+    livebest: MainPageLiveBestArticle[];
+    new_gallery: Gallery[];
 }
 
 export interface MyGalleryResult {
@@ -599,12 +604,10 @@ export interface NoMemberBlockResult {
     message: string;
 }
 
-export interface MovieUploadOptions {
-    galleryId: string;
-    galleryType?: GalleryType;
+export type MovieUploadOptions = GalleryTarget & {
     file: Blob | File;
     checkRestriction?: boolean;
-}
+};
 
 export interface MovieUploadResult {
     message: string | null;

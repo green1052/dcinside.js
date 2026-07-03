@@ -1,7 +1,7 @@
-import type {AuthManager} from "../auth";
-import {type KyHttpClient, postMultipartJson} from "../http";
-import {API_URL, DC_APP} from "../http/constants";
-import {booleanValue, firstObject, nullableString, objectValue, stringValue} from "../http/json";
+import type {AuthManager} from "../../core/auth";
+import {type KyHttpClient, postMultipartJson} from "../../core/http";
+import {API_URL, DC_APP} from "../../core/http/constants";
+import {booleanValue, firstObject, nullableString, objectValue, stringValue} from "../../core/http/json";
 import type {
     ChangeHeadTextOptions,
     ManagerActionOptions,
@@ -11,7 +11,7 @@ import type {
     Session,
     UserBlockOptions,
     UserBlockResult
-} from "../types";
+} from "../../core/types";
 
 const blockCategoryCode = {
     obscene: 1,
@@ -24,8 +24,9 @@ const blockCategoryCode = {
 } as const;
 
 /**
- * 갤러리 관리 매니저. 공지/추천/말머리/유저 차단/비회원 차단 흐름을 다룬다.
- * 로그인 세션(상세 정보 포함)이 필요하다.
+ * 공지, 추천, 말머리, 유저 차단, 비회원 차단 같은 갤러리 관리 흐름을 처리합니다.
+ *
+ * 모든 요청에는 상세 정보가 포함된 로그인 세션이 필요합니다.
  */
 export class ManagementManager {
     constructor(
@@ -39,24 +40,44 @@ export class ManagementManager {
         return DC_APP.userAgent;
     }
 
-    /** 게시글을 공지로 지정/해제. */
+    /**
+     * 게시글을 공지로 지정하거나 해제합니다.
+     *
+     * @param options 갤러리 ID와 게시글 번호입니다.
+     * @returns 적용 성공 여부와 서버 상태입니다.
+     */
     async setNotice(options: ManagerActionOptions): Promise<ManagerActionResult> {
         return this.managerRequest("notify", options);
     }
 
-    /** 게시글을 추천글로 지정/해제. */
+    /**
+     * 게시글을 추천글로 지정하거나 해제합니다.
+     *
+     * @param options 갤러리 ID와 게시글 번호입니다.
+     * @returns 적용 성공 여부와 서버 상태입니다.
+     */
     async setRecommend(options: ManagerActionOptions): Promise<ManagerActionResult> {
         return this.managerRequest("recommend", options);
     }
 
-    /** 게시글의 말머리를 변경. */
+    /**
+     * 게시글의 말머리를 변경합니다.
+     *
+     * @param options 갤러리 ID, 게시글 번호, 변경할 말머리 ID입니다.
+     * @returns 변경 성공 여부와 서버 상태입니다.
+     */
     async changeHeadText(options: ChangeHeadTextOptions): Promise<ManagerActionResult> {
         return this.managerRequest("headtext", options, {
             headtxt_no: String(options.headTextId)
         });
     }
 
-    /** 유저를 차단. 로그인 세션 필요. */
+    /**
+     * 게시글 또는 댓글 작성자를 차단합니다.
+     *
+     * @param options 갤러리 ID, 게시글 번호, 선택적 댓글 번호, 차단 시간과 사유입니다.
+     * @returns 차단 성공 여부와 서버 메시지입니다.
+     */
     async blockUser(options: UserBlockOptions): Promise<UserBlockResult> {
         this.requireLogin();
         const response = await this.http.ky.post(API_URL.gallery.minorBlockAdd, {
@@ -77,7 +98,12 @@ export class ManagementManager {
         };
     }
 
-    /** 비회원 IP/통신사/이미지 차단. 로그인 세션 필요. */
+    /**
+     * 비회원 IP, 통신사, 이미지 업로드 차단 설정을 변경합니다.
+     *
+     * @param options 갤러리 ID와 차단 만료 시각입니다.
+     * @returns 설정 변경 성공 여부와 서버 메시지입니다.
+     */
     async blockNoMember(options: NoMemberBlockOptions): Promise<NoMemberBlockResult> {
         this.requireLogin();
         const response = await this.http.ky.post(`${API_URL.gallery.minorNoMember}/${options.galleryId}`, {
@@ -95,7 +121,12 @@ export class ManagementManager {
         };
     }
 
-    /** 갤러리 설정 모바일 페이지 링크를 생성. */
+    /**
+     * 갤러리 설정 모바일 페이지 링크를 생성합니다.
+     *
+     * @param galleryId 설정 페이지를 열 갤러리 ID입니다.
+     * @returns `app_id`와 `confirm_id`가 포함된 설정 페이지 URL입니다.
+     */
     async gallerySettingLink(galleryId: string): Promise<string> {
         const session = this.requireLogin();
         const url = new URL(API_URL.gallery.minorManagement);
@@ -105,7 +136,12 @@ export class ManagementManager {
         return url.toString();
     }
 
-    /** 유저 차단 웹 페이지 링크를 생성. */
+    /**
+     * 유저 차단 웹 페이지 링크를 생성합니다.
+     *
+     * @param options 갤러리 ID, 게시글 번호, 선택적 댓글 번호입니다.
+     * @returns `app_id`와 `confirm_id`가 포함된 차단 페이지 URL입니다.
+     */
     async userBlockLink(options: Pick<UserBlockOptions, "galleryId" | "articleId" | "commentId">): Promise<string> {
         const session = this.requireLogin();
         const url = new URL(API_URL.gallery.minorBlockWeb);
@@ -117,7 +153,7 @@ export class ManagementManager {
         return url.toString();
     }
 
-    /** 공지/추천/말머리 변경 관리자 요청 공용 전송. */
+    /** 공지, 추천, 말머리 변경 관리자 요청을 공통 형식으로 전송합니다. */
     private async managerRequest(
         mode: "notify" | "recommend" | "headtext",
         options: ManagerActionOptions,
@@ -138,7 +174,7 @@ export class ManagementManager {
         };
     }
 
-    /** 로그인(상세 포함) 세션을 요구하거나 에러를 던진다. */
+    /** 상세 정보가 포함된 로그인 세션을 가져오거나 에러를 던집니다. */
     private requireLogin(): Session {
         const session = this.getSession();
         if (!session?.detail) {

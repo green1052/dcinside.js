@@ -17,8 +17,10 @@ import {createAndroidCheckinRequest, parseAndroidCheckinResponse} from "./checki
 const APP_ID_TTL_MS = 39_600_000;
 
 /**
- * DCInside 앱 인증·세션 관리 매니저.
- * Android checkin → Firebase installation → GCM register3 → app_id 발급 흐름을 캡슐화한다.
+ * DCInside 앱 인증과 세션을 관리합니다.
+ *
+ * Android checkin → Firebase installation → GCM register3 → app_id 발급 흐름을
+ * 한 곳에 모아두고, 발급된 디바이스 인증 정보는 내보내거나 다시 가져올 수 있습니다.
  */
 export class AuthManager {
     private appId: string | null = null;
@@ -34,22 +36,26 @@ export class AuthManager {
     constructor(private readonly http: KyHttpClient) {
     }
 
-    /** FCM/GCM 등록으로 얻은 client_token. 아직 발급되지 않았으면 null. */
+    /** FCM/GCM 등록으로 얻은 `client_token`입니다. 아직 발급되지 않았으면 `null`입니다. */
     get fcmToken(): string | null {
         return this.clientToken;
     }
 
-    /** 현재 Firebase Installation ID (FID). */
-    get firebaseInstallationId(): string {
+    /** 현재 Firebase Installation ID(FID)입니다. 발급 전에는 `null`입니다. */
+    get firebaseInstallationId(): string | null {
         return this.fid;
     }
 
-    /** Firebase Installation refresh token. 발급 전에는 null. */
+    /** Firebase Installation refresh token입니다. 발급 전에는 `null`입니다. */
     get firebaseRefreshToken(): string | null {
         return this.refreshToken;
     }
 
-    /** checkin 자격증명을 고정값으로 설정한다. 설정하면 프로토콜 checkin을 생략한다. */
+    /**
+     * Android checkin 자격증명을 고정값으로 설정합니다.
+     *
+     * @param credentials Google checkin에서 받은 `androidId`와 `securityToken`입니다.
+     */
     setCheckinCredentials(credentials: { androidId: string; securityToken: string }): void {
         this.checkinCredentials = {
             androidId: BigInt(credentials.androidId),
@@ -57,20 +63,33 @@ export class AuthManager {
         };
     }
 
-    /** 외부에서 캡쳐한 app_id를 현재 세션에 주입한다. */
+    /**
+     * 외부에서 얻은 `app_id`를 현재 인증 상태에 주입합니다.
+     *
+     * @param appId DCInside 앱 API 요청에 사용할 `app_id`입니다.
+     */
     useAppId(appId: string): void {
         this.appId = appId;
         this.appIdIssuedAt = Date.now();
         this.lastHash = null;
     }
 
-    /** app_id가 발급되어 있도록 보장하고 this를 반환한다. */
+    /**
+     * `app_id`가 발급되어 있도록 준비합니다.
+     *
+     * @returns 체이닝을 위한 현재 인증 매니저입니다.
+     */
     async ready(): Promise<this> {
         await this.getAppId();
         return this;
     }
 
-    /** 캐시된 app_id/client_token/checkin을 무효화하고 다시 발급받는다. */
+    /**
+     * 캐시된 `app_id`를 무효화하고 다시 발급받습니다.
+     *
+     * @param options `refreshClientToken`이 `true`이면 `client_token`과 checkin/Firebase 상태도 함께 초기화합니다.
+     * @returns 새로 발급되었거나 재사용 가능한 `app_id`입니다.
+     */
     async refreshAppId(options: { refreshClientToken?: boolean } = {}): Promise<string> {
         this.appId = null;
         this.appIdIssuedAt = null;
@@ -85,9 +104,9 @@ export class AuthManager {
     }
 
     /**
-     * 캐시된 app_id를 반환하거나 새로 발급받는다.
-     * 공식 앱과 동일하게 발급 후 약 11시간 동안 저장된 app_id를 우선 재사용한다.
-     * 새로 발급받은 app_id는 서버 검증이 완료될 때까지 대기한다.
+     * 캐시된 `app_id`를 반환하거나 새로 발급받습니다.
+     * 공식 앱과 동일하게 발급 후 약 11시간 동안 저장된 `app_id`를 우선 재사용합니다.
+     * 새로 발급받은 `app_id`는 서버 검증이 완료될 때까지 대기합니다.
      */
     async getAppId(): Promise<string> {
         if (this.appId && this.shouldReuseCachedAppId()) {
@@ -104,7 +123,12 @@ export class AuthManager {
         return this.appId;
     }
 
-    /** Firebase Installations API로 FID/refreshToken/authToken을 발급받는다. */
+    /**
+     * Firebase Installations API로 FID, refresh token, auth token을 발급받습니다.
+     *
+     * @param options 기존 FID와 refresh token을 이어서 사용할 때 전달합니다.
+     * @returns Firebase 설치 식별자와 인증 토큰입니다.
+     */
     async fetchFirebaseInstallation(options: {
         fid?: string;
         refreshToken?: string
@@ -115,8 +139,10 @@ export class AuthManager {
             sdkVersion: FIREBASE.sdkVersion
         };
 
-        if (options.fid ?? this.fid) body["fid"] = options.fid ?? this.fid;
-        if (options.refreshToken ?? this.refreshToken) body["refreshToken"] = options.refreshToken ?? this.refreshToken!;
+        const existingFid = options.fid ?? this.fid;
+        const existingRefreshToken = options.refreshToken ?? this.refreshToken;
+        if (existingFid) body["fid"] = existingFid;
+        if (existingRefreshToken) body["refreshToken"] = existingRefreshToken;
 
         const json = objectValue(await this.http.ky.post(API_URL.firebase.installations, {
             headers: {
@@ -149,7 +175,12 @@ export class AuthManager {
         };
     }
 
-    /** DCInside 아이디/비밀번호로 로그인하여 세션을 생성한다. */
+    /**
+     * DCInside 아이디와 비밀번호로 로그인하여 세션을 생성합니다.
+     *
+     * @param user 로그인 계정 정보입니다.
+     * @returns 로그인 사용자 정보와 서버가 반환한 세션 상세 정보입니다.
+     */
     async login(user: Extract<User, { type: "login" }>): Promise<Session> {
         if (!this.clientToken) this.clientToken = await this.fetchClientToken();
 
@@ -192,7 +223,13 @@ export class AuthManager {
         };
     }
 
-    /** 익명 세션을 로컬에 생성한다 (네트워크 요청 없음). */
+    /**
+     * 익명 작성용 세션을 로컬에 생성합니다.
+     *
+     * @param id 익명 닉네임입니다.
+     * @param password 글과 댓글 삭제에 사용할 비밀번호입니다.
+     * @returns 네트워크 요청 없이 생성한 익명 세션입니다.
+     */
     createAnonymousSession(id: string, password: string): Session {
         return {
             user: {
@@ -205,8 +242,9 @@ export class AuthManager {
     }
 
     /**
-     * app_check 날짜 토큰 기반으로 SHA-256 해시 app key를 생성한다.
-     * 같은 시(서울 기준) 내에서는 app_check 재호출 없이 캐시된 날짜 토큰을 재사용.
+     * `app_check` 날짜 토큰 기반으로 SHA-256 해시 app key를 생성합니다.
+     *
+     * 같은 시(서울 기준) 안에서는 `app_check`를 다시 호출하지 않고 캐시된 날짜 토큰을 재사용합니다.
      */
     async generateHashedAppKey(): Promise<string> {
         const now = new Date();
@@ -220,7 +258,11 @@ export class AuthManager {
         return sha256Hex(`dcArdchk_${date}`);
     }
 
-    /** 현재 인증 상태를 직렬화 가능한 객체로 추출한다. 파일/DB에 저장해 재사용할 수 있다. */
+    /**
+     * 현재 인증 상태를 직렬화 가능한 객체로 추출합니다.
+     *
+     * @returns 파일이나 DB에 저장해 재사용할 수 있는 인증 정보입니다. 필수 값이 아직 없으면 `null`입니다.
+     */
     exportCredentials(): DeviceCredentials | null {
         if (!this.appId || !this.clientToken || !this.fid || !this.refreshToken || !this.checkinCredentials) {
             return null;
@@ -238,7 +280,11 @@ export class AuthManager {
         };
     }
 
-    /** checkin → Firebase → GCM 전체 흐름을 실행해 client_token을 발급받는다. */
+    /**
+     * checkin → Firebase → GCM 흐름을 실행해 `client_token`을 발급받습니다.
+     *
+     * @returns 발급되었거나 캐시된 FCM `client_token`입니다.
+     */
     async fetchClientToken(): Promise<string> {
         if (this.clientToken) return this.clientToken;
 
@@ -247,7 +293,11 @@ export class AuthManager {
         return result.clientToken;
     }
 
-    /** Google Android checkin 프로토콜로 androidId/securityToken을 발급받는다. 최초 1회만 호출. */
+    /**
+     * Google Android checkin 프로토콜로 `androidId`와 `securityToken`을 발급받습니다.
+     *
+     * @returns 발급되었거나 캐시된 checkin 자격증명입니다.
+     */
     async fetchAndroidCheckin(): Promise<AndroidCheckinCredentials> {
         if (this.checkinCredentials) return this.checkinCredentials;
         const response = await this.http.ky.post(API_URL.playService.checkin, {
@@ -258,7 +308,12 @@ export class AuthManager {
         return this.checkinCredentials;
     }
 
-    /** 이미 받은 checkin 자격증명으로 client_token 발급 흐름을 실행한다. */
+    /**
+     * 이미 받은 checkin 자격증명으로 `client_token` 발급 흐름을 실행합니다.
+     *
+     * @param checkin Google Android checkin 자격증명입니다.
+     * @returns `client_token`, Firebase 설치 정보, Remote Config 원본 응답입니다.
+     */
     async fetchClientTokenWithCheckin(checkin: AndroidCheckinCredentials): Promise<ClientTokenResult> {
         const installation = await this.fetchFirebaseInstallation();
         const clientToken = await this.registerGcm(checkin, installation.authToken);
@@ -278,12 +333,37 @@ export class AuthManager {
         };
     }
 
-    /** GCM Authorization 헤더용 AidLogin 토큰 문자열을 만든다. */
+    /**
+     * GCM Authorization 헤더용 AidLogin 토큰 문자열을 만듭니다.
+     *
+     * @param checkin Google Android checkin 자격증명입니다.
+     * @returns `AidLogin androidId:securityToken` 형식의 헤더 값입니다.
+     */
     generateAidLogin(checkin: AndroidCheckinCredentials): string {
         return `AidLogin ${checkin.androidId}:${checkin.securityToken}`;
     }
 
-    /** app_id를 서버에서 발급받는다. */
+    /**
+     * 외부에서 저장한 인증 정보를 복원합니다.
+     *
+     * @param creds `exportCredentials`로 추출했거나 같은 형태로 저장한 디바이스 인증 정보입니다.
+     */
+    importCredentials(creds: DeviceCredentials): void {
+        this.checkinCredentials = {
+            androidId: BigInt(creds.androidId),
+            securityToken: BigInt(creds.securityToken)
+        };
+        this.fid = creds.fid;
+        this.refreshToken = creds.refreshToken;
+        this.clientToken = creds.clientToken;
+        this.appId = creds.appId;
+        this.appIdIssuedAt = creds.appIdIssuedAt;
+        this.lastHash = null;
+        this.appCheckDate = creds.appCheckDate;
+        this.lastAppCheckTime = creds.lastAppCheckTime != null ? new Date(creds.lastAppCheckTime) : null;
+    }
+
+    /** 서버에서 `app_id`를 발급받습니다. */
     private async fetchAppId(hashedAppKey: string): Promise<string> {
         if (!this.clientToken) this.clientToken = await this.fetchClientToken();
 
@@ -312,7 +392,7 @@ export class AuthManager {
         return appId;
     }
 
-    /** 이전 app_check 시간과 현재 시간이 다른 년/월/일/시인지 확인 (서울 기준). */
+    /** 이전 `app_check` 시간과 현재 시간이 다른 년/월/일/시인지 서울 기준으로 확인합니다. */
     private needsAppCheckRefresh(old: Date, now: Date): boolean {
         const fmt = new Intl.DateTimeFormat("en-CA", {
             year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit",
@@ -365,22 +445,6 @@ export class AuthManager {
         });
     }
 
-    /** 외부에서 저장한 인증 정보를 복원한다. 모든 발급 절차를 생략한다. */
-    importCredentials(creds: DeviceCredentials): void {
-        this.checkinCredentials = {
-            androidId: BigInt(creds.androidId),
-            securityToken: BigInt(creds.securityToken)
-        };
-        this.fid = creds.fid;
-        this.refreshToken = creds.refreshToken;
-        this.clientToken = creds.clientToken;
-        this.appId = creds.appId;
-        this.appIdIssuedAt = creds.appIdIssuedAt;
-        this.lastHash = null;
-        this.appCheckDate = creds.appCheckDate;
-        this.lastAppCheckTime = creds.lastAppCheckTime != null ? new Date(creds.lastAppCheckTime) : null;
-    }
-
     private gcmHeaders(checkin: AndroidCheckinCredentials): Record<string, string> {
         return {
             authorization: this.generateAidLogin(checkin),
@@ -407,7 +471,7 @@ export class AuthManager {
             "X-osv": FIREBASE.osVersion,
             "X-cliv": FIREBASE.cliv,
             "X-gmsv": FIREBASE.gcmVersion,
-            "X-appid": this.fid,
+            "X-appid": this.fid ?? "",
             "X-scope": options.scope,
             "X-Goog-Firebase-Installations-Auth": options.installationAuthToken,
             "X-gmp_app_id": FIREBASE.appId,
@@ -424,7 +488,7 @@ export class AuthManager {
         };
     }
 
-    /** DCInside app_check 엔드포인트에서 날짜 토큰을 가져온다. */
+    /** DCInside `app_check` 엔드포인트에서 날짜 토큰을 가져옵니다. */
     private async fetchAppCheckDate(): Promise<string> {
         const json = await this.http.ky.get(API_URL.auth.appCheck, {
             headers: {Host: new URL(API_URL.auth.appCheck).host}
@@ -435,7 +499,7 @@ export class AuthManager {
         return date;
     }
 
-    /** app_id를 새로 발급받은 직후 서버 검증이 완료될 때까지 대기한다. */
+    /** `app_id`를 새로 발급받은 직후 서버 검증이 완료될 때까지 대기합니다. */
     private async waitForAppIdVerification(): Promise<void> {
         await new Promise((resolve) => setTimeout(resolve, 5000));
     }

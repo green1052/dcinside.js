@@ -32,7 +32,7 @@ const HTML_UNESCAPE_MAP: Record<string, string> = {
 };
 
 /**
- * HTML 엔티티를 디코딩한다. named entity와 &#숫자; 형태를 모두 처리.
+ * HTML 엔티티를 디코딩합니다. named entity와 `&#숫자;` 형태를 모두 처리합니다.
  */
 export function decodeHtml(value: string): string {
     return value
