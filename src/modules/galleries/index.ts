@@ -1,3 +1,4 @@
+import {inferGalleryType} from "../../../dist";
 import {type KyHttpClient, postMultipartJson} from "../../core/http";
 import {API_URL} from "../../core/http/constants";
 import {
@@ -43,11 +44,12 @@ export class GalleryManager {
      * @returns 갤러리 소개, 매니저, 회원 정보입니다.
      */
     async minorInfo(galleryId: string): Promise<MinorGalleryInfo> {
-        const response = await postMultipartJson(this.http, API_URL.gallery.minorInfo, {
-            id: galleryId
-        });
+        const galleryType = inferGalleryType(galleryId);
+        const response = await postMultipartJson(this.http, API_URL.gallery.minorInfo, {id: galleryId});
         const json = firstObject(response);
+
         const mini = objectValue(json["mini"]);
+        const person = objectValue(json["person"]);
 
         return {
             id: stringValue(json["id"]),
@@ -55,7 +57,6 @@ export class GalleryManager {
             image: nullableString(json["img"]),
             description: nullableString(json["mgallery_desc"]),
             manager: {
-                isMaster: true,
                 id: stringValue(json["master_id"]),
                 name: stringValue(json["master_name"])
             },
@@ -65,14 +66,14 @@ export class GalleryManager {
             hotState: stringValue(json["hot_state"]),
             totalCount: stringValue(json["total_count"]),
             categoryName: stringValue(json["cate_name"]),
-            mini: Object.keys(mini).length === 0
-                ? null
-                : {
-                    hide: numberValue(mini["gall_hide"]),
-                    totalMember: numberValue(mini["total_member"]),
-                    memberLimit: numberValue(mini["member_limit"]),
+            mini: galleryType === "mini"
+                ? {
+                    hide: booleanValue(mini["gall_hide"]),
+                    totalMember: numberValue(mini["total_member"], null),
+                    memberLimit: numberValue(mini["member_limit"], null),
                     isMember: booleanValue(mini["member_ok"])
-                }
+                } : null,
+            person: galleryType === "person" ? person : null
         };
     }
 
@@ -147,7 +148,6 @@ export class GalleryManager {
 function mapGalleryManager(value: unknown): GalleryManagerInfo {
     const object = objectValue(value);
     return {
-        isMaster: false,
         id: stringValue(object["id"]),
         name: stringValue(object["name"])
     };

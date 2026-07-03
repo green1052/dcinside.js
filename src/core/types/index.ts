@@ -463,17 +463,23 @@ export interface MinorGalleryInfo {
     totalCount: string;
     categoryName: string;
     mini: MiniGalleryInfo | null;
+    person: {
+        history: {
+            date: string;
+            manager: string;
+            content: string;
+        }
+    } | null;
 }
 
 export interface MiniGalleryInfo {
-    hide: number;
-    totalMember: number;
-    memberLimit: number;
-    isMember: boolean;
+    hide: true;
+    totalMember?: number;
+    memberLimit?: number;
+    isMember?: boolean;
 }
 
 export interface GalleryManagerInfo {
-    isMaster: boolean;
     id: string;
     name: string;
 }
