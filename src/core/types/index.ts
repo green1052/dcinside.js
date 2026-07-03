@@ -366,19 +366,27 @@ export type CommentReadOptions = GalleryTarget & {
 };
 
 export interface CommentData {
-    nonuserNumber: number | null;
     memberIcon: number;
     ip: string | null;
-    gallerCon: string | null;
     name: string;
     userId: string;
     content: CommentContent;
     id: number;
     dateTime: string;
     isReply: boolean;
+    mention: CommentMention | null;
     deleteFlag: string | null;
     deleteScope: number | null;
 }
+
+export type CommentMention = {
+    name: string;
+    targetId: number;
+    number: number;
+    /** userId 역할도 하는 듯 */
+    ip: string;
+    isUser: boolean;
+};
 
 export interface CommentReadResult {
     totalComments: number;

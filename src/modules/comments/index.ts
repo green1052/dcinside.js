@@ -231,7 +231,7 @@ function mapComment(comment: Record<string, unknown>): CommentData {
         content: mapContent(comment),
         dateTime: stringValue(comment["date_time"]),
         isReply: booleanValue(comment["under_step"]),
-        mention: comment["mention"],
+        mention: mapMention(comment["mention"]),
         id: numberValue(comment["comment_no"]),
         deleteFlag: nullableString(comment["is_delete_flag"]),
         deleteScope: nullableNumber(comment["del_scope"])
@@ -255,5 +255,17 @@ function mapContent(comment: Record<string, unknown>): CommentContent {
             detailIndex: numberValue(comment["dccon_detail_idx"]),
             type: nullableString(comment["dccon_type"])
         }
+    };
+}
+
+function mapMention(mention: Record<string, unknown>) {
+    if (!mention) return null;
+
+    return {
+        name: stringValue(mention["name"]),
+        targetId: numberValue(mention["target_no"]),
+        number: stringValue(mention["number"]),
+        ip: stringValue(mention["ip"]),
+        isUser: booleanValue(mention["is_user"])
     };
 }
