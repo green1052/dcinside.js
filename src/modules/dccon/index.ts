@@ -70,20 +70,66 @@ export class DCConManager {
         };
     }
 
-    /** 본문에 삽입할 디시콘 태그 정보를 발급받는다. */
-    async insert(dccon: Pick<DCCon, "packageIndex" | "detailIndex">): Promise<DCConInsertResult> {
-        const response = await this.request({
-            package_idx: dccon.packageIndex ?? 0,
-            detail_idx: dccon.detailIndex,
-            type: "insert"
-        });
-
+    /**
+     * 본문에 삽입할 디시콘 태그 정보를 발급받습니다.
+     *
+     * `detailIndices`에 여러 디테일 인덱스를 전달하면 각 디테일마다 insert API를 호출해
+     * `img_tag`를 모아 `imageTags`로 반환합니다. 디테일이 서로 다른 패키지에 속하면
+     * `detailPackageIds`로 각 인덱스에 해당하는 패키지를 지정할 수 있습니다.
+     *
+     * 단일 디테일은 `detailIndex` 하나만 전달하면 됩니다.
+     *
+     * @param dccon 패키지 인덱스와 디테일 인덱스(목록)입니다.
+     * @returns 삽입용 img_tag와 부가 정보입니다. 다중 삽입이면 `imageTags`에 순서대로 들어갑니다.
+     */
+    async insert(dccon: {
+        packageIndex?: number;
+        detailIndex?: number;
+        detailIndices?: readonly number[];
+        detailPackageIds?: readonly string[];
+    }): Promise<DCConInsertResult> {
+        const detailIndices = dedupeDetailIndices(dccon.detailIndices, dccon.detailIndex);
+        if (detailIndices.length === 0) {
+            return {
+                result: false,
+                newList: null,
+                imageSource: null,
+                alternativeText: null,
+                imageTag: null,
+                imageTags: []
+            };
+        }
+        if (detailIndices.length === 1) {
+            const response = await this.request({
+                package_idx: resolvePackageIndex(dccon, 0, dccon.packageIndex),
+                detail_idx: detailIndices[0],
+                type: "insert"
+            });
+            const imageTag = nullableString(response["img_tag"]);
+            return {
+                result: stringValue(response["result"]).toLowerCase() === "ok" || booleanValue(response["result"]),
+                newList: nullableString(response["new_list"]),
+                imageSource: nullableString(response["img_src"]),
+                alternativeText: nullableString(response["alt"]),
+                imageTag,
+                imageTags: imageTag ? [imageTag] : []
+            };
+        }
+        const imageTags: string[] = [];
+        for (const [index, detailIndex] of detailIndices.entries()) {
+            const single = await this.insert({
+                packageIndex: resolvePackageIndex(dccon, index, dccon.packageIndex),
+                detailIndex: detailIndex
+            });
+            if (single.imageTag) imageTags.push(single.imageTag);
+        }
         return {
-            result: stringValue(response["result"]).toLowerCase() === "ok" || booleanValue(response["result"]),
-            newList: nullableString(response["new_list"]),
-            imageSource: nullableString(response["img_src"]),
-            alternativeText: nullableString(response["alt"]),
-            imageTag: nullableString(response["img_tag"])
+            result: imageTags.length === detailIndices.length,
+            newList: null,
+            imageSource: null,
+            alternativeText: null,
+            imageTag: imageTags[0] ?? null,
+            imageTags
         };
     }
 
@@ -120,6 +166,23 @@ export class DCConManager {
         }
         return session;
     }
+}
+
+/** 디테일 인덱스 목록에서 중복과 0 이하 값을 제거한 양수 배열을 반환합니다. `detailIndices`가 없으면 `detailIndex`를 사용합니다. */
+function dedupeDetailIndices(detailIndices: readonly number[] | undefined, detailIndex?: number): number[] {
+    const source = detailIndices && detailIndices.length > 0 ? detailIndices : detailIndex != null ? [detailIndex] : [];
+    return [...new Set(source.map((id) => Number(id)).filter((id) => Number.isFinite(id) && id > 0))];
+}
+
+/** 다중 삽입 시 인덱스에 해당하는 패키지 식별자를 우선 사용하고, 없으면 기본 packageIndex를 사용합니다. 숫자 문자열만 허용합니다. */
+function resolvePackageIndex(
+    dccon: { detailPackageIds?: readonly string[]; packageIndex?: number },
+    index: number,
+    fallback?: number
+): number | undefined {
+    const explicit = dccon.detailPackageIds?.[index];
+    if (explicit && /^\d+$/.test(explicit)) return Number(explicit);
+    return fallback;
 }
 
 function mapDCCon(value: unknown): DCCon {

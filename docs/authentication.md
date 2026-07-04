@@ -99,3 +99,36 @@ const result = await client.auth.fetchClientTokenWithCheckin(checkin);
 // app_id 강제 갱신
 await client.auth.refreshAppId({refreshClientToken: true});
 ```
+
+## 로그인 (OTP / 캡챠)
+
+`client.login(id, password, options)`로 로그인합니다. 2차 인증 (OTP)이 필요한 계정은 `otp`에 번호를 전달합니다.
+
+```ts
+await client.login("dcinside-id", "password", {
+    otp: "123456",
+});
+```
+
+서버가 OTP를 요구하면 `LoginOtpRequiredError`가 throw 됩니다. 로그인 캡챠가 필요하면 `LoginCaptchaRequiredError`가 throw 됩니다. 캡챠 답변은 `captcha`
+옵션으로 전달합니다.
+
+```ts
+await client.login("dcinside-id", "password", {
+    captcha: {code: "1234", dccode: "세션식별자"},
+});
+```
+
+로그인은 기본적으로 `login_quick` 모드로 시도하고, "간편 아이디 삭제"/"다시 로그인" 응답이 오면 `login_normal` 모드로 자동 재시도합니다. `mode` 옵션으로 직접 지정할 수도 있습니다.
+
+## 인증 만료
+
+`app_id`나 로그인 세션이 만료되면 `AuthExpiredError`가 throw 됩니다. `kind`로 만료 종류를 구분합니다.
+
+| `kind`         | cause                 | 처리                            |
+|----------------|-----------------------|---------------------------------|
+| `appId`        | `certification`       | `app_id` 재발급 후 요청 재시도  |
+| `loginSession` | `certification_login` | 로그인 세션 갱신 후 요청 재시도 |
+
+HTTP 클라이언트가 만료 응답을 자동으로 감지해 갱신 후 재시도하므로, 일반적인 사용에서는 직접 처리할 필요가 없습니다. 수동으로 갱신하려면 `client.auth.refreshAppId()` 또는
+`client.login(...)`을 다시 호출하세요.

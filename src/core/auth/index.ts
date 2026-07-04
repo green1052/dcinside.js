@@ -1,6 +1,7 @@
 import {buildFormData, type KyHttpClient} from "../http";
+import {assertAuthExpired, authExpiredKind} from "../http/api-error";
 import {API_URL, DC_APP, FIREBASE} from "../http/constants";
-import {AuthenticationError} from "../http/errors";
+import {AuthenticationError, AuthExpiredError, LoginCaptchaRequiredError, LoginOtpRequiredError} from "../http/errors";
 import {arrayValue, booleanValue, nullableString, numberValue, objectValue, stringValue} from "../http/json";
 import {sha256Hex} from "../http/utils";
 import type {
@@ -8,9 +9,9 @@ import type {
     ClientTokenResult,
     DeviceCredentials,
     FirebaseInstallation,
+    LoginInput,
     Session,
-    SessionDetail,
-    User
+    SessionDetail
 } from "../types";
 import {createAndroidCheckinRequest, parseAndroidCheckinResponse} from "./checkin";
 
@@ -178,47 +179,40 @@ export class AuthManager {
     /**
      * DCInside 아이디와 비밀번호로 로그인하여 세션을 생성합니다.
      *
-     * @param user 로그인 계정 정보입니다.
+     * `login_quick` 모드로 먼저 시도하고, "간편 아이디 삭제"/"다시 로그인" cause가 반환되면
+     * `login_normal` 모드로 자동 재시도합니다. OTP 2차 인증이나 캡챠가 필요하면
+     * 각각 `LoginOtpRequiredError`/`LoginCaptchaRequiredError`를 throw 합니다.
+     *
+     * @param input 로그인 입력 파라미터입니다.
      * @returns 로그인 사용자 정보와 서버가 반환한 세션 상세 정보입니다.
      */
-    async login(user: Extract<User, { type: "login" }>): Promise<Session> {
+    async login(input: LoginInput): Promise<Session> {
         if (!this.clientToken) this.clientToken = await this.fetchClientToken();
-
-        const json = objectValue(await this.http.ky.post(API_URL.auth.login, {
-            headers: {
-                "User-Agent": DC_APP.userAgent,
-                Referer: DC_APP.referer
-            },
-            body: new URLSearchParams({
-                client_token: this.clientToken ?? "",
+        const mode = input.mode ?? "login_quick";
+        let detail = await this.requestLogin({
+            id: input.id,
+            password: input.password,
+            mode,
+            ...(input.otp ? {otp: input.otp} : {}),
+            ...(input.captcha ? {captcha: input.captcha} : {})
+        });
+        if (!detail.result && mode === "login_quick" && shouldRetryNormalLogin(detail.cause)) {
+            detail = await this.requestLogin({
+                id: input.id,
+                password: input.password,
                 mode: "login_normal",
-                user_id: user.id,
-                user_pw: user.password
-            })
-        }).json());
-        const detail: SessionDetail = {
-            result: booleanValue(json["result"]),
-            userId: stringValue(json["user_id"]),
-            userNo: stringValue(json["user_no"]),
-            name: stringValue(json["name"]),
-            sessionType: stringValue(json["stype"]),
-            isAdult: numberValue(json["is_adult"]),
-            isDormancy: numberValue(json["is_dormancy"]),
-            isOtp: numberValue(json["is_otp"]),
-            pwCampaign: numberValue(json["pw_campaign"]),
-            mailSend: stringValue(json["mail_send"]),
-            isGonick: numberValue(json["is_gonick"]),
-            isSecurityCode: stringValue(json["is_security_code"]),
-            authChange: numberValue(json["auth_change"]),
-            cause: nullableString(json["cause"])
-        };
-
-        if (!detail.result) {
-            throw new AuthenticationError(detail.cause ?? "Login failed.");
+                ...(input.otp ? {otp: input.otp} : {}),
+                ...(input.captcha ? {captcha: input.captcha} : {})
+            });
         }
-
+        if (!detail.result) {
+            const cause = detail.cause ?? "Login failed.";
+            const kind = authExpiredKind(cause);
+            if (kind) throw new AuthExpiredError(kind, cause);
+            throw new AuthenticationError(cause);
+        }
         return {
-            user,
+            user: {type: "login", id: input.id, password: input.password},
             detail
         };
     }
@@ -361,6 +355,67 @@ export class AuthManager {
         this.lastHash = null;
         this.appCheckDate = creds.appCheckDate;
         this.lastAppCheckTime = creds.lastAppCheckTime != null ? new Date(creds.lastAppCheckTime) : null;
+    }
+
+    /** 로그인 API 요청을 전송하고 세부 정보를 파싱합니다. */
+    private async requestLogin(input: {
+        id: string;
+        password: string;
+        mode: "login_quick" | "login_normal";
+        otp?: string;
+        captcha?: import("../types").CaptchaAnswer;
+    }): Promise<SessionDetail> {
+        const params = new URLSearchParams({
+            client_token: this.clientToken ?? "",
+            mode: input.mode,
+            user_id: input.id,
+            user_pw: input.password
+        });
+        if (input.captcha) {
+            params.set("rand_code", input.captcha.dccode ?? input.captcha.captcha ?? "");
+            params.set("captcha_code", input.captcha.code);
+        }
+        if (input.otp) {
+            params.set("auth_mode", "otp");
+            params.set("otp_num", input.otp);
+        }
+
+        const json = objectValue(await this.http.ky.post(API_URL.auth.login, {
+            headers: {
+                "User-Agent": DC_APP.userAgent,
+                Referer: DC_APP.referer
+            },
+            body: params
+        }).json());
+
+        const detail: SessionDetail = {
+            result: booleanValue(json["result"]),
+            userId: stringValue(json["user_id"]),
+            userNo: stringValue(json["user_no"]),
+            name: stringValue(json["name"]),
+            sessionType: stringValue(json["stype"]),
+            isAdult: numberValue(json["is_adult"]),
+            isDormancy: numberValue(json["is_dormancy"]),
+            isOtp: numberValue(json["is_otp"]),
+            pwCampaign: numberValue(json["pw_campaign"]),
+            mailSend: stringValue(json["mail_send"]),
+            isGonick: numberValue(json["is_gonick"]),
+            isSecurityCode: stringValue(json["is_security_code"]),
+            authChange: numberValue(json["auth_change"]),
+            cause: nullableString(json["cause"])
+        };
+
+        if (detail.result) return detail;
+
+        const cause = detail.cause ?? "";
+        assertAuthExpired(cause);
+        if (isLoginOtpCause(cause) || detail.isOtp === 1) {
+            throw new LoginOtpRequiredError(cause || "OTP 2차 인증이 필요합니다.");
+        }
+        if (isLoginCaptchaCause(cause)) {
+            throw new LoginCaptchaRequiredError(cause || "로그인 보안코드 입력이 필요합니다.");
+        }
+        return detail;
     }
 
     /** 서버에서 `app_id`를 발급받습니다. */
@@ -550,4 +605,20 @@ export class AuthManager {
         if (!this.appIdIssuedAt) return false;
         return Date.now() - this.appIdIssuedAt < APP_ID_TTL_MS;
     }
+}
+
+/** `login_quick` 실패 cause가 `login_normal` 재시도 대상인지 확인합니다. */
+function shouldRetryNormalLogin(cause: string | null): boolean {
+    if (!cause) return false;
+    return cause.includes("간편 아이디 삭제") || cause.includes("다시 로그인");
+}
+
+/** cause 문자열이 OTP 2차 인증 필요를 의미하는지 확인합니다. */
+function isLoginOtpCause(cause: string): boolean {
+    return cause.includes("OTP") || cause.includes("otp") || cause.includes("2차");
+}
+
+/** cause 문자열이 로그인 캡챠 필요를 의미하는지 확인합니다. */
+function isLoginCaptchaCause(cause: string): boolean {
+    return cause.includes("자동 입력 방지") || cause.includes("보안코드") || cause.toLowerCase().includes("captcha");
 }

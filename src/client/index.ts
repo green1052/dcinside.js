@@ -1,6 +1,6 @@
 import type {Options as KyOptions} from "ky";
 import {AuthManager} from "../core/auth";
-import {KyHttpClient, type ProxyOptions} from "../core/http";
+import {AuthExpiredError, KyHttpClient, type ProxyOptions} from "../core/http";
 import type {DeviceCredentials, Session, User} from "../core/types";
 import {ArticleManager} from "../modules/articles";
 import {CommentManager} from "../modules/comments";
@@ -49,7 +49,18 @@ export class DCInsideClient {
             getAppId: () => this.auth.getAppId(),
             getClientToken: () => this.auth.fcmToken,
             ensureClientToken: () => this.auth.fetchClientToken(),
-            getUserId: () => this.session?.detail?.userId ?? null
+            getUserId: () => this.session?.detail?.userId ?? null,
+            refreshAppId: () => this.auth.refreshAppId({refreshClientToken: true}),
+            refreshLogin: async () => {
+                const session = this.session;
+                if (!session || session.user.type !== "login") {
+                    throw new AuthExpiredError("loginSession", "no active login session to refresh");
+                }
+                this.session = await this.auth.login({
+                    id: session.user.id,
+                    password: session.user.password
+                });
+            }
         });
         this.articleManager = new ArticleManager(this.http, this.auth, () => this.session);
         this.commentManager = new CommentManager(this.http, this.auth, () => this.session);
@@ -70,10 +81,18 @@ export class DCInsideClient {
      *
      * @param id DCInside 아이디입니다.
      * @param password DCInside 비밀번호입니다.
+     * @param options OTP, 캡챠 등 추가 로그인 옵션입니다.
      * @returns 로그인 상세 정보가 포함된 세션입니다.
      */
-    async login(id: string, password: string): Promise<Session> {
-        this.session = await this.auth.login({type: "login", id, password});
+    async login(id: string, password: string, options: {
+        /** 2차 인증(OTP) 번호입니다. */
+        otp?: string;
+        /** 로그인 캡챠 답변입니다. 서버가 캡챠를 요구할 때 전달합니다. */
+        captcha?: import("../core/types").CaptchaAnswer;
+        /** 로그인 모드. 생략하면 `login_quick` 후 필요시 `login_normal` 재시도합니다. */
+        mode?: "login_quick" | "login_normal";
+    } = {}): Promise<Session> {
+        this.session = await this.auth.login({id, password, ...options});
         return this.session;
     }
 

@@ -48,6 +48,12 @@ export const API_URL = {
         dccon: "https://app.dcinside.com/api/dccon.php"
     },
 
+    captcha: {
+        login: "https://app.dcinside.com/captcha/code",
+        article: "https://app.dcinside.com/code.php",
+        comment: "https://app.dcinside.com/code_reple.php"
+    },
+
     gallery: {
         minorInfo: "https://app.dcinside.com/api/minor_info",
         minorManagement: "https://gall.dcinside.com/mgallery/management/mobile",

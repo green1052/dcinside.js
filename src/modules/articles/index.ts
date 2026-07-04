@@ -2,6 +2,7 @@ import type {AuthManager} from "../../core/auth";
 import {type KyHttpClient, postMultipartJson} from "../../core/http";
 import {apiError, isApiError, shouldRefreshAppId} from "../../core/http/api-error";
 import {API_URL} from "../../core/http/constants";
+import {CaptchaRequiredError} from "../../core/http/errors";
 import {
     arrayValue,
     booleanValue,
@@ -33,6 +34,7 @@ import type {
     ArticleVoteResult,
     ArticleWriteOptions,
     ArticleWriteResult,
+    CaptchaAnswer,
     GalleryInfo,
     HeadText,
     Session
@@ -107,7 +109,8 @@ export class ArticleManager {
      * 게시글을 작성하거나 수정합니다.
      *
      * `mode: "modify"`를 사용할 때는 `articleId`가 필요합니다. 익명 세션은
-     * 닉네임과 비밀번호를, 로그인 세션은 confirm_id/user_id를 자동 전송합니다.
+     * 닉네임과 비밀번호를, 로그인 세션은 confirm_id/user_id를 자동 전솩니다.
+     * 캡챠가 필요하면 `captcha`에 답변을 전달하고, 성인 갤러리면 `adultCode`를 전달합니다.
      *
      * @param options 작성 대상 갤러리, 제목, 본문 블록, 말머리, 작성/수정 모드입니다.
      * @returns 성공 여부, 생성/수정된 게시글 번호, 서버 메시지입니다.
@@ -123,8 +126,8 @@ export class ArticleManager {
             throw new Error("articleId is required when writing with mode: \"modify\".");
         }
 
+        const action: "writeArticle" | "modifyArticle" = options.mode === "modify" ? "modifyArticle" : "writeArticle";
         const appId = await this.auth.getAppId();
-
         const multipart: Record<string, string | number | boolean | Blob | File | null | undefined> = {
             id: galleryId,
             app_id: appId,
@@ -173,10 +176,19 @@ export class ArticleManager {
         multipart["use_gall_nickname"] = "0";
         multipart["write_movie"] = "0";
 
-        const raw = await postMultipartJson(this.http, API_URL.article.write, multipart);
-        const json = firstObject(raw);
+        appendArticleCaptcha(multipart, options.captcha);
+        if (options.adultCode) multipart["adult_code"] = options.adultCode;
 
-        if (isApiError(json)) throw apiError("write article", json);
+        const raw = await postMultipartJson(this.http, API_URL.article.write, multipart);
+
+        const json = firstObject(raw);
+        if (isApiError(json)) {
+            const cause = nullableString(json["cause"]) ?? "failed to write article";
+            if (isCaptchaCause(cause)) {
+                throw new CaptchaRequiredError(cause, action, readCaptchaChallenge(raw));
+            }
+            throw apiError(action === "modifyArticle" ? "modify article" : "write article", json);
+        }
 
         return {
             result: booleanValue(json["result"]),
@@ -367,8 +379,17 @@ export class ArticleManager {
         const galleryId = options.gallery;
         const json = await this.uploadArticleAction(url, {
             id: galleryId,
-            no: options.articleId
+            no: options.articleId,
+            ...(options.captcha ? {
+                rand_code: options.captcha.dccode ?? options.captcha.captcha ?? "",
+                captcha_code: options.captcha.code
+            } : {})
         });
+
+        const cause = nullableString(json["cause"]) ?? "";
+        if (!booleanValue(json["result"]) && isCaptchaCause(cause)) {
+            throw new CaptchaRequiredError(cause, "voteArticle", readCaptchaChallenge(json));
+        }
 
         return {
             result: booleanValue(json["result"]),
@@ -396,6 +417,45 @@ export class ArticleManager {
         }
         return session;
     }
+}
+
+/** cause 문자열이 캡챠(보안코드) 필요를 의미하는지 확인합니다. 대소문자 구분 없이 `captcha`/`보안코드`/`자동입력`/`코드`를 찾습니다. */
+function isCaptchaCause(cause: string): boolean {
+    const normalized = cause.toLowerCase();
+    return normalized.includes("captcha") || cause.includes("보안코드") || cause.includes("자동입력") || cause.includes("코드");
+}
+
+/** 글 작성 multipart에 캡챠 답변 필드(`code`, `dcblock`)를 추가합니다. */
+function appendArticleCaptcha(
+    multipart: Record<string, string | number | boolean | Blob | File | null | undefined>,
+    captcha?: CaptchaAnswer
+): void {
+    if (!captcha?.code) return;
+    multipart["code"] = captcha.dccode ?? captcha.captcha ?? "";
+    multipart["dcblock"] = captcha.code;
+}
+
+/** 응답에서 캡챠 챌린지 정보(이미지 URL, 세션 식별자)를 추출합니다. 여러 키 후보를 순회하며 첫 값을 채택합니다. */
+function readCaptchaChallenge(raw: unknown): import("../../core/types").CaptchaChallenge {
+    const value = Array.isArray(raw) ? raw[0] : raw;
+    if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+    const object = value as Record<string, unknown>;
+    const imageUrl = firstNonEmptyString(object, ["captcha_url", "captchaUrl", "captcha_img", "captchaImg", "captcha_image", "captchaImage", "kcaptcha", "image", "img", "src", "url", "recommend_captcha"]);
+    const captcha = firstNonEmptyString(object, ["captcha", "captcha_id", "captchaId", "code", "session", "key"]);
+    const challenge: import("../../core/types").CaptchaChallenge = {};
+    if (imageUrl && /^https?:\/\//.test(imageUrl)) challenge.imageUrl = imageUrl;
+    if (captcha) challenge.captcha = captcha;
+    return challenge;
+}
+
+/** 객체에서 후보 키 순서대로 첫 번째로 발견한 비어있지 않은 문자열/숫자 값을 반환합니다. 없으면 빈 문자열입니다. */
+function firstNonEmptyString(object: Record<string, unknown>, keys: string[]): string {
+    for (const key of keys) {
+        const value = object[key];
+        if (typeof value === "string" && value.trim().length > 0) return value.trim();
+        if (typeof value === "number") return String(value);
+    }
+    return "";
 }
 
 export class ScopedGalleryArticleManager {

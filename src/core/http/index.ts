@@ -1,5 +1,6 @@
 import ky, {type KyInstance, type Options} from "ky";
 import type {EnvHttpProxyAgent, ProxyAgent} from "undici-types";
+import {authExpiredKind} from "./api-error";
 import {API_URL} from "./constants";
 import {HTTPError} from "./errors";
 import {defaultHeaders} from "./utils";
@@ -11,6 +12,9 @@ export interface ProxyOptions {
     dispatcher?: ProxyAgent | EnvHttpProxyAgent;
 }
 
+export {AuthExpiredError} from "./errors";
+export {authExpiredKind, assertAuthExpired, isAppIdExpiredCause, isLoginSessionExpiredCause} from "./api-error";
+
 export interface DCInsideRequestContext {
     /** 요청에 넣을 `app_id`를 반환합니다. 필요하면 내부에서 새로 발급합니다. */
     getAppId: () => Promise<string>;
@@ -20,9 +24,22 @@ export interface DCInsideRequestContext {
     ensureClientToken: () => Promise<string>;
     /** 로그인 세션의 DCInside 사용자 식별자를 반환합니다. 익명 세션이면 `null`입니다. */
     getUserId: () => string | null;
+    /** `app_id`를 강제로 재발급합니다. 인증 만료 응답을 받았을 때 호출합니다. */
+    refreshAppId: () => Promise<string>;
+    /** 로그인 세션을 갱신합니다. 세션 만료 응답을 받았을 때 호출합니다. */
+    refreshLogin: () => Promise<unknown>;
 }
 
-export type MultipartValue = string | number | boolean | Blob | File | null | undefined;
+export type MultipartValue =
+    string
+    | number
+    | boolean
+    | Blob
+    | File
+    | null
+    | undefined
+    | readonly (string | number | boolean)[];
+
 export type MultipartFields = Record<string, MultipartValue>;
 
 export class KyHttpClient {
@@ -56,14 +73,23 @@ export class KyHttpClient {
                     ...(kyOptions.hooks?.beforeRequest ?? [])
                 ],
                 afterResponse: [
-                    ({response}) => {
-                        if (!response.ok) {
-                            throw new HTTPError(
-                                `HTTP Error: ${response.status} ${response.statusText}`.trim(),
-                                response.status,
-                                response
-                            );
+                    async ({request, response}) => {
+                        if (response.ok) return;
+                        const cause = await readCauseFromResponse(response.clone());
+                        const kind = cause ? authExpiredKind(cause) : null;
+                        if (kind === "appId" && this.context) {
+                            await this.context.refreshAppId();
+                            return ky(request);
                         }
+                        if (kind === "loginSession" && this.context) {
+                            await this.context.refreshLogin();
+                            return ky(request);
+                        }
+                        throw new HTTPError(
+                            `HTTP Error: ${response.status} ${response.statusText}`.trim(),
+                            response.status,
+                            response
+                        );
                     },
                     ...(kyOptions.hooks?.afterResponse ?? [])
                 ]
@@ -113,7 +139,7 @@ export class KyHttpClient {
             const next = new FormData();
 
             for (const [key, value] of body.entries())
-                next.set(key, value);
+                next.append(key, value);
 
             next.set("app_id", appId);
             if (userId) next.set("user_id", userId);
@@ -146,6 +172,13 @@ export function buildFormData(fields: MultipartFields): FormData {
     const form = new FormData();
     for (const [key, value] of Object.entries(fields)) {
         if (value == null) continue;
+        if (Array.isArray(value)) {
+            for (const item of value) {
+                if (item == null) continue;
+                form.append(key, item instanceof Blob ? item : String(item));
+            }
+            continue;
+        }
         if (value instanceof Blob) form.append(key, value);
         else form.append(key, String(value));
     }
@@ -174,4 +207,18 @@ function redirectAppApiGet({request}: { request: Request }): Request | void {
     const hash = Buffer.from(url.toString()).toString("base64");
     redirect.searchParams.set("hash", hash);
     return new Request(`${redirect.origin}${redirect.pathname}?hash=${hash}`, request);
+}
+
+/** 응답 본문에서 DCInside API cause 문자열을 추출합니다. JSON 배열이면 첫 번째 요소에서, 객체면 직접 추출합니다. JSON이 아니거나 cause가 없으면 빈 문자열을 반환합니다. */
+async function readCauseFromResponse(response: { json(): Promise<unknown> }): Promise<string> {
+    try {
+        const json = await response.json();
+        const value = Array.isArray(json) ? json[0] : json;
+        if (value && typeof value === "object" && !Array.isArray(value)) {
+            const cause = (value as Record<string, unknown>)["cause"];
+            if (typeof cause === "string") return cause;
+        }
+    } catch {
+    }
+    return "";
 }

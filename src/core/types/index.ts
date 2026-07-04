@@ -13,6 +13,20 @@ export type User =
     password: string;
 };
 
+/** 로그인 입력 파라미터입니다. */
+export interface LoginInput {
+    /** DCInside 아이디입니다. */
+    id: string;
+    /** DCInside 비밀번호입니다. */
+    password: string;
+    /** 2차 인증(OTP) 번호입니다. OTP가 필요한 계정이면 전달합니다. */
+    otp?: string;
+    /** 로그인 캡챠 답변입니다. 서버가 캡챠를 요구할 때 전달합니다. */
+    captcha?: CaptchaAnswer;
+    /** 로그인 모드. 생략하면 `login_quick`으로 시도 후 필요시 `login_normal`로 재시도합니다. */
+    mode?: "login_quick" | "login_normal";
+}
+
 export interface SessionDetail {
     result: boolean;
     userId: string;
@@ -80,7 +94,7 @@ export interface HeadText {
     name: string;
     level: number;
     selected: boolean;
-    recommUnused: boolean;
+    recommUnused?: boolean;
 }
 
 export interface Gallery {
@@ -97,6 +111,12 @@ export interface GalleryTarget {
 export interface DCCon {
     packageIndex?: number;
     detailIndex: number;
+    /** 다중 디시콘 삽입 시 사용할 상세 인덱스 목록입니다. 단일 디시콘은 `detailIndex`를 사용합니다. */
+    detailIndices?: readonly number[];
+    /** 디시콘 패키지 식별자입니다. 다중 삽입 시 각 디테일의 패키지를 개별 지정할 때 사용합니다. */
+    packageId?: string;
+    /** 다중 디시콘 삽입 시 각 디테일별 패키지 식별자 목록입니다. */
+    detailPackageIds?: readonly string[];
     imgLink?: string;
     memo?: string;
     title?: string;
@@ -112,6 +132,24 @@ export type CommentContent =
     type: "dccon";
     dccon: DCCon;
 };
+
+/** 캡챠 답변입니다. 글/댓글 작성, 추천, 로그인에서 사용합니다. */
+export interface CaptchaAnswer {
+    /** 사용자가 입력한 보안코드입니다. */
+    code: string;
+    /** 캡챠 세션 식별자입니다. 생략하면 `captcha` 필드를 사용합니다. */
+    dccode?: string;
+    /** 레거시 캡챠 세션 식별자입니다. */
+    captcha?: string;
+}
+
+/** 캡챠 챌린지 정보입니다. 서버가 캡챠를 요구할 때 에러와 함께 전달됩니다. */
+export interface CaptchaChallenge {
+    /** 캡챠 이미지 URL입니다. */
+    imageUrl?: string;
+    /** 캡챠 세션 식별자입니다. */
+    captcha?: string;
+}
 
 export type ArticleListOptions = GalleryTarget & {
     /** 1부터 시작하는 페이지 번호. 생략하면 `1`입니다. */
@@ -228,6 +266,7 @@ export interface ArticleViewInfo {
     dateTime: string;
     isMinor: boolean;
     isMini: boolean;
+    isPerson: boolean;
     useAutoDelete: number | null;
     useListFix: boolean | null;
     membership: boolean | null;
@@ -308,6 +347,10 @@ export type ArticleWriteOptions = GalleryTarget & {
     headText?: Pick<HeadText, "no" | "name">;
     /** 새 글 작성 또는 기존 글 수정 모드. 생략하면 `write`입니다. */
     mode?: "write" | "modify";
+    /** 캡챠(보안코드) 답변입니다. 서버가 캡챠를 요구할 때 전달합니다. */
+    captcha?: CaptchaAnswer;
+    /** 성인 인증 코드입니다. 성인 갤러리 글 작성 시 필요할 수 있습니다. */
+    adultCode?: string;
 };
 
 export interface ArticleWriteResult {
@@ -334,6 +377,8 @@ export interface ArticleDeleteResult {
 
 export type ArticleVoteOptions = GalleryTarget & {
     articleId: number;
+    /** 캡챠(보안코드) 답변입니다. 서버가 캡챠를 요구할 때 전달합니다. */
+    captcha?: CaptchaAnswer;
 };
 
 export interface ArticleVoteResult {
@@ -382,7 +427,7 @@ export interface CommentData {
 export type CommentMention = {
     name: string;
     targetId: number;
-    number: number;
+    number: string;
     /** userId 역할도 하는 듯 */
     ip: string;
     isUser: boolean;
@@ -399,6 +444,10 @@ export type CommentWriteOptions = GalleryTarget & {
     articleId: number;
     content: CommentContent | string;
     replyToCommentId?: number;
+    /** 캡챠(보안코드) 답변입니다. 서버가 캡챠를 요구할 때 전달합니다. */
+    captcha?: CaptchaAnswer;
+    /** 성인 인증 코드입니다. 성인 갤러리 댓글 작성 시 필요할 수 있습니다. */
+    adultCode?: string;
 };
 
 export type CommentDeleteOptions = GalleryTarget & {
@@ -468,6 +517,8 @@ export interface DCConInsertResult {
     imageSource: string | null;
     alternativeText: string | null;
     imageTag: string | null;
+    /** 다중 디시콘 삽입 시 각 디테일별 img_tag 목록입니다. 단일 삽입은 빈 배열입니다. */
+    imageTags: string[];
 }
 
 export interface DCConBuyResult {
@@ -475,7 +526,7 @@ export interface DCConBuyResult {
     message: string;
 }
 
-export type RankingType = "up" | "down" | "stop";
+export type RankingType = "up" | "down" | "stop" | "unknown";
 
 export interface GalleryRankingItem {
     galleryLink: string;
@@ -511,7 +562,7 @@ export interface MinorGalleryInfo {
 }
 
 export interface MiniGalleryInfo {
-    hide: true;
+    hide: boolean;
     totalMember?: number;
     memberLimit?: number;
     isMember?: boolean;
@@ -534,7 +585,7 @@ export interface MainPageHitArticle {
     galleryId: string;
     articleId: number;
     title: string;
-    galleryAlias: string;
+    galleryAlias: string | null;
     thumbnail: string;
 }
 
@@ -544,13 +595,13 @@ export interface MainPageLiveBestArticle {
     galleryName: string;
     title: string;
     comment: string;
-    hit: string;
-    recommend: string;
+    hit: number;
+    recommend: number;
     isTop: boolean;
     regTime: string;
     thumbnail: string;
-    category: "best" | "light";
-    gallAlias: string;
+    category: string;
+    gallAlias: string | null;
 }
 
 export interface MainPageResult {

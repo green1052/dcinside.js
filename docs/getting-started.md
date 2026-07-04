@@ -47,6 +47,9 @@ client.useAnonymous("닉네임", "비밀번호");
 
 ```ts
 await client.login("아이디", "비밀번호");
+
+// 2차 인증(OTP)이 필요한 계정
+await client.login("아이디", "비밀번호", {otp: "123456"});
 ```
 
 ```ts
@@ -57,7 +60,14 @@ console.log(client.session);
 ## 에러 처리
 
 ```ts
-import {AuthenticationError, DCInsideError, HTTPError} from "dcinside.js";
+import {
+    AuthExpiredError,
+    AuthenticationError,
+    CaptchaRequiredError,
+    DCInsideError,
+    HTTPError,
+    LoginOtpRequiredError
+} from "dcinside.js";
 
 try {
     await client.gallery("mi$bjwg64").articles.write({
@@ -65,7 +75,13 @@ try {
         content: ["본문"],
     });
 } catch (error) {
-    if (error instanceof AuthenticationError) {
+    if (error instanceof CaptchaRequiredError) {
+        console.error("캡챠 필요", error.action, error.challenge);
+    } else if (error instanceof AuthExpiredError) {
+        console.error("인증 만료", error.kind);
+    } else if (error instanceof LoginOtpRequiredError) {
+        console.error("OTP 필요");
+    } else if (error instanceof AuthenticationError) {
         console.error("인증 실패", error.message);
     } else if (error instanceof HTTPError) {
         console.error("HTTP 실패", error.statusCode);
@@ -74,6 +90,8 @@ try {
     }
 }
 ```
+
+캡챠 처리와 인증 만료 자동 갱신에 대한 자세한 내용은 [캡챠](./captcha.md)와 [인증](./authentication.md) 문서를 참고하세요.
 
 ## 프록시
 

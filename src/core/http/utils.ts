@@ -25,7 +25,7 @@ const HTML_UNESCAPE_MAP: Record<string, string> = {
     "&amp;": "&",
     "&lt;": "<",
     "&gt;": ">",
-    "&quot;": "\"",
+    "&quot;": `"`,
     "&#39;": "'",
     "&apos;": "'",
     "&nbsp;": " "

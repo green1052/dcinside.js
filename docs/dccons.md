@@ -48,6 +48,21 @@ await gallery.articles.write({
 });
 ```
 
+### 다중 디시콘 삽입
+
+여러 디시콘을 한 블록에 연속으로 넣으려면 `detailIndices` 배열을 전달합니다. 각 디테일마다 insert API를 호출해 `imageTags`에 태그를 모아 반환합니다. 패키지가 다르면
+`detailPackageIds`로 각 디테일의 패키지를 지정할 수 있습니다.
+
+```ts
+const inserted = await client.dccons.insert({
+    packageIndex: 123,
+    detailIndices: [8884844, 8884845],
+    detailPackageIds: ["123", "456"],
+});
+
+console.log(inserted.imageTags); // ["<img ...>", "<img ...>"]
+```
+
 ## 구매
 
 ```ts

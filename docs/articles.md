@@ -75,6 +75,41 @@ console.log(result.articleId);
 
 `subject`는 공백만 있으면 요청 전에 거부됩니다. `content`도 최소 한 블록이 필요합니다.
 
+### 캡챠 (보안코드)
+
+일부 갤러리에서는 글 작성 시 보안코드를 요구합니다. 서버가 캡챠를 요구하면 `CaptchaRequiredError`가 throw 됩니다. 에러의 `challenge.imageUrl`과
+`challenge.captcha`로 캡챠 이미지를 보여주고, 사용자가 입력한 코드를 `captcha` 옵션에 담아 다시 작성하면 됩니다.
+
+```ts
+import {CaptchaRequiredError, downloadCaptchaImage} from "dcinside.js";
+
+try {
+    await gallery.articles.write({subject: "제목", content: ["본문"]});
+} catch (error) {
+    if (error instanceof CaptchaRequiredError) {
+        await downloadCaptchaImage({url: error.challenge.imageUrl!, outputPath: "./captcha.png"});
+        // 사용자 입력을 code에 담아 재시도
+        await gallery.articles.write({
+            subject: "제목",
+            content: ["본문"],
+            captcha: {code: "1234", dccode: error.challenge.captcha},
+        });
+    }
+}
+```
+
+### 성인 갤러리
+
+성인 인증이 필요한 갤러리에서는 `adultCode`를 함께 전달합니다.
+
+```ts
+await gallery.articles.write({
+    subject: "제목",
+    content: ["본문"],
+    adultCode: "성인인증코드",
+});
+```
+
 ## 수정
 
 ```ts
@@ -110,4 +145,10 @@ await article.downvote();
 await article.hitUpvote();
 
 const reportUrl = await article.reportLink();
+```
+
+추천/비추천 시 보안코드가 필요하면 `CaptchaRequiredError`가 throw 됩니다. `captcha` 옵션으로 답변을 전달해 재시도할 수 있습니다.
+
+```ts
+await article.upvote({captcha: {code: "1234", dccode: "세션식별자"}});
 ```

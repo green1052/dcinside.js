@@ -12,6 +12,7 @@ import {
     stringValue
 } from "../../core/http/json";
 import type {
+    Gallery,
     GalleryManagerInfo,
     GalleryRankingItem,
     MainPageHitArticle,
@@ -69,11 +70,11 @@ export class GalleryManager {
             mini: galleryType === "mini"
                 ? {
                     hide: booleanValue(mini["gall_hide"]),
-                    totalMember: numberValue(mini["total_member"], null),
-                    memberLimit: numberValue(mini["member_limit"], null),
+                    totalMember: nullableNumber(mini["total_member"]) ?? undefined,
+                    memberLimit: nullableNumber(mini["member_limit"]) ?? undefined,
                     isMember: booleanValue(mini["member_ok"])
                 } : null,
-            person: galleryType === "person" ? person : null
+            person: galleryType === "person" ? person as MinorGalleryInfo["person"] : null
         };
     }
 
@@ -88,8 +89,8 @@ export class GalleryManager {
         const json = firstObject(response);
         return {
             hit: arrayValue(json["hit"]).map(mapHitArticle),
-            liveBest: arrayValue(json["livebest"]).map(mapLiveBestArticle),
-            newGallery: arrayValue(json["new_gallery"]).map(mapNewGallery)
+            livebest: arrayValue(json["livebest"]).map(mapLiveBestArticle),
+            new_gallery: arrayValue(json["new_gallery"]).map(mapNewGallery)
         };
     }
 
@@ -178,11 +179,11 @@ function mapLiveBestArticle(value: unknown): MainPageLiveBestArticle {
         regTime: stringValue(object["reg_time"]),
         thumbnail: stringValue(object["thumbnail"]),
         category: stringValue(object["category"]),
-        galleryAlias: nullableString(object["gall_alias"])
+        gallAlias: nullableString(object["gall_alias"])
     };
 }
 
-function mapNewGallery(value: unknown) {
+function mapNewGallery(value: unknown): Gallery {
     const object = objectValue(value);
     return {
         id: stringValue(object["id"]),

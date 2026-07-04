@@ -2,6 +2,7 @@ import type {AuthManager} from "../../core/auth";
 import {type KyHttpClient, postMultipartJson} from "../../core/http";
 import {apiError, isApiError, shouldRefreshAppId} from "../../core/http/api-error";
 import {API_URL} from "../../core/http/constants";
+import {CaptchaRequiredError} from "../../core/http/errors";
 import {
     arrayValue,
     booleanValue,
@@ -13,10 +14,12 @@ import {
     stringValue
 } from "../../core/http/json";
 import type {
+    CaptchaAnswer,
     CommentContent,
     CommentData,
     CommentDeleteOptions,
     CommentDeleteResult,
+    CommentMention,
     CommentReadOptions,
     CommentReadResult,
     CommentWriteOptions,
@@ -141,10 +144,17 @@ export class CommentManager {
         const session = this.requireSession("write comments");
         const galleryId = options.gallery;
         const content = normalizeContent(options.content);
-        const multipart: Record<string, string | number | boolean | null | undefined> = {
+
+        const multipart: Record<string, string | number | boolean | readonly number[] | null | undefined> = {
             id: galleryId,
             no: options.articleId,
-            mode
+            mode,
+            app_id: await this.auth.getAppId(),
+            client_token: this.auth.fcmToken ?? "",
+            board_id: "",
+            best_chk: "N",
+            best_comno: "0",
+            comment_memo: ""
         };
 
         if (mode === "com_reple") {
@@ -155,10 +165,16 @@ export class CommentManager {
         if (content.type === "text") {
             multipart["comment_memo"] = content.memo;
         } else {
-            multipart["comment_memo"] = content.dccon.imgLink
-                ? `<img src='${content.dccon.imgLink}' class='written_dccon' alt='0' conalt='0' title='${content.dccon.memo ?? ""}'>`
+            const dccon = content.dccon;
+            multipart["comment_memo"] = dccon.imgLink
+                ? `<img src='${dccon.imgLink}' class='written_dccon' alt='0' conalt='0' title='${dccon.memo ?? ""}'>`
                 : "";
-            multipart["detail_idx"] = content.dccon.detailIndex;
+            const detailIndices = dcconDetailIndices(dccon);
+            if (detailIndices.length === 1) {
+                multipart["detail_idx"] = detailIndices[0]!;
+            } else if (detailIndices.length > 1) {
+                multipart["detail_idx"] = detailIndices;
+            }
         }
 
         if (session.user.type === "anonymous") {
@@ -169,9 +185,19 @@ export class CommentManager {
             if (session.detail) multipart["user_id"] = session.detail.userId;
         }
 
-        const raw = await postMultipartJson(this.http, API_URL.comment.ok, multipart);
+        appendCommentCaptcha(multipart as Record<string, string | number | boolean | string[] | null | undefined>, options.captcha);
+        if (options.adultCode) multipart["adult_code"] = options.adultCode;
+
+        const raw = await postMultipartJson(this.http, API_URL.comment.ok, multipart as import("../../core/http").MultipartFields);
+
         const json = firstObject(raw);
-        if (isApiError(json)) throw apiError("write comment", json);
+        if (isApiError(json)) {
+            const cause = nullableString(json["cause"]) ?? "failed to write comment";
+            if (isCaptchaCause(cause)) {
+                throw new CaptchaRequiredError(cause, mode === "com_reple" ? "writeReply" : "writeComment", readCaptchaChallenge(raw));
+            }
+            throw apiError(mode === "com_reple" ? "write reply" : "write comment", json);
+        }
 
         return {
             result: booleanValue(json["result"]),
@@ -222,6 +248,51 @@ function normalizeContent(content: CommentContent | string): CommentContent {
     return typeof content === "string" ? {type: "text", memo: content} : content;
 }
 
+/** 디시콘에서 중복/빈 값을 제거한 디테일 인덱스 배열을 반환합니다. `detailIndices`가 없으면 `detailIndex`를 사용합니다. */
+function dcconDetailIndices(dccon: { detailIndex: number; detailIndices?: readonly number[] }): number[] {
+    const source = dccon.detailIndices && dccon.detailIndices.length > 0 ? dccon.detailIndices : [dccon.detailIndex];
+    return [...new Set(source.map((id) => Number(id)).filter((id) => Number.isFinite(id) && id > 0))];
+}
+
+/** 댓글 작성 multipart에 캡챠 답변 필드(`rand_code`, `captcha_code`)를 추가합니다. */
+function appendCommentCaptcha(
+    multipart: Record<string, string | number | boolean | string[] | null | undefined>,
+    captcha?: CaptchaAnswer
+): void {
+    if (!captcha?.code) return;
+    multipart["rand_code"] = captcha.dccode ?? captcha.captcha ?? "";
+    multipart["captcha_code"] = captcha.code;
+}
+
+/** cause 문자열이 캡챠(보안코드) 필요를 의미하는지 확인합니다. 대소문자 구분 없이 `captcha`/`보안코드`/`자동입력`/`코드`를 찾습니다. */
+function isCaptchaCause(cause: string): boolean {
+    const normalized = cause.toLowerCase();
+    return normalized.includes("captcha") || cause.includes("보안코드") || cause.includes("자동입력") || cause.includes("코드");
+}
+
+/** 응답에서 캡챠 챌린지 정보(이미지 URL, 세션 식별자)를 추출합니다. 여러 키 후보를 순회하며 첫 값을 채택합니다. */
+function readCaptchaChallenge(raw: unknown): import("../../core/types").CaptchaChallenge {
+    const value = Array.isArray(raw) ? raw[0] : raw;
+    if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+    const object = value as Record<string, unknown>;
+    const imageUrl = firstNonEmptyString(object, ["captcha_url", "captchaUrl", "captcha_img", "captchaImg", "captcha_image", "captchaImage", "kcaptcha", "image", "img", "src", "url", "recommend_captcha"]);
+    const captcha = firstNonEmptyString(object, ["captcha", "captcha_id", "captchaId", "code", "session", "key"]);
+    const challenge: import("../../core/types").CaptchaChallenge = {};
+    if (imageUrl && /^https?:\/\//.test(imageUrl)) challenge.imageUrl = imageUrl;
+    if (captcha) challenge.captcha = captcha;
+    return challenge;
+}
+
+/** 객체에서 후보 키 순서대로 첫 번째로 발견한 비어있지 않은 문자열/숫자 값을 반환합니다. 없으면 빈 문자열입니다. */
+function firstNonEmptyString(object: Record<string, unknown>, keys: string[]): string {
+    for (const key of keys) {
+        const value = object[key];
+        if (typeof value === "string" && value.trim().length > 0) return value.trim();
+        if (typeof value === "number") return String(value);
+    }
+    return "";
+}
+
 function mapComment(comment: Record<string, unknown>): CommentData {
     return {
         memberIcon: numberValue(comment["member_icon"]),
@@ -258,14 +329,15 @@ function mapContent(comment: Record<string, unknown>): CommentContent {
     };
 }
 
-function mapMention(mention: Record<string, unknown>) {
-    if (!mention) return null;
+function mapMention(mention: unknown): CommentMention | null {
+    const object = objectValue(mention);
+    if (!object || Object.keys(object).length === 0) return null;
 
     return {
-        name: stringValue(mention["name"]),
-        targetId: numberValue(mention["target_no"]),
-        number: stringValue(mention["number"]),
-        ip: stringValue(mention["ip"]),
-        isUser: booleanValue(mention["is_user"])
+        name: stringValue(object["name"]),
+        targetId: numberValue(object["target_no"]),
+        number: stringValue(object["number"]),
+        ip: stringValue(object["ip"]),
+        isUser: booleanValue(object["is_user"])
     };
 }

@@ -88,6 +88,45 @@ await gallery.articles.write({
 DCInside 작성 API가 `잠시후 다시 이용해주세요.`를 반환하면 요청 형식은 통과했지만 서버가 작성을 거절한 상태일 가능성이 큽니다. 너무 짧거나 반복된 제목/본문, 갤러리의 비회원/세션 정책, IP 제한,
 짧은 시간 안의 반복 작성이 원인일 수 있습니다.
 
+## 캡챠 (보안코드)
+
+일부 갤러리에서는 글/댓글 작성이나 추천 시 보안코드를 요구합니다. 서버가 캡챠를 요구하면 `CaptchaRequiredError`가 throw 됩니다. 에러의 `challenge`에서 이미지 URL과 세션 식별자를
+꺼내 사용자에게 입력받은 뒤
+`captcha` 옵션으로 다시 전송하면 됩니다.
+
+```ts
+import {CaptchaRequiredError, createCaptchaChallenge, downloadCaptchaImage} from "dcinside.js";
+
+try {
+    await gallery.article(1).upvote();
+} catch (error) {
+    if (error instanceof CaptchaRequiredError) {
+        const challenge = error.challenge.imageUrl ? error.challenge : createCaptchaChallenge(error.action, "mi$bjwg64");
+        await downloadCaptchaImage({url: challenge.imageUrl!, outputPath: "./captcha.png"});
+        // 사용자에게 captcha.png를 보여주고 코드를 입력받은 뒤 재시도
+        await gallery.article(1).upvote({captcha: {code: userInput, dccode: challenge.captcha}});
+    }
+}
+```
+
+캡챠 종류는 작업에 따라 자동 선택됩니다: 글 작성 → `article`, 댓글/답글 → `comment`, 추천 → `recommend`, 로그인 → `login`.
+
+## 인증 만료
+
+`app_id`나 로그인 세션이 만료되면 `AuthExpiredError`가 throw 됩니다. `kind`가 `appId`이면 앱 인증 만료, `loginSession`이면 로그인 세션 만료입니다. HTTP
+클라이언트가 만료 응답을 감지하면 자동으로 갱신 후 재시도합니다.
+
+## 로그인 (OTP / 캡챠)
+
+```ts
+await client.login("dcinside-id", "password", {
+    otp: "123456", // 2차 인증 번호 (필요한 계정만)
+});
+```
+
+OTP가 필요하면 `LoginOtpRequiredError`, 로그인 캡챠가 필요하면 `LoginCaptchaRequiredError`가 throw 됩니다. 로그인 캡챠도 `captcha` 옵션으로 답변을 전달할 수
+있습니다.
+
 ## gallery
 
 공개 API에서는 갤러리 식별자를 `gallery` 하나로만 받습니다. 일반/마이너는 `football_new9`, `krstock`처럼 그대로 넘기고, 미니/인물만 `mi$...`, `pr$...` 접두사를 붙이면
@@ -127,7 +166,15 @@ const client = new DCInsideClient({
 API 실패는 `DCInsideError` 또는 하위 에러로 전달됩니다.
 
 ```ts
-import {AuthenticationError, DCInsideError, HTTPError} from "dcinside.js";
+import {
+    AuthExpiredError,
+    AuthenticationError,
+    CaptchaRequiredError,
+    DCInsideError,
+    HTTPError,
+    LoginCaptchaRequiredError,
+    LoginOtpRequiredError
+} from "dcinside.js";
 
 try {
     await client.gallery("mi$bjwg64").articles.write({
@@ -135,7 +182,15 @@ try {
         content: ["본문"],
     });
 } catch (error) {
-    if (error instanceof AuthenticationError) {
+    if (error instanceof CaptchaRequiredError) {
+        console.error("캡챠 필요", error.action, error.challenge);
+    } else if (error instanceof AuthExpiredError) {
+        console.error("인증 만료", error.kind, error.cause);
+    } else if (error instanceof LoginOtpRequiredError) {
+        console.error("OTP 필요");
+    } else if (error instanceof LoginCaptchaRequiredError) {
+        console.error("로그인 캡챠 필요");
+    } else if (error instanceof AuthenticationError) {
         console.error("인증 실패", error.message);
     } else if (error instanceof HTTPError) {
         console.error("HTTP 실패", error.statusCode);
@@ -148,11 +203,11 @@ try {
 ## 개발
 
 ```sh
-bun test
+bunx tsc --noEmit
 bun run build
 ```
 
-일반 단위 테스트는 네트워크 없이 실행됩니다. `tests/bjwg64.integration.test.ts`는 실제 DCInside API를 호출하며, 작성 테스트는 테스트 글을 생성한 뒤 삭제를 시도합니다.
+타입 체크는 `bunx tsc --noEmit`으로, 빌드는 `bun run build`로 실행합니다. 현재 단위 테스트는 포함되어 있지 않습니다.
 
 ## Special Thanks
 
