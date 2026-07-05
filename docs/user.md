@@ -54,7 +54,7 @@ const confirm = await client.user.confirmMiniJoin("bjwg64");
 const joined = await client.user.joinMiniGallery("bjwg64");
 ```
 
-`joinMiniGallery`는 가입 요청과 확인을 한 번에 실행합니다.
+`joinMiniGallery`는 가입 요청과 확인을 한 번에 실행합니다. 가입 요청이 실패하면 `confirm`은 `null`입니다.
 
 ## 미니 갤러리 탈퇴
 

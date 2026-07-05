@@ -1,7 +1,7 @@
-import type {AuthManager} from "../../core/auth";
-import {type KyHttpClient, postMultipartJson} from "../../core/http";
-import {API_URL, DC_APP} from "../../core/http/constants";
-import {booleanValue, firstObject, nullableString, objectValue, stringValue} from "../../core/http/json";
+import type {AuthManager} from "../core/auth";
+import {type KyHttpClient, postMultipartJson} from "../core/http";
+import {API_URL, DC_APP} from "../core/http/constants";
+import {booleanValue, firstObject, nullableString, objectValue, stringValue} from "../core/http/json";
 import type {
     ChangeHeadTextOptions,
     ManagerActionOptions,
@@ -11,7 +11,7 @@ import type {
     Session,
     UserBlockOptions,
     UserBlockResult
-} from "../../core/types";
+} from "../core/types";
 
 const blockCategoryCode = {
     obscene: 1,

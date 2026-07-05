@@ -1,8 +1,8 @@
-import type {AuthManager} from "../../core/auth";
-import {type KyHttpClient, postMultipartJson} from "../../core/http";
-import {apiError, isApiError, shouldRefreshAppId} from "../../core/http/api-error";
-import {API_URL} from "../../core/http/constants";
-import {CaptchaRequiredError} from "../../core/http/errors";
+import type {AuthManager} from "../core/auth";
+import {type KyHttpClient, postMultipartJson} from "../core/http";
+import {apiError, isApiError, isCaptchaCause, readCaptchaChallenge, shouldRefreshAppId} from "../core/http/api-error";
+import {API_URL} from "../core/http/constants";
+import {CaptchaRequiredError} from "../core/http/errors";
 import {
     arrayValue,
     booleanValue,
@@ -12,7 +12,7 @@ import {
     numberValue,
     objectValue,
     stringValue
-} from "../../core/http/json";
+} from "../core/http/json";
 import type {
     CaptchaAnswer,
     CommentContent,
@@ -22,10 +22,11 @@ import type {
     CommentMention,
     CommentReadOptions,
     CommentReadResult,
+    CommentReplyOptions,
     CommentWriteOptions,
-    Session,
-    WriteResult
-} from "../../core/types";
+    CommentWriteResult,
+    Session
+} from "../core/types";
 
 export type ArticleCommentScopedOptions<T extends {
     gallery: string;
@@ -63,7 +64,7 @@ export class CommentManager {
      * @param options 갤러리 ID, 게시글 번호, 댓글 본문입니다.
      * @returns 작성 성공 여부와 서버 응답 정보입니다.
      */
-    async write(options: CommentWriteOptions): Promise<WriteResult> {
+    async write(options: CommentWriteOptions): Promise<CommentWriteResult> {
         return this.send(options, "com_write");
     }
 
@@ -73,7 +74,7 @@ export class CommentManager {
      * @param options 갤러리 ID, 게시글 번호, 부모 댓글 번호, 대댓글 본문입니다.
      * @returns 작성 성공 여부와 서버 응답 정보입니다.
      */
-    async reply(options: CommentWriteOptions & { replyToCommentId: number }): Promise<WriteResult> {
+    async reply(options: CommentReplyOptions): Promise<CommentWriteResult> {
         return this.send(options, "com_reple");
     }
 
@@ -140,7 +141,7 @@ export class CommentManager {
     }
 
     /** 댓글과 대댓글 작성 요청을 공통 형식으로 전송합니다. */
-    private async send(options: CommentWriteOptions, mode: "com_write" | "com_reple"): Promise<WriteResult> {
+    private async send(options: CommentWriteOptions | CommentReplyOptions, mode: "com_write" | "com_reple"): Promise<CommentWriteResult> {
         const session = this.requireSession("write comments");
         const galleryId = options.gallery;
         const content = normalizeContent(options.content);
@@ -157,7 +158,7 @@ export class CommentManager {
             comment_memo: ""
         };
 
-        if (mode === "com_reple") {
+        if (mode === "com_reple" && "replyToCommentId" in options) {
             multipart["reple_id"] = "";
             multipart["comment_no"] = options.replyToCommentId;
         }
@@ -188,7 +189,7 @@ export class CommentManager {
         appendCommentCaptcha(multipart as Record<string, string | number | boolean | string[] | null | undefined>, options.captcha);
         if (options.adultCode) multipart["adult_code"] = options.adultCode;
 
-        const raw = await postMultipartJson(this.http, API_URL.comment.ok, multipart as import("../../core/http").MultipartFields);
+        const raw = await postMultipartJson(this.http, API_URL.comment.ok, multipart as import("../core/http").MultipartFields);
 
         const json = firstObject(raw);
         if (isApiError(json)) {
@@ -229,13 +230,13 @@ export class ScopedArticleCommentManager {
         return this.manager.list({...options, gallery: this.gallery, articleId: this.articleId});
     }
 
-    write(options: ArticleCommentScopedOptions<CommentWriteOptions>): Promise<WriteResult> {
+    write(options: ArticleCommentScopedOptions<CommentWriteOptions>): Promise<CommentWriteResult> {
         return this.manager.write({...options, gallery: this.gallery, articleId: this.articleId});
     }
 
     reply(
-        options: ArticleCommentScopedOptions<CommentWriteOptions> & { replyToCommentId: number }
-    ): Promise<WriteResult> {
+        options: ArticleCommentScopedOptions<CommentReplyOptions>
+    ): Promise<CommentWriteResult> {
         return this.manager.reply({...options, gallery: this.gallery, articleId: this.articleId});
     }
 
@@ -264,35 +265,6 @@ function appendCommentCaptcha(
     multipart["captcha_code"] = captcha.code;
 }
 
-/** cause 문자열이 캡챠(보안코드) 필요를 의미하는지 확인합니다. 대소문자 구분 없이 `captcha`/`보안코드`/`자동입력`/`코드`를 찾습니다. */
-function isCaptchaCause(cause: string): boolean {
-    const normalized = cause.toLowerCase();
-    return normalized.includes("captcha") || cause.includes("보안코드") || cause.includes("자동입력") || cause.includes("코드");
-}
-
-/** 응답에서 캡챠 챌린지 정보(이미지 URL, 세션 식별자)를 추출합니다. 여러 키 후보를 순회하며 첫 값을 채택합니다. */
-function readCaptchaChallenge(raw: unknown): import("../../core/types").CaptchaChallenge {
-    const value = Array.isArray(raw) ? raw[0] : raw;
-    if (!value || typeof value !== "object" || Array.isArray(value)) return {};
-    const object = value as Record<string, unknown>;
-    const imageUrl = firstNonEmptyString(object, ["captcha_url", "captchaUrl", "captcha_img", "captchaImg", "captcha_image", "captchaImage", "kcaptcha", "image", "img", "src", "url", "recommend_captcha"]);
-    const captcha = firstNonEmptyString(object, ["captcha", "captcha_id", "captchaId", "code", "session", "key"]);
-    const challenge: import("../../core/types").CaptchaChallenge = {};
-    if (imageUrl && /^https?:\/\//.test(imageUrl)) challenge.imageUrl = imageUrl;
-    if (captcha) challenge.captcha = captcha;
-    return challenge;
-}
-
-/** 객체에서 후보 키 순서대로 첫 번째로 발견한 비어있지 않은 문자열/숫자 값을 반환합니다. 없으면 빈 문자열입니다. */
-function firstNonEmptyString(object: Record<string, unknown>, keys: string[]): string {
-    for (const key of keys) {
-        const value = object[key];
-        if (typeof value === "string" && value.trim().length > 0) return value.trim();
-        if (typeof value === "number") return String(value);
-    }
-    return "";
-}
-
 function mapComment(comment: Record<string, unknown>): CommentData {
     return {
         memberIcon: numberValue(comment["member_icon"]),
@@ -300,7 +272,7 @@ function mapComment(comment: Record<string, unknown>): CommentData {
         name: stringValue(comment["name"]),
         userId: stringValue(comment["user_id"]),
         content: mapContent(comment),
-        dateTime: stringValue(comment["date_time"]),
+        dateTime: stringValue(comment["date_time"]) || stringValue(comment["reg_date"]),
         isReply: booleanValue(comment["under_step"]),
         mention: mapMention(comment["mention"]),
         id: numberValue(comment["comment_no"]),

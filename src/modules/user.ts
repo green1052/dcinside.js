@@ -1,6 +1,6 @@
-import {type KyHttpClient, postMultipartJson} from "../../core/http";
-import {API_URL} from "../../core/http/constants";
-import {arrayValue, booleanValue, firstObject, numberValue, objectValue, stringValue} from "../../core/http/json";
+import {type KyHttpClient, postMultipartJson} from "../core/http";
+import {API_URL} from "../core/http/constants";
+import {arrayValue, booleanValue, firstObject, numberValue, objectValue, stringValue} from "../core/http/json";
 import type {
     Gallery,
     JoinedMiniGallery,
@@ -12,7 +12,7 @@ import type {
     ModifyMyGalleryResult,
     MyGalleryResult,
     Session
-} from "../../core/types";
+} from "../core/types";
 
 /**
  * 내 갤러리, 관리 갤러리, 미니 갤러리 가입과 탈퇴 흐름을 처리합니다.
@@ -99,9 +99,10 @@ export class UserManager {
      */
     async joinMiniGallery(galleryId: string): Promise<{
         join: MiniGalleryJoinResult;
-        confirm: MiniGalleryJoinOkResult
+        confirm: MiniGalleryJoinOkResult | null
     }> {
         const join = await this.requestMiniJoin(galleryId);
+        if (!join.result) return {join, confirm: null};
         const confirm = await this.confirmMiniJoin(galleryId);
         return {join, confirm};
     }

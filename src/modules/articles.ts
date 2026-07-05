@@ -1,8 +1,8 @@
-import type {AuthManager} from "../../core/auth";
-import {type KyHttpClient, postMultipartJson} from "../../core/http";
-import {apiError, isApiError, shouldRefreshAppId} from "../../core/http/api-error";
-import {API_URL} from "../../core/http/constants";
-import {CaptchaRequiredError} from "../../core/http/errors";
+import type {AuthManager} from "../core/auth";
+import {type KyHttpClient, postMultipartJson} from "../core/http";
+import {apiError, isApiError, isCaptchaCause, readCaptchaChallenge, shouldRefreshAppId} from "../core/http/api-error";
+import {API_URL} from "../core/http/constants";
+import {CaptchaRequiredError} from "../core/http/errors";
 import {
     arrayValue,
     booleanValue,
@@ -15,8 +15,8 @@ import {
     objectValue,
     stringValue,
     ynBoolean
-} from "../../core/http/json";
-import {decodeHtml, escapeHtml} from "../../core/http/utils";
+} from "../core/http/json";
+import {decodeHtml, escapeMemoHtml} from "../core/http/utils";
 import type {
     ArticleContent,
     ArticleDeleteOptions,
@@ -38,7 +38,7 @@ import type {
     GalleryInfo,
     HeadText,
     Session
-} from "../../core/types";
+} from "../core/types";
 
 export type GalleryArticleScopedOptions<T extends { gallery: string }> = Omit<T, "gallery">;
 export type ArticleEntryScopedOptions<T extends {
@@ -46,20 +46,18 @@ export type ArticleEntryScopedOptions<T extends {
     articleId: number
 }> = Omit<T, "gallery" | "articleId">;
 
+/** `encodeURIComponent` 후 `%20`을 `+`로 변환합니다. DCInside 폼 필드 인코딩 규칙입니다. */
 function encodeFormValue(value: string): string {
-    return encodeURIComponent(value)
-        .replace(/[!'()~]/g, (character) => `%${character.charCodeAt(0).toString(16).toUpperCase()}`)
-        .replace(/%20/g, "+");
+    return encodeURIComponent(value).replace(/%20/g, "+");
 }
 
-/** APK의 Gy()와 동일하게 `URLEncoder.encode` 후 `%0A`만 줄바꿈으로 복원합니다. */
+/** `encodeFormValue` 후 `%0A`를 줄바꿈으로 복원합니다. DCInside memo block은 줄바꿈을 인코딩하지 않습니다. */
 function encodeMemoBlock(value: string): string {
-    return encodeFormValue(value)
-        .replace(/%0A/g, "\n");
+    return encodeFormValue(value).replace(/%0A/g, "\n");
 }
 
 function encodeTextMemoBlock(value: string): string {
-    return encodeMemoBlock(`<div>${escapeHtml(value)}</div>`);
+    return encodeMemoBlock(`<div>${escapeMemoHtml(value)}</div>`);
 }
 
 /**
@@ -190,11 +188,22 @@ export class ArticleManager {
             throw apiError(action === "modifyArticle" ? "modify article" : "write article", json);
         }
 
+        const result = booleanValue(json["result"]);
+        const cause = nullableString(json["cause"]);
+        if (result) {
+            const articleId = nullableNumber(json["cause"]);
+            return {
+                result: true as const,
+                articleId: articleId ?? 0,
+                galleryId: nullableString(json["id"]),
+                cause
+            };
+        }
         return {
-            result: booleanValue(json["result"]),
-            articleId: nullableNumber(json["cause"]),
-            galleryId: nullableString(json["id"]),
-            cause: nullableString(json["cause"])
+            result: false as const,
+            articleId: null,
+            galleryId: null,
+            cause: cause ?? "failed to write article"
         };
     }
 
@@ -419,12 +428,6 @@ export class ArticleManager {
     }
 }
 
-/** cause 문자열이 캡챠(보안코드) 필요를 의미하는지 확인합니다. 대소문자 구분 없이 `captcha`/`보안코드`/`자동입력`/`코드`를 찾습니다. */
-function isCaptchaCause(cause: string): boolean {
-    const normalized = cause.toLowerCase();
-    return normalized.includes("captcha") || cause.includes("보안코드") || cause.includes("자동입력") || cause.includes("코드");
-}
-
 /** 글 작성 multipart에 캡챠 답변 필드(`code`, `dcblock`)를 추가합니다. */
 function appendArticleCaptcha(
     multipart: Record<string, string | number | boolean | Blob | File | null | undefined>,
@@ -433,29 +436,6 @@ function appendArticleCaptcha(
     if (!captcha?.code) return;
     multipart["code"] = captcha.dccode ?? captcha.captcha ?? "";
     multipart["dcblock"] = captcha.code;
-}
-
-/** 응답에서 캡챠 챌린지 정보(이미지 URL, 세션 식별자)를 추출합니다. 여러 키 후보를 순회하며 첫 값을 채택합니다. */
-function readCaptchaChallenge(raw: unknown): import("../../core/types").CaptchaChallenge {
-    const value = Array.isArray(raw) ? raw[0] : raw;
-    if (!value || typeof value !== "object" || Array.isArray(value)) return {};
-    const object = value as Record<string, unknown>;
-    const imageUrl = firstNonEmptyString(object, ["captcha_url", "captchaUrl", "captcha_img", "captchaImg", "captcha_image", "captchaImage", "kcaptcha", "image", "img", "src", "url", "recommend_captcha"]);
-    const captcha = firstNonEmptyString(object, ["captcha", "captcha_id", "captchaId", "code", "session", "key"]);
-    const challenge: import("../../core/types").CaptchaChallenge = {};
-    if (imageUrl && /^https?:\/\//.test(imageUrl)) challenge.imageUrl = imageUrl;
-    if (captcha) challenge.captcha = captcha;
-    return challenge;
-}
-
-/** 객체에서 후보 키 순서대로 첫 번째로 발견한 비어있지 않은 문자열/숫자 값을 반환합니다. 없으면 빈 문자열입니다. */
-function firstNonEmptyString(object: Record<string, unknown>, keys: string[]): string {
-    for (const key of keys) {
-        const value = object[key];
-        if (typeof value === "string" && value.trim().length > 0) return value.trim();
-        if (typeof value === "number") return String(value);
-    }
-    return "";
 }
 
 export class ScopedGalleryArticleManager {

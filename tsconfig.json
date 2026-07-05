@@ -28,7 +28,6 @@
         "src/**/*.ts"
     ],
     "exclude": [
-        "tui-inside",
         "node_modules"
     ]
 }

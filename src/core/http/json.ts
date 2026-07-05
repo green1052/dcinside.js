@@ -65,3 +65,13 @@ export function nullableBoolean(value: unknown): boolean | null {
     if (value == null || value === "") return null;
     return booleanValue(value);
 }
+
+/** 객체에서 후보 키 순서대로 첫 번째로 발견한 비어있지 않은 문자열/숫자 값을 반환합니다. 없으면 빈 문자열입니다. */
+export function firstNonEmptyString(object: Record<string, unknown>, keys: string[]): string {
+    for (const key of keys) {
+        const value = object[key];
+        if (typeof value === "string" && value.trim().length > 0) return value.trim();
+        if (typeof value === "number") return String(value);
+    }
+    return "";
+}

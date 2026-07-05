@@ -1,5 +1,5 @@
-import {type KyHttpClient, postMultipartJson} from "../../core/http";
-import {API_URL} from "../../core/http/constants";
+import {type KyHttpClient, postMultipartJson} from "../core/http";
+import {API_URL} from "../core/http/constants";
 import {
     arrayValue,
     booleanValue,
@@ -8,7 +8,7 @@ import {
     objectValue,
     stringValue,
     ynBoolean
-} from "../../core/http/json";
+} from "../core/http/json";
 import type {
     DCCon,
     DCConBuyResult,
@@ -17,7 +17,7 @@ import type {
     DCConInsertResult,
     DCConListResult,
     Session
-} from "../../core/types";
+} from "../core/types";
 
 /**
  * 디시콘 탭, 상세 정보, 본문 삽입, 구매 흐름을 처리합니다.
@@ -116,18 +116,24 @@ export class DCConManager {
             };
         }
         const imageTags: string[] = [];
+        let firstNewList: string | null = null;
+        let firstImageSource: string | null = null;
+        let firstAlt: string | null = null;
         for (const [index, detailIndex] of detailIndices.entries()) {
             const single = await this.insert({
                 packageIndex: resolvePackageIndex(dccon, index, dccon.packageIndex),
                 detailIndex: detailIndex
             });
             if (single.imageTag) imageTags.push(single.imageTag);
+            if (firstNewList === null && single.newList) firstNewList = single.newList;
+            if (firstImageSource === null && single.imageSource) firstImageSource = single.imageSource;
+            if (firstAlt === null && single.alternativeText) firstAlt = single.alternativeText;
         }
         return {
             result: imageTags.length === detailIndices.length,
-            newList: null,
-            imageSource: null,
-            alternativeText: null,
+            newList: firstNewList,
+            imageSource: firstImageSource,
+            alternativeText: firstAlt,
             imageTag: imageTags[0] ?? null,
             imageTags
         };

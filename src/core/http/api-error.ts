@@ -1,5 +1,6 @@
+import type {CaptchaChallenge} from "../types/captcha";
 import {AuthExpiredError, DCInsideError} from "./errors";
-import {booleanValue, nullableString, objectValue} from "./json";
+import {booleanValue, firstNonEmptyString, nullableString, objectValue} from "./json";
 
 /** 응답 객체가 DCInside API 에러(`result=false` + `cause`) 형태인지 확인합니다. */
 export function isApiError(value: unknown): boolean {
@@ -47,4 +48,23 @@ export function apiError(action: string, value: unknown): DCInsideError {
     const object = objectValue(value);
     const cause = nullableString(object["cause"]) ?? "unknown error";
     return new DCInsideError(`Unable to ${action}: ${cause}`);
+}
+
+/** cause 문자열이 캡챠(보안코드) 필요를 의미하는지 확인합니다. 대소문자 구분 없이 `captcha`/`보안코드`/`자동입력`/`코드`를 찾습니다. */
+export function isCaptchaCause(cause: string): boolean {
+    const normalized = cause.toLowerCase();
+    return normalized.includes("captcha") || cause.includes("보안코드") || cause.includes("자동입력") || cause.includes("코드");
+}
+
+/** 응답에서 캡챠 챌린지 정보(이미지 URL, 세션 식별자)를 추출합니다. 여러 키 후보를 순회하며 첫 값을 채택합니다. */
+export function readCaptchaChallenge(raw: unknown): CaptchaChallenge {
+    const value = Array.isArray(raw) ? raw[0] : raw;
+    if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+    const object = value as Record<string, unknown>;
+    const imageUrl = firstNonEmptyString(object, ["captcha_url", "captchaUrl", "captcha_img", "captchaImg", "captcha_image", "captchaImage", "kcaptcha", "image", "img", "src", "url", "recommend_captcha"]);
+    const captcha = firstNonEmptyString(object, ["captcha", "captcha_id", "captchaId", "code", "session", "key"]);
+    const challenge: CaptchaChallenge = {};
+    if (imageUrl && /^https?:\/\//.test(imageUrl)) challenge.imageUrl = imageUrl;
+    if (captcha) challenge.captcha = captcha;
+    return challenge;
 }

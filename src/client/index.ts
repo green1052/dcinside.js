@@ -1,12 +1,13 @@
 import type {Options as KyOptions} from "ky";
 import {AuthManager} from "../core/auth";
 import {AuthExpiredError, KyHttpClient, type ProxyOptions} from "../core/http";
-import type {DeviceCredentials, Session, User} from "../core/types";
+import type {DeviceCredentials, LoginInput, Session, User} from "../core/types";
 import {ArticleManager} from "../modules/articles";
 import {CommentManager} from "../modules/comments";
 import {DCConManager} from "../modules/dccon";
 import {GalleryManager} from "../modules/galleries";
 import {ManagementManager} from "../modules/management";
+import {NotificationManager} from "../modules/notifications";
 import {SearchManager} from "../modules/search";
 import {UserManager} from "../modules/user";
 import {GalleryClient} from "./gallery";
@@ -30,16 +31,14 @@ export class DCInsideClient {
     readonly dccons: DCConManager;
     readonly galleries: GalleryManager;
     readonly management: ManagementManager;
+    readonly notifications: NotificationManager;
     readonly search: SearchManager;
     readonly user: UserManager;
-    session: Session | null = null;
-    private readonly articleManager: ArticleManager;
-    private readonly commentManager: CommentManager;
 
     /**
      * 새 클라이언트를 생성합니다.
      *
-     * @param options HTTP 옵션과 프록시 설정입니다.
+     * @param options HTTP 옵션와 프록시 설정입니다.
      */
     constructor(options: DCInsideClientOptions = {}) {
         this.http = new KyHttpClient(options.http);
@@ -49,31 +48,41 @@ export class DCInsideClient {
             getAppId: () => this.auth.getAppId(),
             getClientToken: () => this.auth.fcmToken,
             ensureClientToken: () => this.auth.fetchClientToken(),
-            getUserId: () => this.session?.detail?.userId ?? null,
+            getUserId: () => this._session?.detail?.userId ?? null,
             refreshAppId: () => this.auth.refreshAppId({refreshClientToken: true}),
             refreshLogin: async () => {
-                const session = this.session;
+                const session = this._session;
                 if (!session || session.user.type !== "login") {
                     throw new AuthExpiredError("loginSession", "no active login session to refresh");
                 }
-                this.session = await this.auth.login({
+                this._session = await this.auth.login({
                     id: session.user.id,
                     password: session.user.password
                 });
             }
         });
-        this.articleManager = new ArticleManager(this.http, this.auth, () => this.session);
-        this.commentManager = new CommentManager(this.http, this.auth, () => this.session);
-        this.dccons = new DCConManager(this.http, () => this.session);
+        this.articleManager = new ArticleManager(this.http, this.auth, () => this._session);
+        this.commentManager = new CommentManager(this.http, this.auth, () => this._session);
+        this.dccons = new DCConManager(this.http, () => this._session);
         this.galleries = new GalleryManager(this.http);
-        this.management = new ManagementManager(this.http, this.auth, () => this.session);
+        this.management = new ManagementManager(this.http, this.auth, () => this._session);
+        this.notifications = new NotificationManager(this.http, this.auth);
         this.search = new SearchManager(this.http);
-        this.user = new UserManager(this.http, () => this.session);
+        this.user = new UserManager(this.http, () => this._session);
+    }
+    private readonly articleManager: ArticleManager;
+    private readonly commentManager: CommentManager;
+
+    private _session: Session | null = null;
+
+    /** 현재 설정된 세션입니다. 세션이 없으면 `null`입니다. */
+    get session(): Session | null {
+        return this._session;
     }
 
     /** 현재 설정된 세션의 사용자 정보입니다. 세션이 없으면 `null`입니다. */
     get currentUser(): User | null {
-        return this.session?.user ?? null;
+        return this._session?.user ?? null;
     }
 
     /**
@@ -81,19 +90,12 @@ export class DCInsideClient {
      *
      * @param id DCInside 아이디입니다.
      * @param password DCInside 비밀번호입니다.
-     * @param options OTP, 캡챠 등 추가 로그인 옵션입니다.
+     * @param options OTP, 캡챠, 로그인 모드 등 추가 옵션입니다.
      * @returns 로그인 상세 정보가 포함된 세션입니다.
      */
-    async login(id: string, password: string, options: {
-        /** 2차 인증(OTP) 번호입니다. */
-        otp?: string;
-        /** 로그인 캡챠 답변입니다. 서버가 캡챠를 요구할 때 전달합니다. */
-        captcha?: import("../core/types").CaptchaAnswer;
-        /** 로그인 모드. 생략하면 `login_quick` 후 필요시 `login_normal` 재시도합니다. */
-        mode?: "login_quick" | "login_normal";
-    } = {}): Promise<Session> {
-        this.session = await this.auth.login({id, password, ...options});
-        return this.session;
+    async login(id: string, password: string, options: Omit<LoginInput, "id" | "password"> = {}): Promise<Session> {
+        this._session = await this.auth.login({id, password, ...options});
+        return this._session;
     }
 
     /**
@@ -101,11 +103,11 @@ export class DCInsideClient {
      *
      * @param id 익명 닉네임입니다.
      * @param password 글/댓글 삭제에 사용할 비밀번호입니다.
-     * @returns 생성된 익명 세션입니다.
+     * @returns 체이닝을 위한 현재 클라이언트입니다.
      */
-    useAnonymous(id: string, password: string): Session {
-        this.session = this.auth.createAnonymousSession(id, password);
-        return this.session;
+    useAnonymous(id: string, password: string): this {
+        this._session = this.auth.createAnonymousSession(id, password);
+        return this;
     }
 
     /**
@@ -115,7 +117,17 @@ export class DCInsideClient {
      * @returns 체이닝을 위한 현재 클라이언트입니다.
      */
     useSession(session: Session): this {
-        this.session = session;
+        this._session = session;
+        return this;
+    }
+
+    /**
+     * 현재 세션을 초기화합니다.
+     *
+     * @returns 체이닝을 위한 현재 클라이언트입니다.
+     */
+    logout(): this {
+        this._session = null;
         return this;
     }
 
@@ -126,7 +138,7 @@ export class DCInsideClient {
      * `client.gallery("mi$bjwg64").article(123).comments.write(...)`처럼
      * 호출하면 이후 갤러리/게시글 식별자를 반복해서 넘기지 않아도 됩니다.
      */
-    gallery(gallery: string): GalleryClient {
-        return new GalleryClient(gallery, this.articleManager, this.commentManager);
+    gallery(galleryId: string): GalleryClient {
+        return new GalleryClient(galleryId, this.articleManager, this.commentManager);
     }
 }

@@ -1,6 +1,6 @@
-import {type KyHttpClient, postMultipartJson} from "../../core/http";
-import {API_URL} from "../../core/http/constants";
-import {inferGalleryType} from "../../core/http/gallery-id";
+import {type KyHttpClient, postMultipartJson} from "../core/http";
+import {API_URL} from "../core/http/constants";
+import {inferGalleryType} from "../core/http/gallery-id";
 import {
     arrayValue,
     booleanValue,
@@ -10,10 +10,10 @@ import {
     numberValue,
     objectValue,
     stringValue
-} from "../../core/http/json";
+} from "../core/http/json";
 import type {
     Gallery,
-    GalleryManagerInfo,
+    GalleryManagerSummary,
     GalleryRankingItem,
     MainPageHitArticle,
     MainPageLiveBestArticle,
@@ -22,7 +22,7 @@ import type {
     MovieUploadOptions,
     MovieUploadResult,
     RankingType
-} from "../../core/types";
+} from "../core/types";
 
 /**
  * 갤러리 정보, 앱 메인 페이지, 영상 업로드, 랭킹 흐름을 처리합니다.
@@ -74,7 +74,7 @@ export class GalleryManager {
                     memberLimit: nullableNumber(mini["member_limit"]) ?? undefined,
                     isMember: booleanValue(mini["member_ok"])
                 } : null,
-            person: galleryType === "person" ? person as MinorGalleryInfo["person"] : null
+            person: galleryType === "person" ? parsePersonGalleryInfo(person) : null
         };
     }
 
@@ -146,12 +146,26 @@ export class GalleryManager {
     }
 }
 
-function mapGalleryManager(value: unknown): GalleryManagerInfo {
+function mapGalleryManager(value: unknown): GalleryManagerSummary {
     const object = objectValue(value);
     return {
         id: stringValue(object["id"]),
         name: stringValue(object["name"])
     };
+}
+
+/** 인물 갤러리 `person` 객체를 안전하게 파싱합니다. 빈 객체면 `null`을 반환합니다. */
+function parsePersonGalleryInfo(person: Record<string, unknown>): MinorGalleryInfo["person"] {
+    const history = Array.isArray(person["history"]) ? person["history"].map((entry) => {
+        const item = objectValue(entry);
+        return {
+            date: stringValue(item["date"]),
+            manager: stringValue(item["manager"]),
+            content: stringValue(item["content"])
+        };
+    }) : [];
+    if (history.length === 0 && Object.keys(person).length === 0) return null;
+    return {history};
 }
 
 function mapHitArticle(value: unknown): MainPageHitArticle {
@@ -196,11 +210,13 @@ function mapRankType(value: unknown): RankingType {
     return "unknown";
 }
 
-/** 랭킹 응답은 JSON이 아닌 JS 배열 `([...])` 형태로 오므로 괄호를 벗겨 파싱합니다. */
+/** 랭킹 응답은 JSON이 아닌 JS 배열 `([...])` 형태로 오므로 괄호를 벗겨 파싱합니다. 파싱 실패 시 빈 배열을 반환합니다. */
 function parseRankingResponse(text: string): unknown {
     const trimmed = text.trim();
-    if (trimmed.startsWith("(") && trimmed.endsWith(")")) {
-        return JSON.parse(trimmed.slice(1, -1));
+    const body = trimmed.startsWith("(") && trimmed.endsWith(")") ? trimmed.slice(1, -1) : trimmed;
+    try {
+        return JSON.parse(body);
+    } catch {
+        return [];
     }
-    return JSON.parse(trimmed);
 }

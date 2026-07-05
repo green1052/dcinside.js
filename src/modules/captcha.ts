@@ -1,8 +1,7 @@
-import {mkdirSync, writeFileSync} from "node:fs";
-import {dirname} from "node:path";
-import {API_URL, DC_APP} from "../../core/http/constants";
-import type {CaptchaAction} from "../../core/http/errors";
-import type {CaptchaChallenge} from "../../core/types";
+import {createHash} from "node:crypto";
+import {API_URL, DC_APP} from "../core/http/constants";
+import type {CaptchaAction} from "../core/http/errors";
+import type {CaptchaChallenge} from "../core/types";
 
 /** 캡챠 종류. 요청하는 엔드포인트에 따라 다릅니다. */
 export type CaptchaKind = "login" | "article" | "comment" | "recommend";
@@ -17,23 +16,14 @@ export interface CaptchaImageRequest {
     dccode: string;
 }
 
-/** 캡챠 답변입니다. 사용자가 이미지를 보고 입력한 코드를 서버에 전달합니다. */
-export interface CaptchaAnswer {
-    /** 사용자가 입력한 보안코드입니다. `captcha_code`/`code` 필드로 전송됩니다. */
-    code: string;
-    /** 캡챠 세션 식별자입니다. `rand_code`/`dccode` 필드로 전송됩니다. */
-    dccode?: string;
-    /** 레거시 `captcha` 필드용 값입니다. 생략하면 `dccode`를 사용합니다. */
-    captcha?: string;
-}
-
-/** 캡챠 이미지를 다운로드한 결과입니다. */
+/** 캡챠 이미지를 다운로드한 결과입니다. 이미지 바이트를 메모리에 반환합니다. */
 export interface CaptchaDownloadResult {
     url: string;
-    outputPath: string;
     status: number;
     contentType: string;
     byteLength: number;
+    /** 다운로드한 이미지 바이트입니다. 필요 시 파일로 저장하거나 화면에 렌더링할 수 있습니다. */
+    bytes: Buffer;
 }
 
 /** 캡챠 이미지 URL을 생성합니다. `dccode`를 `rand_code`로 사용합니다. */
@@ -52,10 +42,10 @@ export function captchaImageUrl(input: CaptchaImageRequest): string {
     return `${API_URL.captcha.comment}?type=${type}&id=${encodeURIComponent(galleryId)}&dccode=${encodeURIComponent(dccode)}`;
 }
 
-/** 캡챠 세션 식별자(`dccode`)를 난수 기반으로 생성합니다. */
+/** 캡챠 세션 식별자(`dccode`)를 난수 기반으로 생성합니다. SHA-256 해시를 사용합니다. */
 export function createCaptchaDccode(now = Date.now(), random = Math.random): string {
     const entropy = `${now.toString(36)}-${random().toString(36).slice(2)}`;
-    return Bun.hash(entropy).toString(16);
+    return createHash("sha256").update(entropy).digest("hex").slice(0, 16);
 }
 
 /** 작업 종류에 해당하는 캡챠 종류를 반환합니다. */
@@ -74,16 +64,13 @@ export function createCaptchaChallenge(action: CaptchaAction, galleryId?: string
     return {imageUrl, captcha: dccode};
 }
 
-/** 캡챠 이미지를 다운로드해 파일로 저장합니다. 이미지 URL과 출력 경로는 필수입니다. */
+/** 캡챠 이미지를 다운로드해 바이트 버퍼로 반환합니다. 파일 저장이 필요하면 호출 측에서 `bytes`를 직접 저장하세요. */
 export async function downloadCaptchaImage(input: {
     url: string;
-    outputPath: string;
     fetch?: typeof fetch;
 }): Promise<CaptchaDownloadResult> {
     const url = input.url.trim();
-    const outputPath = input.outputPath.trim();
     if (!url) throw new Error("captcha url is required");
-    if (!outputPath) throw new Error("captcha output path is required");
     const fetcher = input.fetch ?? fetch;
     const response = await fetcher(url, {
         headers: {"User-Agent": DC_APP.userAgent, Referer: DC_APP.referer}
@@ -97,7 +84,5 @@ export async function downloadCaptchaImage(input: {
         throw new Error(`captcha image content-type mismatch: ${contentType || "unknown"}`);
     }
     if (bytes.length === 0) throw new Error("captcha image response is empty");
-    mkdirSync(dirname(outputPath), {recursive: true});
-    writeFileSync(outputPath, bytes);
-    return {url, outputPath, status: response.status, contentType, byteLength: bytes.length};
+    return {url, status: response.status, contentType, byteLength: bytes.length, bytes};
 }

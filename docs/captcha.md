@@ -64,15 +64,17 @@ const challenge = createCaptchaChallenge("writeArticle", "mi$bjwg64");
 
 ## 이미지 다운로드
 
-캡챠 이미지를 파일로 다운로드합니다.
+캡챠 이미지를 다운로드해 바이트 버퍼로 반환합니다. 파일로 저장하려면 호출 측에서 직접 저장하세요.
 
 ```ts
 import {downloadCaptchaImage} from "dcinside.js";
+import {writeFileSync} from "node:fs";
 
-await downloadCaptchaImage({
+const result = await downloadCaptchaImage({
     url: challenge.imageUrl!,
-    outputPath: "./captcha.png",
 });
+// result.bytes: Buffer
+writeFileSync("./captcha.png", result.bytes);
 // 사용자에게 captcha.png를 보여주고 코드를 입력받는다
 ```
 
@@ -107,13 +109,15 @@ await gallery.article(1).comments.write({
 
 ```ts
 import {LoginCaptchaRequiredError, createCaptchaChallenge, downloadCaptchaImage} from "dcinside.js";
+import {writeFileSync} from "node:fs";
 
 try {
     await client.login("id", "password");
 } catch (error) {
     if (error instanceof LoginCaptchaRequiredError) {
         const challenge = createCaptchaChallenge("login");
-        await downloadCaptchaImage({url: challenge.imageUrl!, outputPath: "./login-captcha.png"});
+        const result = await downloadCaptchaImage({url: challenge.imageUrl!});
+        writeFileSync("./login-captcha.png", result.bytes);
         // 사용자 입력을 받아 재시도
         await client.login("id", "password", {
             captcha: {code: "1234", dccode: challenge.captcha},

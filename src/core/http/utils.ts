@@ -18,35 +18,54 @@ const HTML_ESCAPE_MAP: Record<string, string> = {
     "&": "&amp;",
     "<": "&lt;",
     ">": "&gt;",
-    "\"": "&quot;"
+    "\"": "&quot;",
+    "'": "&#39;"
 };
 
-const HTML_UNESCAPE_MAP: Record<string, string> = {
-    "&amp;": "&",
-    "&lt;": "<",
-    "&gt;": ">",
-    "&quot;": `"`,
-    "&#39;": "'",
-    "&apos;": "'",
-    "&nbsp;": " "
+const NAMED_HTML_ENTITIES: Record<string, string> = {
+    amp: "&",
+    apos: "'",
+    gt: ">",
+    lt: "<",
+    nbsp: " ",
+    quot: "\""
 };
 
 /**
- * HTML 엔티티를 디코딩합니다. named entity와 `&#숫자;` 형태를 모두 처리합니다.
+ * HTML 특수문자를 이스케이프합니다. `&`, `<`, `>`, `"`, `'`를 엔티티로 변환합니다.
+ * DCInside 디시콘 URL/alt 등 attribute 컨텍스트에도 안전하게 사용할 수 있습니다.
  */
-export function decodeHtml(value: string): string {
-    return value
-        .replace(/&#(\d+);/g, (_, code) => String.fromCodePoint(Number(code)))
-        .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => String.fromCodePoint(parseInt(hex, 16)))
-        .replace(/&\w+;/g, (entity) => HTML_UNESCAPE_MAP[entity] ?? entity);
+export function escapeHtml(value: string): string {
+    return value.replace(/[&<>"']/g, (char) => HTML_ESCAPE_MAP[char] ?? char);
 }
 
 /**
- * KotlinInside 호환 HTML 이스케이프.
- * 연속 공백은 &nbsp;로, 줄바꿈은 <br>로, 탭은 &nbsp; ×3으로 변환.
- * 한글 등 non-ASCII 문자는 인코딩하지 않고 그대로 유지.
+ * HTML 엔티티를 디코딩합니다. named entity(`&amp;` 등), 10진수(`&#39;`), 16진수(`&#x27;`) 형태를 모두 처리합니다.
+ * 범위를 벗어난 코드포인트는 원본 엔티티를 그대로 반환합니다.
  */
-export function escapeHtml(value: string): string {
+export function decodeHtml(value: string): string {
+    return value.replace(/&(#x[0-9a-fA-F]+|#\d+|[a-zA-Z][a-zA-Z0-9]+);/g, (entity, body: string) => {
+        if (body.startsWith("#x")) return decodeCodePoint(entity, Number.parseInt(body.slice(2), 16));
+        if (body.startsWith("#")) return decodeCodePoint(entity, Number.parseInt(body.slice(1), 10));
+        return NAMED_HTML_ENTITIES[body] ?? entity;
+    });
+}
+
+function decodeCodePoint(entity: string, codePoint: number): string {
+    if (!Number.isInteger(codePoint) || codePoint < 0 || codePoint > 0x10ffff) return entity;
+    try {
+        return String.fromCodePoint(codePoint);
+    } catch {
+        return entity;
+    }
+}
+
+/**
+ * DCInside 게시글 본문(memo)용 HTML 인코더.
+ * 연속 공백은 `&nbsp;`로, 줄바꿈은 `<br>`로, 탭은 `&nbsp;` ×4로 변환합니다.
+ * HTML 특수문자도 이스케이프합니다. 한글 등 non-ASCII 문자는 그대로 유지합니다.
+ */
+export function escapeMemoHtml(value: string): string {
     let previousWasSpace = false;
     let output = "";
 
@@ -65,7 +84,7 @@ export function escapeHtml(value: string): string {
         previousWasSpace = false;
 
         if (char === "\n") output += "<br>";
-        else if (char === "\t") output += "&nbsp; &nbsp; &nbsp;";
+        else if (char === "\t") output += "&nbsp;&nbsp;&nbsp;&nbsp;";
         else if (HTML_ESCAPE_MAP[char]) output += HTML_ESCAPE_MAP[char];
         else output += char;
     }

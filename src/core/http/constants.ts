@@ -91,6 +91,24 @@ export const API_URL = {
         minorGalleryRanking: "http://json2.dcinside.com/json1/mgallmain/mgallery_ranking.php",
         miniGalleryRanking: "http://json2.dcinside.com/json1/migallmain/migallery_ranking.php",
         personGalleryRanking: "http://json2.dcinside.com/json1/prgallmain/prgallery_ranking.php"
+    },
+
+    notification: {
+        comment: "https://app.dcinside.com/api/comment_del.php",
+        alarmList: "https://app.dcinside.com/alarm/notification",
+        minor: "https://app.dcinside.com/alarm/minor-notification",
+        minorConfirm: "https://app.dcinside.com/alarm/minor-notificationconfirm",
+        article: "https://app.dcinside.com/api/alarm/article",
+        articleDelete: "https://app.dcinside.com/api/alarm/del_article",
+        user: "https://app.dcinside.com/api/alarm/user",
+        userDelete: "https://app.dcinside.com/api/alarm/del_user",
+        keyword: "https://app.dcinside.com/api/alarm/keyword",
+        keywordDelete: "https://app.dcinside.com/api/alarm/del_keyword",
+        keywordDeleteAll: "https://app.dcinside.com/api/alarm/del_keyword_all",
+        recommend: "https://app.dcinside.com/api/alarm/recomm",
+        recommendDelete: "https://app.dcinside.com/api/alarm/del_recomm",
+        notice: "https://app.dcinside.com/api/alarm/notify",
+        noticeDelete: "https://app.dcinside.com/api/alarm/del_notify"
     }
 } as const;
 
