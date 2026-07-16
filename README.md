@@ -198,15 +198,6 @@ try {
 }
 ```
 
-## 개발
-
-```sh
-bunx tsc --noEmit
-bun run build
-```
-
-타입 체크는 `bunx tsc --noEmit`으로, 빌드는 `bun run build`로 실행합니다. 현재 단위 테스트는 포함되어 있지 않습니다.
-
 ## Special Thanks
 
 - KotlinInside
