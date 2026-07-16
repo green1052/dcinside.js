@@ -1,5 +1,5 @@
 import type {AuthManager} from "../core/auth";
-import {type KyHttpClient, postMultipartJson} from "../core/http";
+import {type KyHttpClient, type MultipartFields, postMultipartJson} from "../core/http";
 import {apiError, isApiError, isCaptchaCause, readCaptchaChallenge, shouldRefreshAppId} from "../core/http/api-error";
 import {API_URL} from "../core/http/constants";
 import {CaptchaRequiredError} from "../core/http/errors";
@@ -27,6 +27,8 @@ import type {
     CommentWriteResult,
     Session
 } from "../core/types";
+import {requireSession} from "../core/session";
+import {dedupeDetailIndices} from "../core/http/utils";
 
 export type ArticleCommentScopedOptions<T extends {
     gallery: string;
@@ -146,7 +148,7 @@ export class CommentManager {
         const galleryId = options.gallery;
         const content = normalizeContent(options.content);
 
-        const multipart: Record<string, string | number | boolean | readonly number[] | null | undefined> = {
+        const multipart: MultipartFields = {
             id: galleryId,
             no: options.articleId,
             mode,
@@ -170,7 +172,7 @@ export class CommentManager {
             multipart["comment_memo"] = dccon.imgLink
                 ? `<img src='${dccon.imgLink}' class='written_dccon' alt='0' conalt='0' title='${dccon.memo ?? ""}'>`
                 : "";
-            const detailIndices = dcconDetailIndices(dccon);
+            const detailIndices = dedupeDetailIndices(dccon.detailIndices, dccon.detailIndex);
             if (detailIndices.length === 1) {
                 multipart["detail_idx"] = detailIndices[0]!;
             } else if (detailIndices.length > 1) {
@@ -186,10 +188,10 @@ export class CommentManager {
             if (session.detail) multipart["user_id"] = session.detail.userId;
         }
 
-        appendCommentCaptcha(multipart as Record<string, string | number | boolean | string[] | null | undefined>, options.captcha);
+        appendCommentCaptcha(multipart, options.captcha);
         if (options.adultCode) multipart["adult_code"] = options.adultCode;
 
-        const raw = await postMultipartJson(this.http, API_URL.comment.ok, multipart as import("../core/http").MultipartFields);
+        const raw = await postMultipartJson(this.http, API_URL.comment.ok, multipart);
 
         const json = firstObject(raw);
         if (isApiError(json)) {
@@ -210,11 +212,7 @@ export class CommentManager {
 
     /** 세션이 필요한 작업에서 현재 세션을 가져오거나 에러를 던집니다. */
     private requireSession(action: string): Session {
-        const session = this.getSession();
-        if (!session) {
-            throw new Error(`A session is required to ${action}. Call client.login(...) or client.useAnonymous(...).`);
-        }
-        return session;
+        return requireSession(this.getSession, action);
     }
 }
 
@@ -249,15 +247,9 @@ function normalizeContent(content: CommentContent | string): CommentContent {
     return typeof content === "string" ? {type: "text", memo: content} : content;
 }
 
-/** 디시콘에서 중복/빈 값을 제거한 디테일 인덱스 배열을 반환합니다. `detailIndices`가 없으면 `detailIndex`를 사용합니다. */
-function dcconDetailIndices(dccon: { detailIndex: number; detailIndices?: readonly number[] }): number[] {
-    const source = dccon.detailIndices && dccon.detailIndices.length > 0 ? dccon.detailIndices : [dccon.detailIndex];
-    return [...new Set(source.map((id) => Number(id)).filter((id) => Number.isFinite(id) && id > 0))];
-}
-
 /** 댓글 작성 multipart에 캡챠 답변 필드(`rand_code`, `captcha_code`)를 추가합니다. */
 function appendCommentCaptcha(
-    multipart: Record<string, string | number | boolean | string[] | null | undefined>,
+    multipart: MultipartFields,
     captcha?: CaptchaAnswer
 ): void {
     if (!captcha?.code) return;

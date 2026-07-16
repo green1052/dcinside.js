@@ -1,12 +1,25 @@
 {
-    "name": "dcinside.js",
+    "name": "@green1052/dcinside.js",
     "version": "1.0.0",
-    "module": "src/index.ts",
-    "types": "src/index.ts",
+    "description": "디시인사이드 비공식 API 클라이언트",
+    "license": "GPL-3.0-only",
     "type": "module",
-    "scripts": {
-        "build": "bun run build.ts"
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js",
+            "bun": "./src/index.ts"
+        }
     },
+    "files": [
+        "dist",
+        "src"
+    ],
+    "scripts": {
+        "build": "bun run build.ts",
+        "prepublishOnly": "bun run build"
+    },
+    "repository": "github:green1052/dcinside.js",
     "devDependencies": {
         "@types/bun": "^1.3.14",
         "bun-plugin-dtsx": "^0.10.8"

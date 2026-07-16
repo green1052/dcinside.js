@@ -17,6 +17,7 @@ import {
     ynBoolean
 } from "../core/http/json";
 import {decodeHtml, escapeMemoHtml} from "../core/http/utils";
+import {requireSession} from "../core/session";
 import type {
     ArticleContent,
     ArticleDeleteOptions,
@@ -420,11 +421,7 @@ export class ArticleManager {
 
     /** 세션이 필요한 작업에서 현재 세션을 가져오거나 에러를 던집니다. */
     private requireSession(action: string): Session {
-        const session = this.getSession();
-        if (!session) {
-            throw new Error(`A session is required to ${action}. Call client.login(...) or client.useAnonymous(...).`);
-        }
-        return session;
+        return requireSession(this.getSession, action);
     }
 }
 

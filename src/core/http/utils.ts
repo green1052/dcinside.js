@@ -61,6 +61,15 @@ function decodeCodePoint(entity: string, codePoint: number): string {
 }
 
 /**
+ * 디테일 인덱스 목록에서 중복과 0 이하 값을 제거한 양수 배열을 반환합니다.
+ * `detailIndices`가 비어있으면 `detailIndex`를 사용합니다.
+ */
+export function dedupeDetailIndices(detailIndices: readonly number[] | undefined, detailIndex?: number): number[] {
+    const source = detailIndices && detailIndices.length > 0 ? detailIndices : detailIndex != null ? [detailIndex] : [];
+    return [...new Set(source.map((id) => Number(id)).filter((id) => Number.isFinite(id) && id > 0))];
+}
+
+/**
  * DCInside 게시글 본문(memo)용 HTML 인코더.
  * 연속 공백은 `&nbsp;`로, 줄바꿈은 `<br>`로, 탭은 `&nbsp;` ×4로 변환합니다.
  * HTML 특수문자도 이스케이프합니다. 한글 등 non-ASCII 문자는 그대로 유지합니다.

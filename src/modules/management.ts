@@ -12,6 +12,7 @@ import type {
     UserBlockOptions,
     UserBlockResult
 } from "../core/types";
+import {requireLoginSession} from "../core/session";
 
 const blockCategoryCode = {
     obscene: 1,
@@ -176,11 +177,7 @@ export class ManagementManager {
 
     /** 상세 정보가 포함된 로그인 세션을 가져오거나 에러를 던집니다. */
     private requireLogin(): Session {
-        const session = this.getSession();
-        if (!session?.detail) {
-            throw new Error("A logged-in manager session is required. Call client.login(...).");
-        }
-        return session;
+        return requireLoginSession(this.getSession);
     }
 }
 

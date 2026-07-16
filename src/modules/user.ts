@@ -13,6 +13,7 @@ import type {
     MyGalleryResult,
     Session
 } from "../core/types";
+import {requireLoginSession} from "../core/session";
 
 /**
  * 내 갤러리, 관리 갤러리, 미니 갤러리 가입과 탈퇴 흐름을 처리합니다.
@@ -158,11 +159,7 @@ export class UserManager {
 
     /** 상세 정보가 포함된 로그인 세션을 가져오거나 에러를 던집니다. */
     private requireLogin(): Session {
-        const session = this.getSession();
-        if (!session?.detail) {
-            throw new Error("A logged-in session is required. Call client.login(...).");
-        }
-        return session;
+        return requireLoginSession(this.getSession);
     }
 }
 

@@ -11,7 +11,7 @@ bun install github:green1052/dcinside.js
 ## 첫 요청
 
 ```ts
-import {DCInsideClient} from "dcinside.js";
+import {DCInsideClient} from "@green1052/dcinside.js";
 
 const client = new DCInsideClient();
 const gallery = client.gallery("mi$bjwg64");
@@ -67,7 +67,7 @@ import {
     DCInsideError,
     HTTPError,
     LoginOtpRequiredError
-} from "dcinside.js";
+} from "@green1052/dcinside.js";
 
 try {
     await client.gallery("mi$bjwg64").articles.write({

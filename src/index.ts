@@ -16,9 +16,8 @@ export {
     type DCInsideRequestContext,
     type ProxyOptions
 } from "./core/http";
-export {inferGalleryType, normalizeGalleryId, normalizeGalleryType} from "./core/http/gallery-id";
 export {isCaptchaCause, readCaptchaChallenge, assertResponseAuthExpired} from "./core/http/api-error";
-export {escapeHtml, decodeHtml, escapeMemoHtml} from "./core/http/utils";
+export {escapeHtml, decodeHtml, escapeMemoHtml, dedupeDetailIndices} from "./core/http/utils";
 
 // 모듈
 export {ArticleManager, type GalleryArticleScopedOptions, type ArticleEntryScopedOptions} from "./modules/articles";

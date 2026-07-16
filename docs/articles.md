@@ -81,7 +81,7 @@ console.log(result.articleId);
 `challenge.captcha`로 캡챠 이미지를 보여주고, 사용자가 입력한 코드를 `captcha` 옵션에 담아 다시 작성하면 됩니다.
 
 ```ts
-import {CaptchaRequiredError, downloadCaptchaImage} from "dcinside.js";
+import {CaptchaRequiredError, downloadCaptchaImage} from "@green1052/dcinside.js";
 
 try {
     await gallery.articles.write({subject: "제목", content: ["본문"]});

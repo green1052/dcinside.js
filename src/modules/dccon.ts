@@ -9,6 +9,8 @@ import {
     stringValue,
     ynBoolean
 } from "../core/http/json";
+import {dedupeDetailIndices} from "../core/http/utils";
+import {requireLoginSession} from "../core/session";
 import type {
     DCCon,
     DCConBuyResult,
@@ -166,18 +168,8 @@ export class DCConManager {
 
     /** 로그인 세션이 필요한 작업에서 현재 세션을 가져오거나 에러를 던집니다. */
     private requireLogin(action: string): Session {
-        const session = this.getSession();
-        if (!session?.detail) {
-            throw new Error(`A logged-in session is required to ${action}. Call client.login(...).`);
-        }
-        return session;
+        return requireLoginSession(this.getSession, action);
     }
-}
-
-/** 디테일 인덱스 목록에서 중복과 0 이하 값을 제거한 양수 배열을 반환합니다. `detailIndices`가 없으면 `detailIndex`를 사용합니다. */
-function dedupeDetailIndices(detailIndices: readonly number[] | undefined, detailIndex?: number): number[] {
-    const source = detailIndices && detailIndices.length > 0 ? detailIndices : detailIndex != null ? [detailIndex] : [];
-    return [...new Set(source.map((id) => Number(id)).filter((id) => Number.isFinite(id) && id > 0))];
 }
 
 /** 다중 삽입 시 인덱스에 해당하는 패키지 식별자를 우선 사용하고, 없으면 기본 packageIndex를 사용합니다. 숫자 문자열만 허용합니다. */

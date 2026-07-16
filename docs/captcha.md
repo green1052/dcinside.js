@@ -22,7 +22,7 @@
 서버가 캡챠를 요구하면 `CaptchaRequiredError`가 throw 됩니다. 에러 객체에서 작업 종류와 챌린지 정보를 꺼낼 수 있습니다.
 
 ```ts
-import {CaptchaRequiredError} from "dcinside.js";
+import {CaptchaRequiredError} from "@green1052/dcinside.js";
 
 try {
     await gallery.article(1).upvote();
@@ -47,7 +47,7 @@ try {
 서버가 이미지 URL을 내려주지 않았거나, 로그인 캡챠 등 미리 챌린지가 필요한 경우 `createCaptchaChallenge`로 생성합니다.
 
 ```ts
-import {createCaptchaChallenge} from "dcinside.js";
+import {createCaptchaChallenge} from "@green1052/dcinside.js";
 
 const challenge = createCaptchaChallenge("writeArticle", "mi$bjwg64");
 // { imageUrl: "https://app.dcinside.com/code.php?id=mi$bjwg64&dccode=...", captcha: "..." }
@@ -67,7 +67,7 @@ const challenge = createCaptchaChallenge("writeArticle", "mi$bjwg64");
 캡챠 이미지를 다운로드해 바이트 버퍼로 반환합니다. 파일로 저장하려면 호출 측에서 직접 저장하세요.
 
 ```ts
-import {downloadCaptchaImage} from "dcinside.js";
+import {downloadCaptchaImage} from "@green1052/dcinside.js";
 import {writeFileSync} from "node:fs";
 
 const result = await downloadCaptchaImage({
@@ -108,7 +108,7 @@ await gallery.article(1).comments.write({
 로그인 시 캡챠가 필요하면 `LoginCaptchaRequiredError`가 throw 됩니다. `client.login`의 `captcha` 옵션으로 답변을 전달합니다.
 
 ```ts
-import {LoginCaptchaRequiredError, createCaptchaChallenge, downloadCaptchaImage} from "dcinside.js";
+import {LoginCaptchaRequiredError, createCaptchaChallenge, downloadCaptchaImage} from "@green1052/dcinside.js";
 import {writeFileSync} from "node:fs";
 
 try {
