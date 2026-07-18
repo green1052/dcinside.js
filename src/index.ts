@@ -17,7 +17,7 @@ export {
     type ProxyOptions
 } from "./core/http";
 export {isCaptchaCause, readCaptchaChallenge, assertResponseAuthExpired} from "./core/http/api-error";
-export {escapeHtml, decodeHtml, escapeMemoHtml, dedupeDetailIndices} from "./core/http/utils";
+export {escapeHtml, decodeHtml, decodeMemo, escapeMemoHtml, dedupeDetailIndices} from "./core/http/utils";
 
 // 모듈
 export {ArticleManager, type GalleryArticleScopedOptions, type ArticleEntryScopedOptions} from "./modules/articles";

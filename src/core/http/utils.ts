@@ -51,6 +51,14 @@ export function decodeHtml(value: string): string {
     });
 }
 
+/**
+ * HTML 엔티티를 디코딩하고 `<br>` 태그를 줄바꿈(`\n`)으로 변환합니다.
+ * 댓글/본문 memo 원문에서 `&lt;br&gt;`, `<br>`, `<br/>`, `<br />` 형태를 모두 처리합니다.
+ */
+export function decodeMemo(value: string): string {
+    return decodeHtml(value).replace(/<br\s*\/?>/gi, "\n");
+}
+
 function decodeCodePoint(entity: string, codePoint: number): string {
     if (!Number.isInteger(codePoint) || codePoint < 0 || codePoint > 0x10ffff) return entity;
     try {

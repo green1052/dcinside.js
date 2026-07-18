@@ -28,7 +28,7 @@ import type {
     Session
 } from "../core/types";
 import {requireSession} from "../core/session";
-import {decodeHtml, dedupeDetailIndices} from "../core/http/utils";
+import {decodeMemo, dedupeDetailIndices} from "../core/http/utils";
 
 export type ArticleCommentScopedOptions<T extends {
     gallery: string;
@@ -278,14 +278,15 @@ function mapComment(comment: Record<string, unknown>): CommentData {
 
 /**
  * 댓글 목록을 순서대로 순회하며 부모 댓글을 추론합니다.
- * `isReply: true`인 댓글은 바로 앞선 `isReply: false` 댓글을 부모로 간주하고
- * 그 부모 댓글의 ID를 `parentCommentId`에 채웁니다.
+ * `mention.targetId`가 있으면 해당 ID를 부모로 사용하고, 없으면 바로 앞선
+ * `isReply: false` 댓글을 부모로 간주해 `parentCommentId`를 채웁니다.
  */
 function resolveParentComments(comments: CommentData[]): CommentData[] {
     let currentParentId: number | null = null;
     return comments.map((comment) => {
         if (comment.isReply) {
-            return {...comment, parentCommentId: currentParentId};
+            const parentId = comment.mention?.targetId ?? currentParentId;
+            return {...comment, parentCommentId: parentId};
         }
         currentParentId = comment.id;
         return comment;
@@ -297,7 +298,7 @@ function mapContent(comment: Record<string, unknown>): CommentContent {
     if (!dccon) {
         return {
             type: "text",
-            memo: decodeHtml(stringValue(comment["comment_memo"]))
+            memo: decodeMemo(stringValue(comment["comment_memo"]))
         };
     }
 
@@ -305,7 +306,7 @@ function mapContent(comment: Record<string, unknown>): CommentContent {
         type: "dccon",
         dccon: {
             imgLink: dccon,
-            memo: decodeHtml(stringValue(comment["comment_memo"])),
+            memo: decodeMemo(stringValue(comment["comment_memo"])),
             detailIndex: numberValue(comment["dccon_detail_idx"]),
             type: nullableString(comment["dccon_type"])
         }
