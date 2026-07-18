@@ -28,7 +28,7 @@ import type {
     Session
 } from "../core/types";
 import {requireSession} from "../core/session";
-import {dedupeDetailIndices} from "../core/http/utils";
+import {decodeHtml, dedupeDetailIndices} from "../core/http/utils";
 
 export type ArticleCommentScopedOptions<T extends {
     gallery: string;
@@ -138,7 +138,9 @@ export class CommentManager {
             totalComments: numberValue(root["total_comment"]),
             totalPages: numberValue(root["total_page"]),
             page: numberValue(root["re_page"]),
-            comments: arrayValue(root["comment_list"]).map((comment) => mapComment(objectValue(comment)))
+            comments: resolveParentComments(
+                arrayValue(root["comment_list"]).map((comment) => mapComment(objectValue(comment)))
+            )
         };
     }
 
@@ -266,6 +268,7 @@ function mapComment(comment: Record<string, unknown>): CommentData {
         content: mapContent(comment),
         dateTime: stringValue(comment["date_time"]) || stringValue(comment["reg_date"]),
         isReply: booleanValue(comment["under_step"]),
+        parentCommentId: null,
         mention: mapMention(comment["mention"]),
         id: numberValue(comment["comment_no"]),
         deleteFlag: nullableString(comment["is_delete_flag"]),
@@ -273,12 +276,28 @@ function mapComment(comment: Record<string, unknown>): CommentData {
     };
 }
 
+/**
+ * 댓글 목록을 순서대로 순회하며 부모 댓글을 추론합니다.
+ * `isReply: true`인 댓글은 바로 앞선 `isReply: false` 댓글을 부모로 간주하고
+ * 그 부모 댓글의 ID를 `parentCommentId`에 채웁니다.
+ */
+function resolveParentComments(comments: CommentData[]): CommentData[] {
+    let currentParentId: number | null = null;
+    return comments.map((comment) => {
+        if (comment.isReply) {
+            return {...comment, parentCommentId: currentParentId};
+        }
+        currentParentId = comment.id;
+        return comment;
+    });
+}
+
 function mapContent(comment: Record<string, unknown>): CommentContent {
     const dccon = nullableString(comment["dccon"]);
     if (!dccon) {
         return {
             type: "text",
-            memo: stringValue(comment["comment_memo"])
+            memo: decodeHtml(stringValue(comment["comment_memo"]))
         };
     }
 
@@ -286,7 +305,7 @@ function mapContent(comment: Record<string, unknown>): CommentContent {
         type: "dccon",
         dccon: {
             imgLink: dccon,
-            memo: stringValue(comment["comment_memo"]),
+            memo: decodeHtml(stringValue(comment["comment_memo"])),
             detailIndex: numberValue(comment["dccon_detail_idx"]),
             type: nullableString(comment["dccon_type"])
         }

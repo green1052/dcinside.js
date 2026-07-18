@@ -26,6 +26,8 @@ export interface CommentData {
     id: number;
     dateTime: string;
     isReply: boolean;
+    /** 대댓글인 경우 부모 댓글의 ID입니다. 부모 댓글은 순서상 바로 앞의 `isReply: false` 댓글로 추론합니다. */
+    parentCommentId: number | null;
     mention: CommentMention | null;
     deleteFlag: string | null;
     deleteScope: number | null;
