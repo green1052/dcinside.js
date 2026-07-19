@@ -22,7 +22,7 @@
     "repository": "github:green1052/dcinside.js",
     "devDependencies": {
         "@types/bun": "^1.3.14",
-        "bun-plugin-dtsx": "^0.10.9"
+        "bun-plugin-dtsx": "^0.11.1"
     },
     "dependencies": {
         "ky": "^2.0.2"
