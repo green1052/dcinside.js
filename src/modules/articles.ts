@@ -467,16 +467,16 @@ export class ScopedArticleEntryManager {
         return this.manager.delete({gallery: this.gallery, articleId: this.articleId});
     }
 
-    upvote(): Promise<ArticleVoteResult> {
-        return this.manager.upvote({gallery: this.gallery, articleId: this.articleId});
+    upvote(options: ArticleEntryScopedOptions<ArticleVoteOptions> = {}): Promise<ArticleVoteResult> {
+        return this.manager.upvote({...options, gallery: this.gallery, articleId: this.articleId});
     }
 
-    downvote(): Promise<ArticleVoteResult> {
-        return this.manager.downvote({gallery: this.gallery, articleId: this.articleId});
+    downvote(options: ArticleEntryScopedOptions<ArticleVoteOptions> = {}): Promise<ArticleVoteResult> {
+        return this.manager.downvote({...options, gallery: this.gallery, articleId: this.articleId});
     }
 
-    hitUpvote(): Promise<ArticleVoteResult> {
-        return this.manager.hitUpvote({gallery: this.gallery, articleId: this.articleId});
+    hitUpvote(options: ArticleEntryScopedOptions<ArticleVoteOptions> = {}): Promise<ArticleVoteResult> {
+        return this.manager.hitUpvote({...options, gallery: this.gallery, articleId: this.articleId});
     }
 
     reportLink(): Promise<string> {
