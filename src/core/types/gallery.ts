@@ -1,4 +1,4 @@
-/** 디시인사이드 갤러리 네임스페이스입니다. `mini`와 `person`은 요청 시 접두사를 자동으로 붙입니다. */
+/** 디시인사이드 갤러리 네임스페이스입니다. `mini`와 `person` 갤러리 ID에는 `mi$`, `pr$` 접두사가 필요하며, `normalizeGalleryId`로 붙일 수 있습니다. */
 export type GalleryType = "main" | "minor" | "mini" | "person";
 
 export interface Gallery {

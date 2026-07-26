@@ -18,6 +18,7 @@ export {
 } from "./core/http";
 export {isCaptchaCause, readCaptchaChallenge, assertResponseAuthExpired} from "./core/http/api-error";
 export {escapeHtml, decodeHtml, decodeMemo, escapeMemoHtml, dedupeDetailIndices} from "./core/http/utils";
+export {normalizeGalleryId, normalizeGalleryType, inferGalleryType} from "./core/http/gallery-id";
 
 // 모듈
 export {ArticleManager, type GalleryArticleScopedOptions, type ArticleEntryScopedOptions} from "./modules/articles";
