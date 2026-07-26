@@ -1,11 +1,11 @@
 export const API_URL = {
     pcWeb: "https://gall.dcinside.com/",
-    mobileWeb: "http://m.dcinside.com/",
+    mobileWeb: "https://m.dcinside.com/",
     mobileWebHttps: "https://m.dcinside.com/",
     mobileApp: "https://app.dcinside.com/",
     appApi: "https://app.dcinside.com/api/",
     authApi: "https://msign.dcinside.com/",
-    mainApi: "http://json2.dcinside.com/",
+    mainApi: "https://json2.dcinside.com/",
     uploadBase: "https://upload.dcinside.com/",
     movieUpload: "https://m4up4.dcinside.com/",
     redirect: "https://app.dcinside.com/api/redirect.php",
@@ -18,7 +18,7 @@ export const API_URL = {
         modify: "https://app.dcinside.com/api/gall_modify.php",
         upvote: "https://app.dcinside.com/api/_recommend_up.php",
         downvote: "https://app.dcinside.com/api/_recommend_down.php",
-        report: "http://m.dcinside.com/api/report.php",
+        report: "https://m.dcinside.com/api/report.php",
         hitUpvote: "https://app.dcinside.com/api/hit_recommend"
     },
 
@@ -86,11 +86,11 @@ export const API_URL = {
     },
 
     mainInfo: {
-        appMain: "http://json2.dcinside.com/json3/main_content.php",
-        galleryRanking: "http://json2.dcinside.com/json3/ranking_gallery.php",
-        minorGalleryRanking: "http://json2.dcinside.com/json1/mgallmain/mgallery_ranking.php",
-        miniGalleryRanking: "http://json2.dcinside.com/json1/migallmain/migallery_ranking.php",
-        personGalleryRanking: "http://json2.dcinside.com/json1/prgallmain/prgallery_ranking.php"
+        appMain: "https://json2.dcinside.com/json3/main_content.php",
+        galleryRanking: "https://json2.dcinside.com/json3/ranking_gallery.php",
+        minorGalleryRanking: "https://json2.dcinside.com/json1/mgallmain/mgallery_ranking.php",
+        miniGalleryRanking: "https://json2.dcinside.com/json1/migallmain/migallery_ranking.php",
+        personGalleryRanking: "https://json2.dcinside.com/json1/prgallmain/prgallery_ranking.php"
     },
 
     notification: {

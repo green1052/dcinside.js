@@ -117,25 +117,16 @@ export class DCConManager {
                 imageTags: imageTag ? [imageTag] : []
             };
         }
-        const imageTags: string[] = [];
-        let firstNewList: string | null = null;
-        let firstImageSource: string | null = null;
-        let firstAlt: string | null = null;
-        for (const [index, detailIndex] of detailIndices.entries()) {
-            const single = await this.insert({
-                packageIndex: resolvePackageIndex(dccon, index, dccon.packageIndex),
-                detailIndex: detailIndex
-            });
-            if (single.imageTag) imageTags.push(single.imageTag);
-            if (firstNewList === null && single.newList) firstNewList = single.newList;
-            if (firstImageSource === null && single.imageSource) firstImageSource = single.imageSource;
-            if (firstAlt === null && single.alternativeText) firstAlt = single.alternativeText;
-        }
+        const singles = await Promise.all(detailIndices.map((detailIndex, index) => this.insert({
+            packageIndex: resolvePackageIndex(dccon, index, dccon.packageIndex),
+            detailIndex
+        })));
+        const imageTags = singles.map((single) => single.imageTag).filter((tag): tag is string => tag !== null);
         return {
             result: imageTags.length === detailIndices.length,
-            newList: firstNewList,
-            imageSource: firstImageSource,
-            alternativeText: firstAlt,
+            newList: singles.find((single) => single.newList)?.newList ?? null,
+            imageSource: singles.find((single) => single.imageSource)?.imageSource ?? null,
+            alternativeText: singles.find((single) => single.alternativeText)?.alternativeText ?? null,
             imageTag: imageTags[0] ?? null,
             imageTags
         };

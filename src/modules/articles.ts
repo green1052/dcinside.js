@@ -108,7 +108,7 @@ export class ArticleManager {
      * 게시글을 작성하거나 수정합니다.
      *
      * `mode: "modify"`를 사용할 때는 `articleId`가 필요합니다. 익명 세션은
-     * 닉네임과 비밀번호를, 로그인 세션은 confirm_id/user_id를 자동 전솩니다.
+     * 닉네임과 비밀번호를, 로그인 세션은 confirm_id/user_id를 자동 전송합니다.
      * 캡챠가 필요하면 `captcha`에 답변을 전달하고, 성인 갤러리면 `adultCode`를 전달합니다.
      *
      * @param options 작성 대상 갤러리, 제목, 본문 블록, 말머리, 작성/수정 모드입니다.

@@ -33,6 +33,8 @@ export class AuthManager {
     private appCheckDate: string | null = null;
     private lastAppCheckTime: Date | null = null;
     private checkinCredentials: AndroidCheckinCredentials | null = null;
+    private appIdPromise: Promise<string> | null = null;
+    private clientTokenPromise: Promise<string> | null = null;
 
     constructor(private readonly http: KyHttpClient) {
     }
@@ -114,14 +116,23 @@ export class AuthManager {
             return this.appId;
         }
 
+        this.appIdPromise ??= this.issueAppId().finally(() => {
+            this.appIdPromise = null;
+        });
+        return this.appIdPromise;
+    }
+
+    /** `app_id` 발급 흐름 본체입니다. 동시 호출은 `getAppId`가 하나의 발급으로 합칩니다. */
+    private async issueAppId(): Promise<string> {
         const hashedAppKey = await this.generateHashedAppKey();
         if (this.lastHash === hashedAppKey && this.appId) return this.appId;
 
-        this.appId = await this.fetchAppId(hashedAppKey);
+        const appId = await this.fetchAppId(hashedAppKey);
+        this.appId = appId;
         this.appIdIssuedAt = Date.now();
         this.lastHash = hashedAppKey;
         await this.waitForAppIdVerification();
-        return this.appId;
+        return appId;
     }
 
     /**
@@ -282,6 +293,14 @@ export class AuthManager {
     async fetchClientToken(): Promise<string> {
         if (this.clientToken) return this.clientToken;
 
+        this.clientTokenPromise ??= this.issueClientToken().finally(() => {
+            this.clientTokenPromise = null;
+        });
+        return this.clientTokenPromise;
+    }
+
+    /** `client_token` 발급 흐름 본체입니다. 동시 호출은 `fetchClientToken`이 하나의 발급으로 합칩니다. */
+    private async issueClientToken(): Promise<string> {
         if (!this.checkinCredentials) this.checkinCredentials = await this.fetchAndroidCheckin();
         const result = await this.fetchClientTokenWithCheckin(this.checkinCredentials);
         return result.clientToken;

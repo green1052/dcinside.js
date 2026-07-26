@@ -77,13 +77,10 @@ export class KyHttpClient {
                         if (response.ok) return;
                         const cause = await readCauseFromResponse(response.clone());
                         const kind = cause ? authExpiredKind(cause) : null;
-                        if (kind === "appId" && this.context) {
-                            await this.context.refreshAppId();
-                            return ky(request);
-                        }
-                        if (kind === "loginSession" && this.context) {
-                            await this.context.refreshLogin();
-                            return ky(request);
+                        if (kind && this.context && !request.headers.has(AUTH_RETRY_HEADER)) {
+                            if (kind === "appId") await this.context.refreshAppId();
+                            else await this.context.refreshLogin();
+                            return this.ky(stripInjectedContext(request));
                         }
                         throw new HTTPError(
                             `HTTP Error: ${response.status} ${response.statusText}`.trim(),
@@ -195,6 +192,36 @@ function shouldInjectDCInsideContext(url: string): boolean {
         || hostname === "upload.dcinside.com"
         || hostname === "m4up4.dcinside.com"
         || hostname === "m.dcinside.com";
+}
+
+const AUTH_RETRY_HEADER = "x-dcjs-auth-retried";
+
+/**
+ * 인증 만료로 재시도할 요청을 준비합니다. GET 요청은 이미 주입된 `app_id`/`confirm_id`를
+ * 제거하고 `redirect.php`로 감싸진 URL은 hash를 풀어 원본으로 되돌려, beforeRequest 훅이
+ * 새 인증 값을 다시 주입하도록 만듭니다. POST 요청은 주입 훅이 항상 새 값으로 덮어쓰므로
+ * 그대로 복제합니다. 마커 헤더로 재시도를 1회로 제한합니다.
+ */
+function stripInjectedContext(request: Request): Request {
+    let next: Request;
+    if (request.method === "GET") {
+        let url = new URL(request.url);
+        const redirect = new URL(API_URL.redirect);
+        const hash = url.searchParams.get("hash");
+        if (url.origin === redirect.origin && url.pathname === redirect.pathname && hash) {
+            try {
+                url = new URL(Buffer.from(hash, "base64").toString());
+            } catch {
+            }
+        }
+        url.searchParams.delete("app_id");
+        url.searchParams.delete("confirm_id");
+        next = new Request(url.toString(), request);
+    } else {
+        next = new Request(request);
+    }
+    next.headers.set(AUTH_RETRY_HEADER, "1");
+    return next;
 }
 
 function redirectAppApiGet({request}: { request: Request }): Request | void {

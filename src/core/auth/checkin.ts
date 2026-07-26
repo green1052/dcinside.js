@@ -68,8 +68,10 @@ function message(fields: Field[]): Uint8Array {
     return concat(fields);
 }
 
+const textEncoder = new TextEncoder();
+
 function stringField(fieldNumber: number, value: string): Field {
-    return bytesField(fieldNumber, new TextEncoder().encode(value));
+    return bytesField(fieldNumber, textEncoder.encode(value));
 }
 
 function boolField(fieldNumber: number, value: boolean): Field {
