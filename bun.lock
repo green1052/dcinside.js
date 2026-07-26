@@ -1,15 +1,15 @@
 {
-  "lockfileVersion": 2,
+  "lockfileVersion": 1,
   "configVersion": 1,
   "workspaces": {
     "": {
       "name": "@green-1052/dcinside.js",
       "dependencies": {
-        "ky": "latest",
+        "ky": "^2.0.2",
       },
       "devDependencies": {
-        "@types/bun": "latest",
-        "bun-plugin-dtsx": "latest",
+        "@types/bun": "^1.3.14",
+        "bun-plugin-dtsx": "^0.11.1",
       },
     },
   },
