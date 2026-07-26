@@ -94,13 +94,15 @@ DCInside 작성 API가 `잠시후 다시 이용해주세요.`를 반환하면 �
 
 ```ts
 import {CaptchaRequiredError, createCaptchaChallenge, downloadCaptchaImage} from "@green-1052/dcinside.js";
+import {writeFileSync} from "node:fs";
 
 try {
     await gallery.article(1).upvote();
 } catch (error) {
     if (error instanceof CaptchaRequiredError) {
         const challenge = error.challenge.imageUrl ? error.challenge : createCaptchaChallenge(error.action, "mi$bjwg64");
-        await downloadCaptchaImage({url: challenge.imageUrl!, outputPath: "./captcha.png"});
+        const image = await downloadCaptchaImage({url: challenge.imageUrl!});
+        writeFileSync("./captcha.png", image.bytes);
         // 사용자에게 captcha.png를 보여주고 코드를 입력받은 뒤 재시도
         await gallery.article(1).upvote({captcha: {code: userInput, dccode: challenge.captcha}});
     }
@@ -129,6 +131,15 @@ OTP가 필요하면 `LoginOtpRequiredError`, 로그인 캡챠가 필요하면 `L
 
 공개 API에서는 갤러리 식별자를 `gallery` 하나로만 받습니다. 일반/마이너는 `football_new9`, `krstock`처럼 그대로 넘기고, 미니/인물만 `mi$...`, `pr$...` 접두사를 붙이면
 됩니다.
+
+접두사가 없는 ID에 접두사를 붙이거나 ID에서 갤러리 종류를 추론할 때는 헬퍼를 사용할 수 있습니다.
+
+```ts
+import {inferGalleryType, normalizeGalleryId} from "@green-1052/dcinside.js";
+
+normalizeGalleryId("bjwg64", "mini");   // "mi$bjwg64"
+inferGalleryType("pr$dororong");        // "person"
+```
 
 ## 구조
 
@@ -172,7 +183,7 @@ import {
     HTTPError,
     LoginCaptchaRequiredError,
     LoginOtpRequiredError
-} from "@green1052/dcinside.js";
+} from "@green-1052/dcinside.js";
 
 try {
     await client.gallery("mi$bjwg64").articles.write({
