@@ -1,25 +1,15 @@
+import {paginate, type PaginationNextPage} from "fetch-extras";
 import type {AuthManager} from "../core/auth";
 import {type KyHttpClient, type MultipartFields, postMultipartJson} from "../core/http";
 import {apiError, isApiError, isCaptchaCause, readCaptchaChallenge, shouldRefreshAppId} from "../core/http/api-error";
 import {API_URL} from "../core/http/constants";
 import {CaptchaRequiredError} from "../core/http/errors";
-import {
-    arrayValue,
-    booleanValue,
-    firstObject,
-    nullableNumber,
-    nullableString,
-    numberValue,
-    objectValue,
-    stringValue
-} from "../core/http/json";
+import {booleanValue, firstObject, nullableString, objectValue} from "../core/http/json";
 import type {
     CaptchaAnswer,
     CommentContent,
-    CommentData,
     CommentDeleteOptions,
     CommentDeleteResult,
-    CommentMention,
     CommentReadOptions,
     CommentReadResult,
     CommentReplyOptions,
@@ -28,7 +18,7 @@ import type {
     Session
 } from "../core/types";
 import {requireSession} from "../core/session";
-import {decodeMemo, dedupeDetailIndices} from "../core/http/utils";
+import {dedupeDetailIndices} from "../core/http/utils";
 
 export type ArticleCommentScopedOptions<T extends {
     gallery: string;
@@ -58,6 +48,62 @@ export class CommentManager {
      */
     async list(options: CommentReadOptions): Promise<CommentReadResult> {
         return this.listWithAppId(options, true);
+    }
+
+    /**
+     * 댓글 목록을 페이지 단위로 비동기 순회합니다.
+     *
+     * 각 yield는 한 페이지의 {@link CommentReadResult}입니다. 응답의 `total_page`에
+     * 도달하거나 빈 목록을 받으면 종료합니다. `refresh_join` 만료 시 app_id를 한 번 갱신해
+     * 같은 페이지를 재요청합니다.
+     *
+     * @param options `page`를 제외한 {@link CommentReadOptions}. 시작 페이지는 `page`로 지정(기본 1).
+     * @returns 한 페이지 결과를 순차적으로 yield하는 async iterator.
+     */
+    async *listPages(options: CommentReadOptions): AsyncIterableIterator<CommentReadResult> {
+        let refreshed = false;
+        let page = options.page ?? 1;
+        const galleryId = options.gallery;
+        const baseUrl = new URL(API_URL.comment.read);
+        baseUrl.searchParams.set("id", galleryId);
+        baseUrl.searchParams.set("no", String(options.articleId));
+
+        const requestPage = (): URL => {
+            const url = new URL(baseUrl);
+            url.searchParams.set("re_page", String(page));
+            return url;
+        };
+
+        for await (const result of paginate(requestPage(), {
+            fetchFunction: this.http.ky,
+            pagination: {
+                transform: async (response): Promise<CommentReadResult[]> => {
+                    const raw = await response.json();
+                    const root = firstObject(raw);
+                    if (isApiError(root)) {
+                        if (!refreshed && shouldRefreshAppId(root)) {
+                            await this.auth.refreshAppId({refreshClientToken: true});
+                            refreshed = true;
+                            return [];
+                        }
+                        throw apiError("load comments", root);
+                    }
+                    refreshed = false;
+                    return [root as unknown as CommentReadResult];
+                },
+                paginate: ({currentItems}): PaginationNextPage | false => {
+                    if (currentItems.length === 0) return false;
+                    const last = currentItems[currentItems.length - 1] as CommentReadResult;
+                    if (last.total_page > 0 && page >= last.total_page) return false;
+                    if (!last.comment_list || last.comment_list.length === 0) return false;
+                    page++;
+                    return {url: requestPage()};
+                }
+            }
+        })) {
+            if (result.comment_list.length === 0) continue;
+            yield result;
+        }
     }
 
     /**
@@ -108,10 +154,7 @@ export class CommentManager {
         const json = firstObject(raw);
         if (isApiError(json)) throw apiError("delete comment", json);
 
-        return {
-            result: booleanValue(json["result"]),
-            cause: nullableString(json["cause"])
-        };
+        return json as unknown as CommentDeleteResult;
     }
 
     private async listWithAppId(
@@ -134,14 +177,7 @@ export class CommentManager {
             throw apiError("load comments", root);
         }
 
-        return {
-            totalComments: numberValue(root["total_comment"]),
-            totalPages: numberValue(root["total_page"]),
-            page: numberValue(root["re_page"]),
-            comments: resolveParentComments(
-                arrayValue(root["comment_list"]).map((comment) => mapComment(objectValue(comment)))
-            )
-        };
+        return root as unknown as CommentReadResult;
     }
 
     /** 댓글과 대댓글 작성 요청을 공통 형식으로 전송합니다. */
@@ -204,12 +240,7 @@ export class CommentManager {
             throw apiError(mode === "com_reple" ? "write reply" : "write comment", json);
         }
 
-        return {
-            result: booleanValue(json["result"]),
-            data: json["data"] == null ? null : numberValue(json["data"]),
-            cause: nullableString(json["cause"]),
-            word: nullableString(json["word"])
-        };
+        return json as unknown as CommentWriteResult;
     }
 
     /** 세션이 필요한 작업에서 현재 세션을 가져오거나 에러를 던집니다. */
@@ -228,6 +259,10 @@ export class ScopedArticleCommentManager {
 
     list(options: ArticleCommentScopedOptions<CommentReadOptions> = {}): Promise<CommentReadResult> {
         return this.manager.list({...options, gallery: this.gallery, articleId: this.articleId});
+    }
+
+    listPages(options: ArticleCommentScopedOptions<CommentReadOptions> = {}): AsyncIterableIterator<CommentReadResult> {
+        return this.manager.listPages({...options, gallery: this.gallery, articleId: this.articleId});
     }
 
     write(options: ArticleCommentScopedOptions<CommentWriteOptions>): Promise<CommentWriteResult> {
@@ -257,71 +292,4 @@ function appendCommentCaptcha(
     if (!captcha?.code) return;
     multipart["rand_code"] = captcha.dccode ?? captcha.captcha ?? "";
     multipart["captcha_code"] = captcha.code;
-}
-
-function mapComment(comment: Record<string, unknown>): CommentData {
-    return {
-        memberIcon: numberValue(comment["member_icon"]),
-        ip: nullableString(comment["ipData"]),
-        name: stringValue(comment["name"]),
-        userId: stringValue(comment["user_id"]),
-        content: mapContent(comment),
-        dateTime: stringValue(comment["date_time"]) || stringValue(comment["reg_date"]),
-        isReply: booleanValue(comment["under_step"]),
-        parentCommentId: null,
-        mention: mapMention(comment["mention"]),
-        id: numberValue(comment["comment_no"]),
-        deleteFlag: nullableString(comment["is_delete_flag"]),
-        deleteScope: nullableNumber(comment["del_scope"])
-    };
-}
-
-/**
- * 댓글 목록을 순서대로 순회하며 부모 댓글을 추론합니다.
- * `mention.targetId`가 있으면 해당 ID를 부모로 사용하고, 없으면 바로 앞선
- * `isReply: false` 댓글을 부모로 간주해 `parentCommentId`를 채웁니다.
- */
-function resolveParentComments(comments: CommentData[]): CommentData[] {
-    let currentParentId: number | null = null;
-    return comments.map((comment) => {
-        if (comment.isReply) {
-            const parentId = comment.mention?.targetId ?? currentParentId;
-            return {...comment, parentCommentId: parentId};
-        }
-        currentParentId = comment.id;
-        return comment;
-    });
-}
-
-function mapContent(comment: Record<string, unknown>): CommentContent {
-    const dccon = nullableString(comment["dccon"]);
-    if (!dccon) {
-        return {
-            type: "text",
-            memo: decodeMemo(stringValue(comment["comment_memo"]))
-        };
-    }
-
-    return {
-        type: "dccon",
-        dccon: {
-            imgLink: dccon,
-            memo: decodeMemo(stringValue(comment["comment_memo"])),
-            detailIndex: numberValue(comment["dccon_detail_idx"]),
-            type: nullableString(comment["dccon_type"])
-        }
-    };
-}
-
-function mapMention(mention: unknown): CommentMention | null {
-    const object = objectValue(mention);
-    if (!object || Object.keys(object).length === 0) return null;
-
-    return {
-        name: stringValue(object["name"]),
-        targetId: numberValue(object["target_no"]),
-        number: stringValue(object["number"]),
-        ip: stringValue(object["ip"]),
-        isUser: booleanValue(object["is_user"])
-    };
 }

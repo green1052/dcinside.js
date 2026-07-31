@@ -1,5 +1,5 @@
 import type {CaptchaAnswer} from "./captcha";
-import type {GalleryInfo, GalleryTarget, HeadText} from "./gallery";
+import type {GalleryTarget, HeadText} from "./gallery";
 
 export type ArticleListOptions = GalleryTarget & {
     /** 1부터 시작하는 페이지 번호. 생략하면 `1`입니다. */
@@ -16,35 +16,72 @@ export type ArticleListOptions = GalleryTarget & {
     headId?: number;
 };
 
-export interface ArticleListItem {
-    id: number;
-    headNumber: number;
-    views: number;
-    upvotes: number;
-    hasImage: boolean;
-    hasMovie: boolean;
-    hasUpvoteIcon: boolean;
-    isBest: boolean;
-    isRealtime: boolean;
-    isRealtimeLatest: boolean;
-    hasVoice: boolean;
-    hasWinnerta: boolean;
-    level: number;
-    commentCount: number;
-    voiceCount: number;
-    userId: string;
-    memberIcon: number;
-    ip: string;
-    gallerCon: string | null;
-    subject: string;
-    name: string;
-    dateTime: string;
-    headText: string | null;
+/** 갤러리 메타데이터 원본(`gall_info`)입니다. */
+export interface GalleryInfo {
+    gall_title: string;
+    category: number;
+    file_cnt: number;
+    file_size: number;
+    no_write: boolean;
+    captcha: boolean | null;
+    code_count: number | null;
+    use_ai_write: boolean | null;
+    is_minor: boolean;
+    is_mini: boolean;
+    is_person: boolean;
+    managerskill: boolean;
+    membership: boolean | null;
+    profile_img: string | null;
+    prgall_img: string | null;
+    is_prgall_certified: boolean | null;
+    prgall_profile: Array<{ name: string; value: string }>;
+    total_member: number | null;
+    member_join: boolean | null;
+    use_auto_delete: number | null;
+    use_list_fix: boolean | null;
+    notify_recent: number | null;
+    head_text_up_dt: number | null;
+    placeholder: Array<{ no: number; msg: string }>;
+    must_read: { no: number; subject: string } | Record<string, never>;
+    anonymous: string | null;
+    capture_nickname: string | null;
+    gall_nickname: string | null;
+    relation_gall: Record<string, string>;
+    head_text: HeadText[];
 }
 
+/** 게시글 목록 항목 원본(`gall_list` 요소)입니다. */
+export interface ArticleListItem {
+    no: string | number;
+    headnum: number;
+    hit: number;
+    recommend: number;
+    img_icon: string;
+    movie_icon: string;
+    recommend_icon: string;
+    best_chk: string;
+    realtime_chk: string;
+    realtime_l_chk: string;
+    voice_icon: string;
+    winnerta_icon: string;
+    level: number;
+    total_comment: number;
+    total_voice: number;
+    user_id: string;
+    member_icon: number;
+    ip: string;
+    gallercon: string | null;
+    subject: string;
+    name: string;
+    date_time: string;
+    head_text?: string;
+    headtext?: string;
+}
+
+/** 게시글 목록 응답 원본입니다. */
 export interface ArticleListResult {
-    gallery: GalleryInfo;
-    articles: ArticleListItem[];
+    gall_info: GalleryInfo;
+    gall_list: ArticleListItem[];
 }
 
 export type ArticleReadOptions = GalleryTarget & {
@@ -52,67 +89,70 @@ export type ArticleReadOptions = GalleryTarget & {
     articleId: number;
 };
 
+/** 게시글 본문/추천 정보 원본(`view_main`)입니다. */
+export interface ArticleViewMain {
+    memo: string;
+    recommend: number;
+    recommend_member: number;
+    nonrecommend: number;
+    nonrecomm_use: boolean | null;
+    managerskill: boolean;
+}
+
+/** 게시글 상세 정보 원본(`view_info`)입니다. */
 export interface ArticleViewInfo {
-    galleryTitle: string;
+    galltitle: string;
     category: number;
     subject: string;
-    id: number;
+    no: string | number;
     name: string;
     level: number;
-    memberIcon: number;
-    commentCount: number;
+    member_icon: number;
+    total_comment: number;
     ip: string;
-    hasImage: boolean;
-    hasRecommend: boolean;
-    hasWinnerta: boolean;
-    hasVoice: boolean;
-    views: number;
-    writeType: string;
-    userId: string;
-    previousId: number;
-    previousSubject: string;
-    headTitle: string;
-    headId: number | null;
-    nextId: number;
-    nextSubject: string;
-    isBest: boolean;
-    isRealtimeLatest: boolean;
-    isNotice: boolean;
-    alarmFlag: number | null;
-    gallerCon: string | null;
-    dateTime: string;
-    isMinor: boolean;
-    isMini: boolean;
-    isPerson: boolean;
-    useAutoDelete: number | null;
-    useListFix: boolean | null;
+    img_chk: string;
+    recommend_chk: string;
+    winnerta_chk: string;
+    voice_chk: string;
+    hit: number;
+    write_type: string;
+    user_id: string;
+    prev_link: number;
+    prev_subject: string;
+    headtitle: string;
+    headid: number | null;
+    next_link: number;
+    next_subject: string;
+    best_chk: string;
+    realtime_l_chk: string;
+    isNotice: string;
+    alarm_flag: number | null;
+    gallercon: string | null;
+    date_time: string;
+    is_minor: boolean;
+    is_mini: boolean;
+    is_person: boolean;
+    use_auto_delete: number | null;
+    use_list_fix: boolean | null;
     membership: boolean | null;
-    memberGrant: number | null;
-    commentCaptcha: boolean | null;
-    commentCodeCount: number | null;
-    recommendCaptcha: boolean | null;
-    recommendCaptchaType: string | null;
-    recommendCodeCount: number | null;
-    anonymousNickname: string | null;
-    captureNickname: string | null;
-    galleryNickname: string | null;
-    profileImage: string | null;
-    headTexts: HeadText[];
-    commentDeleteScope: boolean;
+    member_grant: number | null;
+    comment_captcha: boolean | null;
+    comment_code_count: number | null;
+    recommend_captcha: boolean | null;
+    recommend_captcha_type: string | null;
+    recommend_code_count: number | null;
+    anonymous: string | null;
+    capture_nickname: string | null;
+    gall_nickname: string | null;
+    profile_img: string | null;
+    head_text: HeadText[];
+    commentDel_scope: boolean;
 }
 
-export interface ArticleViewMain {
-    content: string;
-    upvotes: number;
-    memberUpvotes: number;
-    downvotes: number;
-    nonrecommendEnabled: boolean | null;
-    isManager: boolean;
-}
-
+/** 게시글 읽기 응답 원본입니다. */
 export interface ArticleReadResult {
-    info: ArticleViewInfo;
-    main: ArticleViewMain;
+    view_info: ArticleViewInfo;
+    view_main: ArticleViewMain;
 }
 
 export type ArticleContent =
@@ -170,24 +210,18 @@ export type ArticleWriteOptions = GalleryTarget & {
     adultCode?: string;
 };
 
-export type ArticleWriteResult =
-    | {
-    result: true;
-    articleId: number;
-    galleryId: string | null;
-    cause: string | null;
+/** 게시글 작성/수정 응답 원본입니다. 성공 시 `cause`에 게시글 번호가 들어갑니다. */
+export interface ArticleWriteResult {
+    result: boolean;
+    cause: string | number | null;
+    id: string | null;
 }
-    | {
-    result: false;
-    articleId: null;
-    galleryId: null;
-    cause: string;
-};
 
 export type ArticleDeleteOptions = GalleryTarget & {
     articleId: number;
 };
 
+/** 게시글 삭제 응답 원본입니다. */
 export interface ArticleDeleteResult {
     result: boolean;
     cause: string | null;
@@ -201,6 +235,7 @@ export type ArticleVoteOptions = GalleryTarget & {
     captcha?: CaptchaAnswer;
 };
 
+/** 게시글 추천/비추천 응답 원본입니다. */
 export interface ArticleVoteResult {
     result: boolean;
     cause: string | null;
@@ -211,16 +246,17 @@ export type ArticleModifyInfoOptions = GalleryTarget & {
     articleId: number;
 };
 
+/** 게시글 수정 화면 응답 원본입니다. `memo`와 `file`은 DCInside 중첩 구조 그대로입니다. */
 export interface ArticleModifyInfoResult {
     result: boolean;
-    galleryId: string | null;
-    articleId: number;
-    fileCount: number;
-    fileSize: number;
+    gall_id: string | null;
+    gall_no: number;
+    file_cnt: number;
+    file_size: number;
     subject: string | null;
-    content: ArticleContent[];
-    files: Array<{ block: number; fileSize: number }>;
-    headTexts: HeadText[];
-    currentHeadText: string | null;
+    memo: unknown[];
+    file: unknown[];
+    head_text: HeadText[];
+    headtext: string | null;
     cause: string | null;
 }

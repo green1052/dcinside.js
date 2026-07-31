@@ -2,6 +2,7 @@ import type {CaptchaAnswer} from "./captcha";
 import type {DCCon} from "./dccon";
 import type {GalleryTarget} from "./gallery";
 
+/** 댓글 작성 본문 입력입니다. 응답용이 아닌 write()/reply() 입력 DTO입니다. */
 export type CommentContent =
     | {
     type: "text";
@@ -17,35 +18,40 @@ export type CommentReadOptions = GalleryTarget & {
     page?: number;
 };
 
-export interface CommentData {
-    memberIcon: number;
-    ip: string | null;
+/** 댓글 mention 원본입니다. */
+export interface CommentMention {
     name: string;
-    userId: string;
-    content: CommentContent;
-    id: number;
-    dateTime: string;
-    isReply: boolean;
-    /** 대댓글인 경우 부모 댓글의 ID입니다. 부모 댓글은 순서상 바로 앞의 `isReply: false` 댓글로 추론합니다. */
-    parentCommentId: number | null;
-    mention: CommentMention | null;
-    deleteFlag: string | null;
-    deleteScope: number | null;
-}
-
-export type CommentMention = {
-    name: string;
-    targetId: number;
+    target_no: number;
     number: string;
     ip: string;
-    isUser: boolean;
-};
+    is_user: boolean;
+}
 
+/** 댓글 항목 원본(`comment_list` 요소)입니다. */
+export interface CommentData {
+    member_icon: number;
+    ipData: string | null;
+    name: string;
+    user_id: string;
+    date_time: string;
+    reg_date?: string;
+    under_step: boolean;
+    mention: CommentMention | Record<string, never>;
+    comment_no: number;
+    is_delete_flag: string | null;
+    del_scope: number | null;
+    dccon: string | null;
+    dccon_detail_idx: number;
+    dccon_type: string | null;
+    comment_memo: string;
+}
+
+/** 댓글 목록 응답 원본입니다. */
 export interface CommentReadResult {
-    totalComments: number;
-    totalPages: number;
-    page: number;
-    comments: CommentData[];
+    total_comment: number;
+    total_page: number;
+    re_page: number;
+    comment_list: CommentData[];
 }
 
 export type CommentWriteOptions = GalleryTarget & {
@@ -66,11 +72,13 @@ export type CommentDeleteOptions = GalleryTarget & {
     commentId: number;
 };
 
+/** 댓글 삭제 응답 원본입니다. */
 export interface CommentDeleteResult {
     result: boolean;
     cause: string | null;
 }
 
+/** 댓글 작성 응답 원본입니다. */
 export interface CommentWriteResult {
     result: boolean;
     data: number | null;

@@ -1,21 +1,12 @@
 import {type KyHttpClient, postMultipartJson} from "../core/http";
 import {API_URL} from "../core/http/constants";
-import {
-    arrayValue,
-    booleanValue,
-    nullableString,
-    numberValue,
-    objectValue,
-    stringValue,
-    ynBoolean
-} from "../core/http/json";
+import {booleanValue, nullableString, objectValue, stringValue} from "../core/http/json";
 import {dedupeDetailIndices} from "../core/http/utils";
 import {requireLoginSession} from "../core/session";
 import type {
     DCCon,
     DCConBuyResult,
     DCConDetailResult,
-    DCConInfo,
     DCConInsertResult,
     DCConListResult,
     Session
@@ -37,14 +28,7 @@ export class DCConManager {
      * @returns 탭 목록과 각 탭의 디시콘 목록입니다.
      */
     async list(): Promise<DCConListResult> {
-        const response = await this.request({
-            type: "list"
-        });
-
-        return {
-            tabs: arrayValue(response["tab"]).map(mapDCCon),
-            list: arrayValue(response["list"]).map((group) => arrayValue(group).map(mapDCCon))
-        };
+        return this.request({type: "list"}) as unknown as DCConListResult;
     }
 
     /**
@@ -60,16 +44,10 @@ export class DCConManager {
         });
 
         if (Array.isArray(response)) {
-            return {
-                info: [],
-                detail: []
-            };
+            return {info: [], detail: []};
         }
 
-        return {
-            info: arrayValue(response["info"]).map(mapDCConInfo),
-            detail: arrayValue(response["detail"]).map(mapDCCon)
-        };
+        return response as unknown as DCConDetailResult;
     }
 
     /**
@@ -94,10 +72,10 @@ export class DCConManager {
         if (detailIndices.length === 0) {
             return {
                 result: false,
-                newList: null,
-                imageSource: null,
-                alternativeText: null,
-                imageTag: null,
+                new_list: null,
+                img_src: null,
+                alt: null,
+                img_tag: null,
                 imageTags: []
             };
         }
@@ -110,10 +88,10 @@ export class DCConManager {
             const imageTag = nullableString(response["img_tag"]);
             return {
                 result: stringValue(response["result"]).toLowerCase() === "ok" || booleanValue(response["result"]),
-                newList: nullableString(response["new_list"]),
-                imageSource: nullableString(response["img_src"]),
-                alternativeText: nullableString(response["alt"]),
-                imageTag,
+                new_list: nullableString(response["new_list"]),
+                img_src: nullableString(response["img_src"]),
+                alt: nullableString(response["alt"]),
+                img_tag: imageTag,
                 imageTags: imageTag ? [imageTag] : []
             };
         }
@@ -121,13 +99,13 @@ export class DCConManager {
             packageIndex: resolvePackageIndex(dccon, index, dccon.packageIndex),
             detailIndex
         })));
-        const imageTags = singles.map((single) => single.imageTag).filter((tag): tag is string => tag !== null);
+        const imageTags = singles.map((single) => single.img_tag).filter((tag): tag is string => tag !== null);
         return {
             result: imageTags.length === detailIndices.length,
-            newList: singles.find((single) => single.newList)?.newList ?? null,
-            imageSource: singles.find((single) => single.imageSource)?.imageSource ?? null,
-            alternativeText: singles.find((single) => single.alternativeText)?.alternativeText ?? null,
-            imageTag: imageTags[0] ?? null,
+            new_list: singles.find((single) => single.new_list)?.new_list ?? null,
+            img_src: singles.find((single) => single.img_src)?.img_src ?? null,
+            alt: singles.find((single) => single.alt)?.alt ?? null,
+            img_tag: imageTags[0] ?? null,
             imageTags
         };
     }
@@ -140,15 +118,10 @@ export class DCConManager {
      */
     async buy(dccon: Pick<DCCon, "packageIndex">): Promise<DCConBuyResult> {
         this.requireLogin("buy DCCons");
-        const response = await this.request({
+        return this.request({
             package_idx: dccon.packageIndex ?? 0,
             type: "buy_dccon"
-        });
-
-        return {
-            result: numberValue(response["result"]),
-            message: stringValue(response["msg"])
-        };
+        }) as unknown as DCConBuyResult;
     }
 
     /** 디시콘 API multipart 요청을 전송하고 객체 응답으로 반환합니다. */
@@ -172,27 +145,4 @@ function resolvePackageIndex(
     const explicit = dccon.detailPackageIds?.[index];
     if (explicit && /^\d+$/.test(explicit)) return Number(explicit);
     return fallback;
-}
-
-function mapDCCon(value: unknown): DCCon {
-    const object = objectValue(value);
-    return {
-        packageIndex: numberValue(object["package_idx"]),
-        detailIndex: numberValue(object["detail_idx"]),
-        title: stringValue(object["title"]),
-        imgLink: stringValue(object["img"]),
-        memo: stringValue(object["memo"])
-    };
-}
-
-function mapDCConInfo(value: unknown): DCConInfo {
-    const object = objectValue(value);
-    return {
-        packageIndex: numberValue(object["package_idx"]),
-        mainImage: stringValue(object["main_img"]),
-        title: stringValue(object["title"]),
-        description: stringValue(object["description"]),
-        mandu: numberValue(object["mandu"]),
-        getState: ynBoolean(object["get_state"])
-    };
 }

@@ -39,9 +39,10 @@ export interface NoMemberBlockOptions {
     };
 }
 
+/** 비회원 차단 설정 응답 원본입니다. */
 export interface NoMemberBlockResult {
     result: boolean;
-    message: string;
+    msg: string;
 }
 
 export type MovieUploadOptions = GalleryTarget & {
@@ -49,10 +50,11 @@ export type MovieUploadOptions = GalleryTarget & {
     checkRestriction?: boolean;
 };
 
+/** 영상 업로드 응답 원본입니다. */
 export interface MovieUploadResult {
-    message: string | null;
-    fileId: number | null;
-    thumbnailUrls: string[] | null;
+    msg: string | null;
+    file_no: number | null;
+    thum_url_arr: string[] | null;
     width: number | null;
     height: number | null;
 }

@@ -20,105 +20,70 @@ export interface HeadText {
     recommUnused?: boolean;
 }
 
-export interface GalleryInfo {
-    title: string;
-    category: number;
-    fileCount: number;
-    fileSize: number;
-    noWrite: boolean;
-    captcha: boolean | null;
-    codeCount: number | null;
-    useAiWrite: boolean | null;
-    isMinor: boolean;
-    isMini: boolean;
-    isPerson: boolean;
-    isManager: boolean;
-    membership: boolean | null;
-    profileImage: string | null;
-    personGalleryImage: string | null;
-    isPersonGalleryCertified: boolean | null;
-    personGalleryProfile: Array<{ name: string; value: string }>;
-    totalMember: number | null;
-    memberJoin: boolean | null;
-    useAutoDelete: number | null;
-    useListFix: boolean | null;
-    notifyRecent: number | null;
-    headTextUpdatedAt: number | null;
-    placeholders: Array<{ no: number; message: string }>;
-    mustRead: { articleId: number; subject: string } | null;
-    anonymousNickname: string | null;
-    captureNickname: string | null;
-    galleryNickname: string | null;
-    relationGallery: Record<string, string>;
-    headTexts: HeadText[];
-}
 
 export type RankingType = "up" | "down" | "stop" | "unknown";
 
+/** 갤러리 랭킹 항목 원본입니다. `kind`에 따라 일부 키만 존재합니다. */
 export interface GalleryRankingItem {
-    galleryLink: string;
-    galleryId: string;
-    galleryName: string;
-    rankType: RankingType;
-    rank: number;
-    rankDelta: number;
+    link?: string;
+    id?: string;
+    category?: string;
+    ko_name?: string;
+    rank_type?: string;
+    num?: number;
+    rank?: number;
+    rank_updown?: number;
 }
 
+/** 마이너 갤러리 정보 원본입니다. */
 export interface MinorGalleryInfo {
     id: string;
-    koName: string;
-    image: string | null;
-    description: string | null;
-    manager: GalleryManagerSummary;
-    subManagers: GalleryManagerSummary[];
-    createDate: string;
-    isNew: boolean;
-    hotState: string;
-    totalCount: string;
-    categoryName: string;
-    mini: MiniGalleryInfo | null;
+    ko_name: string;
+    img: string | null;
+    mgallery_desc: string | null;
+    master_id: string;
+    master_name: string;
+    submanager: Array<{ id: string; name: string }>;
+    create_dt: string;
+    new: boolean;
+    hot_state: string;
+    total_count: string;
+    cate_name: string;
+    mini: MiniGalleryInfo | Record<string, never>;
     person: {
-        history: Array<{
-            date: string;
-            manager: string;
-            content: string;
-        }>;
-    } | null;
+        history: Array<{ date: string; manager: string; content: string }>;
+    } | Record<string, never>;
 }
 
+/** 미니 갤러리 정보 원본입니다. */
 export interface MiniGalleryInfo {
-    hide: boolean;
-    totalMember?: number;
-    memberLimit?: number;
-    isMember?: boolean;
-}
-
-export interface GalleryManagerSummary {
-    id: string;
-    name: string;
+    gall_hide: boolean;
+    total_member?: number;
+    member_limit?: number;
+    member_ok?: boolean;
 }
 
 export interface MainPageHitArticle {
-    galleryId: string;
-    articleId: number;
+    id: string;
+    no: number;
     title: string;
-    galleryAlias: string | null;
+    gall_alias: string | null;
     thumbnail: string;
 }
 
 export interface MainPageLiveBestArticle {
-    galleryId: string;
-    articleId: number;
-    galleryName: string;
+    id: string;
+    no: number;
+    gall_name: string;
     title: string;
     comment: string;
     hit: number;
     recommend: number;
-    isTop: boolean;
-    regTime: string;
+    is_top: boolean;
+    reg_time: string;
     thumbnail: string;
     category: string;
-    gallAlias: string | null;
+    gall_alias: string | null;
 }
 
 export interface MainPageResult {

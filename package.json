@@ -26,6 +26,7 @@
         "bun-plugin-dtsx": "^0.11.1"
     },
     "dependencies": {
+        "fetch-extras": "^3.2.1",
         "ky": "^2.0.2"
     }
 }

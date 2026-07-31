@@ -1,9 +1,8 @@
 import {type KyHttpClient, postMultipartJson} from "../core/http";
 import {API_URL} from "../core/http/constants";
-import {arrayValue, booleanValue, firstObject, numberValue, objectValue, stringValue} from "../core/http/json";
+import {arrayValue, firstObject} from "../core/http/json";
 import type {
     Gallery,
-    JoinedMiniGallery,
     JoinedMiniGalleryResult,
     ManagedGallery,
     MiniGalleryJoinOkResult,
@@ -34,10 +33,7 @@ export class UserManager {
      */
     async myGalleries(): Promise<MyGalleryResult> {
         const json = await this.uploadUser(API_URL.user.myGall);
-        return {
-            myGallery: arrayValue(json["mygall"]).map(mapGallery),
-            favorite: arrayValue(json["favori"]).map(mapGallery)
-        };
+        return json as unknown as MyGalleryResult;
     }
 
     /**
@@ -52,11 +48,7 @@ export class UserManager {
             gall_id: gallery.id,
             mode: "favori_gall"
         });
-
-        return {
-            result: booleanValue(json["result"]),
-            cause: stringValue(json["cause"])
-        };
+        return json as unknown as ModifyMyGalleryResult;
     }
 
     /**
@@ -66,16 +58,7 @@ export class UserManager {
      */
     async managedGalleries(): Promise<ManagedGallery[]> {
         const json = await this.uploadUser(API_URL.user.myManageGallCheck);
-        return arrayValue(json["mymanageList"]).map((item) => {
-            const object = objectValue(item);
-            return {
-                hide: numberValue(object["gall_hide"]),
-                id: stringValue(object["gall_id"]),
-                title: stringValue(object["gall_koname"]),
-                type: stringValue(object["gall_type"]),
-                managerType: stringValue(object["manager_type"])
-            };
-        });
+        return arrayValue(json["mymanageList"]) as unknown as ManagedGallery[];
     }
 
     /**
@@ -85,11 +68,7 @@ export class UserManager {
      */
     async joinedMiniGalleries(): Promise<JoinedMiniGalleryResult> {
         const json = await this.uploadUser(API_URL.user.myMiniJoinCheck);
-        return {
-            joined: arrayValue(json["myjoinmini_in"]).map(mapJoinedMiniGallery),
-            pending: arrayValue(json["myjoinmini_hold"]).map(mapJoinedMiniGallery),
-            left: arrayValue(json["myjoinmini_out"]).map(mapJoinedMiniGallery)
-        };
+        return json as unknown as JoinedMiniGalleryResult;
     }
 
     /**
@@ -116,10 +95,7 @@ export class UserManager {
      */
     async requestMiniJoin(galleryId: string): Promise<MiniGalleryJoinResult> {
         const json = await this.uploadUser(API_URL.miniGallery.join, {id: galleryId});
-        return {
-            result: booleanValue(json["result"]),
-            joinQuestion: stringValue(json["join_question"])
-        };
+        return json as unknown as MiniGalleryJoinResult;
     }
 
     /**
@@ -130,11 +106,7 @@ export class UserManager {
      */
     async confirmMiniJoin(galleryId: string): Promise<MiniGalleryJoinOkResult> {
         const json = await this.uploadUser(API_URL.miniGallery.joinOk, {id: galleryId});
-        return {
-            result: booleanValue(json["result"]),
-            cause: stringValue(json["cause"]),
-            status: stringValue(json["status"])
-        };
+        return json as unknown as MiniGalleryJoinOkResult;
     }
 
     /**
@@ -145,9 +117,7 @@ export class UserManager {
      */
     async quitMiniGallery(galleryId: string): Promise<MiniGalleryQuitResult> {
         const json = await this.uploadUser(API_URL.miniGallery.quit, {id: galleryId});
-        return {
-            result: booleanValue(json["result"])
-        };
+        return json as unknown as MiniGalleryQuitResult;
     }
 
     /** 유저 API multipart 요청을 전송하고 첫 번째 객체 응답으로 반환합니다. */
@@ -161,21 +131,4 @@ export class UserManager {
     private requireLogin(): Session {
         return requireLoginSession(this.getSession);
     }
-}
-
-function mapGallery(value: unknown): Gallery {
-    const object = objectValue(value);
-    return {
-        title: stringValue(object["gall_koname"]),
-        id: stringValue(object["gall_id"])
-    };
-}
-
-function mapJoinedMiniGallery(value: unknown): JoinedMiniGallery {
-    const object = objectValue(value);
-    return {
-        title: stringValue(object["gall_koname"]),
-        id: stringValue(object["gall_id"]),
-        hide: numberValue(object["gall_hide"])
-    };
 }

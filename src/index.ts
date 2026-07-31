@@ -46,12 +46,10 @@ export type {
     Gallery,
     GalleryTarget,
     HeadText,
-    GalleryInfo,
     RankingType,
     GalleryRankingItem,
     MinorGalleryInfo,
     MiniGalleryInfo,
-    GalleryManagerSummary,
     MainPageHitArticle,
     MainPageLiveBestArticle,
     MainPageResult
@@ -69,6 +67,7 @@ export type {
 export type {CaptchaAnswer, CaptchaChallenge} from "./core/types/captcha";
 export type {
     DCCon,
+    DCConListItem,
     DCConListResult,
     DCConInfo,
     DCConDetailResult,
@@ -91,7 +90,8 @@ export type {
     ArticleVoteOptions,
     ArticleVoteResult,
     ArticleModifyInfoOptions,
-    ArticleModifyInfoResult
+    ArticleModifyInfoResult,
+    GalleryInfo
 } from "./core/types/article";
 export type {
     CommentContent,
@@ -110,6 +110,7 @@ export type {
     SearchWikiItem,
     SearchRealTimeItem,
     SearchArticle,
+    SearchGalleryItem,
     GallerySearchResult
 } from "./core/types/search";
 export type {
@@ -148,7 +149,6 @@ export type {
     UserNotificationSubscription,
     KeywordNotificationSubscription,
     GalleryNotificationSubscription,
-    AlarmType,
     AlarmItem,
     ArticleNotificationListResult,
     UserNotificationListResult,

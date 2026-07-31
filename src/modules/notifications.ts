@@ -1,27 +1,23 @@
+import {paginate, type PaginationNextPage} from "fetch-extras";
 import type {AuthManager} from "../core/auth";
-import {type KyHttpClient, postMultipartJson} from "../core/http";
+import {type KyHttpClient, buildFormData, postMultipartJson} from "../core/http";
 import {API_URL} from "../core/http/constants";
-import {numberValue} from "../core/http/json";
+import {firstObject} from "../core/http/json";
 import type {
-    AlarmItem,
     AlarmListResult,
     AlarmNotificationListOptions,
     ArticleNotificationListResult,
     ArticleNotificationOptions,
-    ArticleNotificationSubscription,
     CommentNotificationOptions,
     GalleryNotificationListResult,
     GalleryNotificationOptions,
-    GalleryNotificationSubscription,
     GalleryScopedNotificationListOptions,
     KeywordNotificationListResult,
     KeywordNotificationOptions,
-    KeywordNotificationSubscription,
     MinorNotificationOptions,
     NotificationResult,
     UserNotificationListResult,
-    UserNotificationOptions,
-    UserNotificationSubscription
+    UserNotificationOptions
 } from "../core/types";
 
 /**
@@ -97,7 +93,41 @@ export class NotificationManager {
             client_token: this.clientId,
             page: String(input.page ?? 1)
         });
-        return {items: parseAlarmItems(raw), raw};
+        return firstObject(raw) as unknown as AlarmListResult;
+    }
+
+    /**
+     * 알림(알람) 목록을 페이지 단위로 비동기 순회합니다.
+     *
+     * 각 yield는 한 페이지의 {@link AlarmListResult}입니다. 빈 목록 페이지를 받으면 종료합니다.
+     * 시작 페이지는 `input.page`로 지정(기본 1)합니다.
+     *
+     * @param input 페이지 입력입니다.
+     * @returns 한 페이지 결과를 순차적으로 yield하는 async iterator.
+     */
+    async *listAlarmsPages(input: AlarmNotificationListOptions = {}): AsyncIterableIterator<AlarmListResult> {
+        let page = input.page ?? 1;
+
+        for await (const result of paginate(API_URL.notification.alarmList, {
+            fetchFunction: this.http.ky,
+            body: buildAlarmPageBody(this.clientId, page),
+            pagination: {
+                transform: async (response): Promise<AlarmListResult[]> => {
+                    const raw = await response.json();
+                    return [firstObject(raw) as unknown as AlarmListResult];
+                },
+                paginate: ({currentItems}): PaginationNextPage | false => {
+                    if (currentItems.length === 0) return false;
+                    const last = currentItems[currentItems.length - 1] as AlarmListResult;
+                    if (!last.data || last.data.length === 0) return false;
+                    page++;
+                    return {body: buildAlarmPageBody(this.clientId, page)};
+                }
+            }
+        })) {
+            if (!result.data || result.data.length === 0) continue;
+            yield result;
+        }
     }
 
     /**
@@ -156,7 +186,7 @@ export class NotificationManager {
         if (input.type) fields["type"] = input.type;
         if (input.galleryId) fields["id"] = input.galleryId;
         const raw = await postMultipartJson(this.http, API_URL.notification.article, fields);
-        return {subscriptions: parseArticleSubscriptions(raw), raw};
+        return firstObject(raw) as unknown as ArticleNotificationListResult;
     }
 
     /**
@@ -169,7 +199,7 @@ export class NotificationManager {
         const fields: Record<string, string | number | boolean | null | undefined> = {client_id: this.clientId};
         if (input.galleryId) fields["id"] = input.galleryId;
         const raw = await postMultipartJson(this.http, API_URL.notification.user, fields);
-        return {subscriptions: parseUserSubscriptions(raw), raw};
+        return firstObject(raw) as unknown as UserNotificationListResult;
     }
 
     /**
@@ -182,7 +212,7 @@ export class NotificationManager {
         const fields: Record<string, string | number | boolean | null | undefined> = {client_id: this.clientId};
         if (input.galleryId) fields["id"] = input.galleryId;
         const raw = await postMultipartJson(this.http, API_URL.notification.keyword, fields);
-        return {subscriptions: parseKeywordSubscriptions(raw), raw};
+        return firstObject(raw) as unknown as KeywordNotificationListResult;
     }
 
     /**
@@ -223,7 +253,7 @@ export class NotificationManager {
      */
     async listRecommendNotifications(): Promise<GalleryNotificationListResult> {
         const raw = await postMultipartJson(this.http, API_URL.notification.recommend, {client_id: this.clientId});
-        return {subscriptions: parseGallerySubscriptions(raw), raw};
+        return firstObject(raw) as unknown as GalleryNotificationListResult;
     }
 
     /**
@@ -248,7 +278,7 @@ export class NotificationManager {
      */
     async listNoticeNotifications(): Promise<GalleryNotificationListResult> {
         const raw = await postMultipartJson(this.http, API_URL.notification.notice, {client_id: this.clientId});
-        return {subscriptions: parseGallerySubscriptions(raw), raw};
+        return firstObject(raw) as unknown as GalleryNotificationListResult;
     }
 
     /**
@@ -269,150 +299,11 @@ export class NotificationManager {
     /** 알림 엔드포인트로 multipart POST 요청을 보내고 결과를 파싱합니다. */
     private async post(url: string, fields: Record<string, string | number | boolean | null | undefined>): Promise<NotificationResult> {
         const raw = await postMultipartJson(this.http, url, fields);
-        const parsed = parseNotificationResult(raw);
-        return {...parsed, raw};
+        return firstObject(raw) as unknown as NotificationResult;
     }
 }
 
-/** 응답에서 알림 결과를 파싱합니다. 배열이면 첫 번째 요소를 사용합니다. */
-function parseNotificationResult(raw: unknown): { result: boolean; cause: string | null } {
-    const value = Array.isArray(raw) ? raw[0] : raw;
-    if (typeof value === "string") return {result: false, cause: value};
-    if (!isObject(value)) return {result: false, cause: "invalid notification response"};
-    const result = value.result;
-    return {
-        result: result === true || result === "true" || result === 1 || result === "1",
-        cause: stringField(value, "cause") || stringField(value, "message")
-    };
-}
-
-/** 알림 목록 응답에서 리스트 부분을 추출합니다. */
-function rawList(raw: unknown): Record<string, unknown>[] {
-    const value = Array.isArray(raw) ? raw[0] : raw;
-    if (!isObject(value)) return [];
-    const list = Array.isArray(value.lists) ? value.lists : Array.isArray(value.list) ? value.list : Array.isArray(value.data) ? value.data : [];
-    return list.filter(isObject);
-}
-
-/** 알림(알람) 목록 응답을 파싱합니다. `data` 배열의 각 항목을 AlarmItem으로 변환합니다. */
-function parseAlarmItems(raw: unknown): AlarmItem[] {
-    const value = Array.isArray(raw) ? raw[0] : raw;
-    const data = isObject(value) && Array.isArray(value.data) ? value.data : [];
-    return data.map(parseAlarmItem).filter((item): item is AlarmItem => item !== null);
-}
-
-function parseAlarmItem(raw: unknown): AlarmItem | null {
-    if (!isObject(raw)) return null;
-    const galleryId = stringField(raw, "id") || stringField(raw, "gallery_id");
-    const postNo = stringField(raw, "no") || stringField(raw, "post_no");
-    if (!galleryId || !postNo) return null;
-    const commentNo = stringField(raw, "comment_no");
-    const rawTitle = stringField(raw, "subject") || stringField(raw, "message") || `${galleryId}/${postNo}`;
-    const titleParts = parseAlarmTitle(rawTitle);
-    const memberIcon = raw["member_icon"];
-    const createdAt = parseAlarmTimestamp(raw);
-    return {
-        id: `server:${galleryId}:${postNo}:${commentNo || "post"}`,
-        type: parseAlarmType(raw),
-        galleryId,
-        postNo,
-        commentNo,
-        ...(titleParts.prefix ? {postTitlePrefix: titleParts.prefix} : {}),
-        ...(titleParts.title ? {postTitle: titleParts.title} : {}),
-        authorName: stringField(raw, "name") || undefined,
-        ...(raw["ip"] ? {authorIp: stringField(raw, "ip")} : {}),
-        ...(raw["user_id"] ? {authorId: stringField(raw, "user_id")} : {}),
-        ...(memberIcon != null ? {memberIcon: numberValue(memberIcon)} : {}),
-        title: rawTitle,
-        body: stringField(raw, "memo") || stringField(raw, "comment_memo") || stringField(raw, "content"),
-        createdAt,
-        read: parseAlarmReadState(raw)
-    };
-}
-
-function parseAlarmTitle(raw: string): { prefix?: string; title: string } {
-    const match = raw.trim().match(/^(\[[^\]]+\])\s*(.*)$/);
-    if (!match) return {title: raw};
-    return {prefix: match[1], title: match[2]?.trim() || raw};
-}
-
-/** 알림 종류를 응답 필드에서 추론합니다. */
-function parseAlarmType(raw: Record<string, unknown>): AlarmItem["type"] {
-    const alarmType = stringField(raw, "alarm_type");
-    if (alarmType === "U" || alarmType === "post_notified") return "post_notified";
-    if (alarmType === "K" || alarmType === "keyword") return "keyword";
-    if (alarmType === "R" || alarmType === "recommend") return "recommend";
-    if (alarmType === "N" || alarmType === "notice") return "notice";
-    if (commentNoExists(raw)) return "post_replied";
-    return "unknown";
-}
-
-function commentNoExists(raw: Record<string, unknown>): boolean {
-    const value = raw["comment_no"];
-    return typeof value === "string" ? value.trim().length > 0 : typeof value === "number" && value > 0;
-}
-
-/** 알림 생성 시각을 응답에서 파싱합니다. 시각 필드가 없으면 `Date.now()`를 사용합니다. */
-function parseAlarmTimestamp(raw: Record<string, unknown>): number {
-    const dateStr = stringField(raw, "regdate") || stringField(raw, "write_time") || stringField(raw, "m_time") || stringField(raw, "datetime");
-    if (!dateStr) return Date.now();
-    const parsed = Date.parse(dateStr);
-    return Number.isFinite(parsed) ? parsed : Date.now();
-}
-
-/** 알림 읽음 여부를 응답에서 파싱합니다. `is_read`/`read` 필드가 없으면 `false`입니다. */
-function parseAlarmReadState(raw: Record<string, unknown>): boolean {
-    const value = raw["is_read"] ?? raw["read"];
-    if (value == null) return false;
-    if (typeof value === "number") return value !== 0;
-    if (typeof value === "string") return value === "Y" || value === "y" || value === "1" || value === "true";
-    return value === true;
-}
-
-function parseArticleSubscriptions(raw: unknown): ArticleNotificationSubscription[] {
-    return rawList(raw).map((item) => ({
-        galleryId: stringField(item, "id") || stringField(item, "gallery_id") || stringField(item, "gall_id"),
-        galleryName: stringField(item, "ko_name") || stringField(item, "gall_ko_name"),
-        postNo: stringField(item, "no") || stringField(item, "content_no"),
-        subject: stringField(item, "subject") || stringField(item, "title"),
-        nickname: stringField(item, "nickname") || stringField(item, "writer_nick"),
-        ...(stringField(item, "write_time") || stringField(item, "regdate") ? {writeTime: stringField(item, "write_time") || stringField(item, "regdate")} : {})
-    })).filter((item) => item.galleryId && item.postNo && item.subject && item.nickname);
-}
-
-function parseUserSubscriptions(raw: unknown): UserNotificationSubscription[] {
-    return rawList(raw).map((item) => {
-        const memberIcon = item["member_icon"];
-        return {
-            galleryId: stringField(item, "id") || stringField(item, "gallery_id") || stringField(item, "gall_id"),
-            galleryName: stringField(item, "ko_name") || stringField(item, "gall_ko_name"),
-            userId: stringField(item, "user_id"),
-            nickname: stringField(item, "nickname") || stringField(item, "writer_nick"),
-            ...(typeof memberIcon === "number" ? {memberIcon} : {})
-        };
-    }).filter((item) => item.galleryId && item.userId && item.nickname);
-}
-
-function parseKeywordSubscriptions(raw: unknown): KeywordNotificationSubscription[] {
-    return rawList(raw).map((item) => ({
-        galleryId: stringField(item, "id") || stringField(item, "gallery_id") || stringField(item, "gall_id"),
-        galleryName: stringField(item, "ko_name") || stringField(item, "gall_ko_name"),
-        keyword: stringField(item, "keyword")
-    })).filter((item) => item.galleryId && item.keyword);
-}
-
-function parseGallerySubscriptions(raw: unknown): GalleryNotificationSubscription[] {
-    return rawList(raw).map((item) => ({
-        galleryId: stringField(item, "id") || stringField(item, "gallery_id") || stringField(item, "gall_id"),
-        galleryName: stringField(item, "ko_name") || stringField(item, "gall_ko_name")
-    })).filter((item) => item.galleryId);
-}
-
-function stringField(value: Record<string, unknown>, key: string): string {
-    const field = value[key];
-    return typeof field === "string" ? field : typeof field === "number" ? String(field) : "";
-}
-
-function isObject(value: unknown): value is Record<string, unknown> {
-    return typeof value === "object" && value !== null && !Array.isArray(value);
+/** 알림 목록 페이지 요청용 FormData를 생성합니다. `paginate`가 페이지마다 새 body로 전송합니다. */
+function buildAlarmPageBody(clientId: string, page: number): FormData {
+    return buildFormData({client_token: clientId, page: String(page)});
 }

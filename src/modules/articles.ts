@@ -1,43 +1,27 @@
+import {paginate, type PaginationNextPage} from "fetch-extras";
 import type {AuthManager} from "../core/auth";
 import {type KyHttpClient, postMultipartJson} from "../core/http";
 import {apiError, isApiError, isCaptchaCause, readCaptchaChallenge, shouldRefreshAppId} from "../core/http/api-error";
 import {API_URL} from "../core/http/constants";
 import {CaptchaRequiredError} from "../core/http/errors";
-import {
-    arrayValue,
-    booleanValue,
-    firstObject,
-    nullableBoolean,
-    nullableNumber,
-    nullableString,
-    nullableYnBoolean,
-    numberValue,
-    objectValue,
-    stringValue,
-    ynBoolean
-} from "../core/http/json";
-import {decodeHtml, escapeMemoHtml} from "../core/http/utils";
+import {booleanValue, firstObject, nullableString, objectValue} from "../core/http/json";
+import {escapeMemoHtml} from "../core/http/utils";
 import {requireSession} from "../core/session";
 import type {
     ArticleContent,
     ArticleDeleteOptions,
     ArticleDeleteResult,
-    ArticleListItem,
     ArticleListOptions,
     ArticleListResult,
     ArticleModifyInfoOptions,
     ArticleModifyInfoResult,
     ArticleReadOptions,
     ArticleReadResult,
-    ArticleViewInfo,
-    ArticleViewMain,
     ArticleVoteOptions,
     ArticleVoteResult,
     ArticleWriteOptions,
     ArticleWriteResult,
     CaptchaAnswer,
-    GalleryInfo,
-    HeadText,
     Session
 } from "../core/types";
 
@@ -92,6 +76,66 @@ export class ArticleManager {
      */
     async list(options: ArticleListOptions): Promise<ArticleListResult> {
         return this.listWithAppId(options, true);
+    }
+
+    /**
+     * 게시글 목록을 페이지 단위로 비동기 순회합니다.
+     *
+     * 각 yield는 한 페이지의 {@link ArticleListResult}입니다. 빈 목록 페이지를
+     * 받으면 자동으로 종료합니다. `refresh_join` 만료 시 한 번 app_id를 갱신해
+     * 같은 페이지를 재요청합니다.
+     *
+     * @param options `page`를 제외한 {@link ArticleListOptions}. 시작 페이지는 `page`로 지정(기본 1).
+     * @returns 한 페이지 결과를 순차적으로 yield하는 async iterator.
+     */
+    async *listPages(options: ArticleListOptions): AsyncIterableIterator<ArticleListResult> {
+        let refreshed = false;
+        let page = options.page ?? 1;
+        const galleryId = options.gallery;
+        const baseUrl = new URL(API_URL.article.list);
+        baseUrl.searchParams.set("id", galleryId);
+        if (options.searchKeyword) {
+            baseUrl.searchParams.set("s_type", options.searchType ?? "all");
+            baseUrl.searchParams.set("serVal", options.searchKeyword);
+        }
+        if (options.recommend) baseUrl.searchParams.set("recommend", "1");
+        if (options.notice) baseUrl.searchParams.set("notice", "1");
+        if (options.headId && options.headId > 0) baseUrl.searchParams.set("headid", String(options.headId));
+
+        const requestPage = (): URL => {
+            const url = new URL(baseUrl);
+            url.searchParams.set("page", String(page));
+            return url;
+        };
+
+        for await (const result of paginate(requestPage(), {
+            fetchFunction: this.http.ky,
+            pagination: {
+                transform: async (response): Promise<ArticleListResult[]> => {
+                    const raw = await response.json();
+                    const root = firstObject(raw);
+                    if (isApiError(root)) {
+                        if (!refreshed && shouldRefreshAppId(root)) {
+                            await this.auth.refreshAppId({refreshClientToken: true});
+                            refreshed = true;
+                            return [];
+                        }
+                        throw apiError("load article list", root);
+                    }
+                    refreshed = false;
+                    return [root as unknown as ArticleListResult];
+                },
+                paginate: ({currentItems}): PaginationNextPage | false => {
+                    if (currentItems.length === 0) return false;
+                    const last = currentItems[currentItems.length - 1] as ArticleListResult;
+                    if (!last.gall_list || last.gall_list.length === 0) return false;
+                    page++;
+                    return {url: requestPage()};
+                }
+            }
+        })) {
+            yield result;
+        }
     }
 
     /**
@@ -179,7 +223,6 @@ export class ArticleManager {
         if (options.adultCode) multipart["adult_code"] = options.adultCode;
 
         const raw = await postMultipartJson(this.http, API_URL.article.write, multipart);
-
         const json = firstObject(raw);
         if (isApiError(json)) {
             const cause = nullableString(json["cause"]) ?? "failed to write article";
@@ -189,23 +232,7 @@ export class ArticleManager {
             throw apiError(action === "modifyArticle" ? "modify article" : "write article", json);
         }
 
-        const result = booleanValue(json["result"]);
-        const cause = nullableString(json["cause"]);
-        if (result) {
-            const articleId = nullableNumber(json["cause"]);
-            return {
-                result: true as const,
-                articleId: articleId ?? 0,
-                galleryId: nullableString(json["id"]),
-                cause
-            };
-        }
-        return {
-            result: false as const,
-            articleId: null,
-            galleryId: null,
-            cause: cause ?? "failed to write article"
-        };
+        return json as unknown as ArticleWriteResult;
     }
 
     /**
@@ -223,13 +250,7 @@ export class ArticleManager {
             mode: "board_del",
             write_pw: session.user.type === "anonymous" ? session.user.password : undefined
         });
-
-        return {
-            result: booleanValue(json["result"]),
-            message: nullableString(json["message"]),
-            status: nullableNumber(json["status"]),
-            cause: nullableString(json["cause"])
-        };
+        return json as unknown as ArticleDeleteResult;
     }
 
     /**
@@ -302,26 +323,7 @@ export class ArticleManager {
 
         const raw = await postMultipartJson(this.http, API_URL.article.modify, multipart);
         const json = firstObject(raw);
-
-        return {
-            result: booleanValue(json["result"]),
-            galleryId: nullableString(json["gall_id"]),
-            articleId: numberValue(json["gall_no"]),
-            fileCount: numberValue(json["file_cnt"]),
-            fileSize: numberValue(json["file_size"]),
-            subject: nullableString(json["subject"]),
-            content: mapModifyContent(json["memo"]),
-            files: arrayValue(json["file"]).map((file) => {
-                const values = Object.values(objectValue(file));
-                return {
-                    block: numberValue(values[0]),
-                    fileSize: numberValue(values[1])
-                };
-            }),
-            headTexts: mapHeadTexts(json["head_text"]),
-            currentHeadText: nullableString(json["headtext"]),
-            cause: nullableString(json["cause"])
-        };
+        return json as unknown as ArticleModifyInfoResult;
     }
 
     private async listWithAppId(
@@ -351,13 +353,7 @@ export class ArticleManager {
             throw apiError("load article list", root);
         }
 
-        const gallInfo = firstObject(root["gall_info"]);
-        const gallList = arrayValue(root["gall_list"]);
-
-        return {
-            gallery: mapGalleryInfo(gallInfo),
-            articles: gallList.map((item) => mapArticleListItem(objectValue(item)))
-        };
+        return root as unknown as ArticleListResult;
     }
 
     private async readWithAppId(
@@ -379,10 +375,7 @@ export class ArticleManager {
             throw apiError("read article", root);
         }
 
-        return {
-            info: mapArticleViewInfo(objectValue(root["view_info"])),
-            main: mapArticleViewMain(objectValue(root["view_main"]))
-        };
+        return root as unknown as ArticleReadResult;
     }
 
     private async vote(url: string, options: ArticleVoteOptions): Promise<ArticleVoteResult> {
@@ -401,11 +394,7 @@ export class ArticleManager {
             throw new CaptchaRequiredError(cause, "voteArticle", readCaptchaChallenge(json));
         }
 
-        return {
-            result: booleanValue(json["result"]),
-            cause: nullableString(json["cause"]),
-            member: nullableNumber(json["member"])
-        };
+        return json as unknown as ArticleVoteResult;
     }
 
     /** 추천, 비추천, 삭제 같은 multipart POST 액션을 전송하고 API 에러를 처리합니다. */
@@ -444,6 +433,10 @@ export class ScopedGalleryArticleManager {
 
     list(options: GalleryArticleScopedOptions<ArticleListOptions> = {}): Promise<ArticleListResult> {
         return this.manager.list({...options, gallery: this.gallery});
+    }
+
+    listPages(options: GalleryArticleScopedOptions<ArticleListOptions> = {}): AsyncIterableIterator<ArticleListResult> {
+        return this.manager.listPages({...options, gallery: this.gallery});
     }
 
     write(options: GalleryArticleScopedOptions<ArticleWriteOptions>): Promise<ArticleWriteResult> {
@@ -496,189 +489,4 @@ function normalizeArticleContent(content: ArticleContent): Exclude<ArticleConten
         };
     }
     return content;
-}
-
-function mapModifyContent(value: unknown): ArticleContent[] {
-    return arrayValue(value).flatMap((block) => {
-        const object = objectValue(block);
-        const tagValue = object["tag_value"];
-
-        return Object.entries(object)
-            .filter(([key]) => key !== "tag_value")
-            .map(([, entry]) => {
-                const decoded = decodeHtml(stringValue(entry));
-                return {
-                    type: "html" as const,
-                    html: tagValue == null ? decoded : `<img src="${decoded}">`
-                };
-            });
-    });
-}
-
-function mapHeadTexts(value: unknown): HeadText[] {
-    return arrayValue(value).map((item) => {
-        const object = objectValue(item);
-        return {
-            no: numberValue(object["no"]),
-            name: stringValue(object["name"]),
-            level: numberValue(object["level"]),
-            selected: booleanValue(object["selected"]),
-            ...(object["recomm_unused"] == null ? {} : {recommUnused: booleanValue(object["recomm_unused"])})
-        };
-    });
-}
-
-function mapGalleryInfo(gallInfo: Record<string, unknown>): GalleryInfo {
-    return {
-        title: stringValue(gallInfo["gall_title"]),
-        category: numberValue(gallInfo["category"]),
-        fileCount: numberValue(gallInfo["file_cnt"]),
-        fileSize: numberValue(gallInfo["file_size"]),
-        noWrite: booleanValue(gallInfo["no_write"]),
-        captcha: nullableBoolean(gallInfo["captcha"]),
-        codeCount: nullableNumber(gallInfo["code_count"]),
-        useAiWrite: nullableBoolean(gallInfo["use_ai_write"]),
-        isMinor: booleanValue(gallInfo["is_minor"]),
-        isMini: booleanValue(gallInfo["is_mini"]),
-        isPerson: booleanValue(gallInfo["is_person"]),
-        isManager: booleanValue(gallInfo["managerskill"]),
-        membership: nullableBoolean(gallInfo["membership"]),
-        profileImage: nullableString(gallInfo["profile_img"]),
-        personGalleryImage: nullableString(gallInfo["prgall_img"]),
-        isPersonGalleryCertified: nullableBoolean(gallInfo["is_prgall_certified"]),
-        personGalleryProfile: mapPersonGalleryProfile(gallInfo["prgall_profile"]),
-        totalMember: nullableNumber(gallInfo["total_member"]),
-        memberJoin: nullableBoolean(gallInfo["member_join"]),
-        useAutoDelete: nullableNumber(gallInfo["use_auto_delete"]),
-        useListFix: nullableYnBoolean(gallInfo["use_list_fix"]),
-        notifyRecent: nullableNumber(gallInfo["notify_recent"]),
-        headTextUpdatedAt: nullableNumber(gallInfo["head_text_up_dt"]),
-        placeholders: mapPlaceholders(gallInfo["placeholder"]),
-        mustRead: mapMustRead(gallInfo["must_read"]),
-        anonymousNickname: nullableString(gallInfo["anonymous"]),
-        captureNickname: nullableString(gallInfo["capture_nickname"]),
-        galleryNickname: nullableString(gallInfo["gall_nickname"]),
-        relationGallery: objectValue(gallInfo["relation_gall"]) as Record<string, string>,
-        headTexts: mapHeadTexts(gallInfo["head_text"])
-    };
-}
-
-function mapPlaceholders(value: unknown): Array<{ no: number; message: string }> {
-    return arrayValue(value).map((item) => {
-        const object = objectValue(item);
-        return {
-            no: numberValue(object["no"]),
-            message: stringValue(object["msg"])
-        };
-    });
-}
-
-function mapMustRead(value: unknown): { articleId: number; subject: string } | null {
-    const object = objectValue(value);
-    if (Object.keys(object).length === 0) return null;
-
-    return {
-        articleId: numberValue(object["no"]),
-        subject: stringValue(object["subject"])
-    };
-}
-
-function mapPersonGalleryProfile(value: unknown): Array<{ name: string; value: string }> {
-    return arrayValue(value).map((item) => {
-        const object = objectValue(item);
-        return {
-            name: stringValue(object["name"]),
-            value: stringValue(object["value"])
-        };
-    });
-}
-
-function mapArticleListItem(item: Record<string, unknown>): ArticleListItem {
-    return {
-        id: numberValue(item["no"]),
-        headNumber: numberValue(item["headnum"]),
-        views: numberValue(item["hit"]),
-        upvotes: numberValue(item["recommend"]),
-        hasImage: ynBoolean(item["img_icon"]),
-        hasMovie: ynBoolean(item["movie_icon"]),
-        hasUpvoteIcon: ynBoolean(item["recommend_icon"]),
-        isBest: ynBoolean(item["best_chk"]),
-        isRealtime: ynBoolean(item["realtime_chk"]),
-        isRealtimeLatest: ynBoolean(item["realtime_l_chk"]),
-        hasVoice: ynBoolean(item["voice_icon"]),
-        hasWinnerta: ynBoolean(item["winnerta_icon"]),
-        level: numberValue(item["level"]),
-        commentCount: numberValue(item["total_comment"]),
-        voiceCount: numberValue(item["total_voice"]),
-        userId: stringValue(item["user_id"]),
-        memberIcon: numberValue(item["member_icon"]),
-        ip: stringValue(item["ip"]),
-        gallerCon: nullableString(item["gallercon"]),
-        subject: stringValue(item["subject"]),
-        name: stringValue(item["name"]),
-        dateTime: stringValue(item["date_time"]),
-        headText: nullableString(item["head_text"] ?? item["headtext"])
-    };
-}
-
-function mapArticleViewInfo(viewInfo: Record<string, unknown>): ArticleViewInfo {
-    return {
-        galleryTitle: stringValue(viewInfo["galltitle"]),
-        category: numberValue(viewInfo["category"]),
-        subject: stringValue(viewInfo["subject"]),
-        id: numberValue(viewInfo["no"]),
-        name: stringValue(viewInfo["name"]),
-        level: numberValue(viewInfo["level"]),
-        memberIcon: numberValue(viewInfo["member_icon"]),
-        commentCount: numberValue(viewInfo["total_comment"]),
-        ip: stringValue(viewInfo["ip"]),
-        hasImage: ynBoolean(viewInfo["img_chk"]),
-        hasRecommend: ynBoolean(viewInfo["recommend_chk"]),
-        hasWinnerta: ynBoolean(viewInfo["winnerta_chk"]),
-        hasVoice: ynBoolean(viewInfo["voice_chk"]),
-        views: numberValue(viewInfo["hit"]),
-        writeType: stringValue(viewInfo["write_type"]),
-        userId: stringValue(viewInfo["user_id"]),
-        previousId: numberValue(viewInfo["prev_link"]),
-        previousSubject: stringValue(viewInfo["prev_subject"]),
-        headTitle: stringValue(viewInfo["headtitle"]),
-        headId: nullableNumber(viewInfo["headid"]),
-        nextId: numberValue(viewInfo["next_link"]),
-        nextSubject: stringValue(viewInfo["next_subject"]),
-        isBest: ynBoolean(viewInfo["best_chk"]),
-        isRealtimeLatest: ynBoolean(viewInfo["realtime_l_chk"]),
-        isNotice: ynBoolean(viewInfo["isNotice"]),
-        alarmFlag: nullableNumber(viewInfo["alarm_flag"]),
-        gallerCon: nullableString(viewInfo["gallercon"]),
-        dateTime: stringValue(viewInfo["date_time"]),
-        isMinor: booleanValue(viewInfo["is_minor"]),
-        isMini: booleanValue(viewInfo["is_mini"]),
-        isPerson: booleanValue(viewInfo["is_person"]),
-        useAutoDelete: nullableNumber(viewInfo["use_auto_delete"]),
-        useListFix: nullableYnBoolean(viewInfo["use_list_fix"]),
-        membership: nullableBoolean(viewInfo["membership"]),
-        memberGrant: nullableNumber(viewInfo["member_grant"]),
-        commentCaptcha: nullableBoolean(viewInfo["comment_captcha"]),
-        commentCodeCount: nullableNumber(viewInfo["comment_code_count"]),
-        recommendCaptcha: nullableBoolean(viewInfo["recommend_captcha"]),
-        recommendCaptchaType: nullableString(viewInfo["recommend_captcha_type"]),
-        recommendCodeCount: nullableNumber(viewInfo["recommend_code_count"]),
-        anonymousNickname: nullableString(viewInfo["anonymous"]),
-        captureNickname: nullableString(viewInfo["capture_nickname"]),
-        galleryNickname: nullableString(viewInfo["gall_nickname"]),
-        profileImage: nullableString(viewInfo["profile_img"]),
-        headTexts: mapHeadTexts(viewInfo["head_text"]),
-        commentDeleteScope: booleanValue(viewInfo["commentDel_scope"])
-    };
-}
-
-function mapArticleViewMain(viewMain: Record<string, unknown>): ArticleViewMain {
-    return {
-        content: decodeHtml(stringValue(viewMain["memo"])),
-        upvotes: numberValue(viewMain["recommend"]),
-        memberUpvotes: numberValue(viewMain["recommend_member"]),
-        downvotes: numberValue(viewMain["nonrecommend"]),
-        nonrecommendEnabled: nullableBoolean(viewMain["nonrecomm_use"]),
-        isManager: booleanValue(viewMain["managerskill"])
-    };
 }

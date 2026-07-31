@@ -1,7 +1,7 @@
 import type {AuthManager} from "../core/auth";
 import {type KyHttpClient, postMultipartJson} from "../core/http";
 import {API_URL, DC_APP} from "../core/http/constants";
-import {booleanValue, firstObject, nullableString, objectValue, stringValue} from "../core/http/json";
+import {firstObject, objectValue} from "../core/http/json";
 import type {
     ChangeHeadTextOptions,
     ManagerActionOptions,
@@ -92,11 +92,7 @@ export class ManagementManager {
                 comment_no: options.commentId && options.commentId > 0 ? String(options.commentId) : ""
             })
         }).json();
-        const json = objectValue(response);
-        return {
-            result: booleanValue(json["result"]),
-            cause: stringValue(json["cause"])
-        };
+        return objectValue(response) as unknown as UserBlockResult;
     }
 
     /**
@@ -115,11 +111,7 @@ export class ManagementManager {
                 imgStatus: options.image?.status ?? ""
             })
         }).json();
-        const json = objectValue(response);
-        return {
-            result: booleanValue(json["result"]),
-            message: stringValue(json["msg"])
-        };
+        return objectValue(response) as unknown as NoMemberBlockResult;
     }
 
     /**
@@ -168,11 +160,7 @@ export class ManagementManager {
             ...extra
         });
         const json = firstObject(raw);
-        return {
-            result: booleanValue(json["result"]),
-            cause: stringValue(json["cause"]),
-            state: nullableString(json["state"])
-        };
+        return json as unknown as ManagerActionResult;
     }
 
     /** 상세 정보가 포함된 로그인 세션을 가져오거나 에러를 던집니다. */
