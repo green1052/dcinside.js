@@ -1,12 +1,12 @@
 import {paginate, type PaginationNextPage} from "fetch-extras";
 import type {AuthManager} from "../core/auth";
 import {type KyHttpClient, type MultipartFields, postMultipartJson} from "../core/http";
-import {apiError, isApiError, isCaptchaCause, readCaptchaChallenge, shouldRefreshAppId} from "../core/http/api-error";
+import {apiError, appendCaptchaFields, isApiError, isCaptchaCause, readCaptchaChallenge, shouldRefreshAppId} from "../core/http/api-error";
+import {getJsonWithAppIdRetry} from "../core/http/api-refresh";
 import {API_URL} from "../core/http/constants";
 import {CaptchaRequiredError} from "../core/http/errors";
-import {booleanValue, firstObject, nullableString, objectValue} from "../core/http/json";
+import {firstObject, nullableString} from "../core/http/json";
 import type {
-    CaptchaAnswer,
     CommentContent,
     CommentDeleteOptions,
     CommentDeleteResult,
@@ -47,7 +47,8 @@ export class CommentManager {
      * @returns 페이지 정보와 댓글 목록입니다.
      */
     async list(options: CommentReadOptions): Promise<CommentReadResult> {
-        return this.listWithAppId(options, true);
+        const root = await getJsonWithAppIdRetry(this.http, this.auth, this.buildReadUrl(options, options.page ?? 1).toString(), "load comments");
+        return root as unknown as CommentReadResult;
     }
 
     /**
@@ -61,35 +62,25 @@ export class CommentManager {
      * @returns 한 페이지 결과를 순차적으로 yield하는 async iterator.
      */
     async *listPages(options: CommentReadOptions): AsyncIterableIterator<CommentReadResult> {
-        let refreshed = false;
         let page = options.page ?? 1;
-        const galleryId = options.gallery;
-        const baseUrl = new URL(API_URL.comment.read);
-        baseUrl.searchParams.set("id", galleryId);
-        baseUrl.searchParams.set("no", String(options.articleId));
-
-        const requestPage = (): URL => {
-            const url = new URL(baseUrl);
-            url.searchParams.set("re_page", String(page));
-            return url;
-        };
+        let refreshed = false;
+        const requestPage = (): URL => this.buildReadUrl(options, page);
 
         for await (const result of paginate(requestPage(), {
             fetchFunction: this.http.ky,
             pagination: {
                 transform: async (response): Promise<CommentReadResult[]> => {
-                    const raw = await response.json();
-                    const root = firstObject(raw);
-                    if (isApiError(root)) {
-                        if (!refreshed && shouldRefreshAppId(root)) {
-                            await this.auth.refreshAppId({refreshClientToken: true});
-                            refreshed = true;
-                            return [];
-                        }
-                        throw apiError("load comments", root);
+                    const root = firstObject(await response.json());
+                    if (!isApiError(root)) {
+                        refreshed = false;
+                        return [root as unknown as CommentReadResult];
                     }
-                    refreshed = false;
-                    return [root as unknown as CommentReadResult];
+                    if (!refreshed && shouldRefreshAppId(root)) {
+                        refreshed = true;
+                        const retry = await getJsonWithAppIdRetry(this.http, this.auth, requestPage().toString(), "load comments");
+                        return [retry as unknown as CommentReadResult];
+                    }
+                    throw apiError("load comments", root);
                 },
                 paginate: ({currentItems}): PaginationNextPage | false => {
                     if (currentItems.length === 0) return false;
@@ -157,27 +148,13 @@ export class CommentManager {
         return json as unknown as CommentDeleteResult;
     }
 
-    private async listWithAppId(
-        options: CommentReadOptions,
-        retryOnRefresh: boolean
-    ): Promise<CommentReadResult> {
-        const galleryId = options.gallery;
+    /** 댓글 목록 요청 URL을 만듭니다. `list`와 `listPages`가 같은 쿼리 파라미터를 쓰도록 통일합니다. */
+    private buildReadUrl(options: CommentReadOptions, page: number): URL {
         const url = new URL(API_URL.comment.read);
-        url.searchParams.set("id", galleryId);
+        url.searchParams.set("id", options.gallery);
         url.searchParams.set("no", String(options.articleId));
-        url.searchParams.set("re_page", String(options.page ?? 1));
-
-        const raw = await this.http.ky.get(url.toString()).json();
-        const root = firstObject(raw);
-        if (isApiError(root)) {
-            if (retryOnRefresh && shouldRefreshAppId(root)) {
-                await this.auth.refreshAppId({refreshClientToken: true});
-                return this.listWithAppId(options, false);
-            }
-            throw apiError("load comments", root);
-        }
-
-        return root as unknown as CommentReadResult;
+        url.searchParams.set("re_page", String(page));
+        return url;
     }
 
     /** 댓글과 대댓글 작성 요청을 공통 형식으로 전송합니다. */
@@ -226,7 +203,7 @@ export class CommentManager {
             if (session.detail) multipart["user_id"] = session.detail.userId;
         }
 
-        appendCommentCaptcha(multipart, options.captcha);
+        appendCaptchaFields(multipart, options.captcha, "rand_code", "captcha_code");
         if (options.adultCode) multipart["adult_code"] = options.adultCode;
 
         const raw = await postMultipartJson(this.http, API_URL.comment.ok, multipart);
@@ -282,14 +259,4 @@ export class ScopedArticleCommentManager {
 
 function normalizeContent(content: CommentContent | string): CommentContent {
     return typeof content === "string" ? {type: "text", memo: content} : content;
-}
-
-/** 댓글 작성 multipart에 캡챠 답변 필드(`rand_code`, `captcha_code`)를 추가합니다. */
-function appendCommentCaptcha(
-    multipart: MultipartFields,
-    captcha?: CaptchaAnswer
-): void {
-    if (!captcha?.code) return;
-    multipart["rand_code"] = captcha.dccode ?? captcha.captcha ?? "";
-    multipart["captcha_code"] = captcha.code;
 }

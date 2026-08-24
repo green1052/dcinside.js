@@ -1,10 +1,11 @@
 import {paginate, type PaginationNextPage} from "fetch-extras";
 import type {AuthManager} from "../core/auth";
 import {type KyHttpClient, postMultipartJson} from "../core/http";
-import {apiError, isApiError, isCaptchaCause, readCaptchaChallenge, shouldRefreshAppId} from "../core/http/api-error";
+import {apiError, appendCaptchaFields, isApiError, isCaptchaCause, readCaptchaChallenge, shouldRefreshAppId} from "../core/http/api-error";
+import {getJsonWithAppIdRetry} from "../core/http/api-refresh";
 import {API_URL} from "../core/http/constants";
 import {CaptchaRequiredError} from "../core/http/errors";
-import {booleanValue, firstObject, nullableString, objectValue} from "../core/http/json";
+import {booleanValue, firstObject, nullableString} from "../core/http/json";
 import {escapeMemoHtml} from "../core/http/utils";
 import {requireSession} from "../core/session";
 import type {
@@ -21,7 +22,6 @@ import type {
     ArticleVoteResult,
     ArticleWriteOptions,
     ArticleWriteResult,
-    CaptchaAnswer,
     Session
 } from "../core/types";
 
@@ -75,7 +75,8 @@ export class ArticleManager {
      * @returns 갤러리 정보, 게시글 목록, 원본 응답입니다.
      */
     async list(options: ArticleListOptions): Promise<ArticleListResult> {
-        return this.listWithAppId(options, true);
+        const root = await getJsonWithAppIdRetry(this.http, this.auth, this.buildListUrl(options, options.page ?? 1).toString(), "load article list");
+        return root as unknown as ArticleListResult;
     }
 
     /**
@@ -89,41 +90,25 @@ export class ArticleManager {
      * @returns 한 페이지 결과를 순차적으로 yield하는 async iterator.
      */
     async *listPages(options: ArticleListOptions): AsyncIterableIterator<ArticleListResult> {
-        let refreshed = false;
         let page = options.page ?? 1;
-        const galleryId = options.gallery;
-        const baseUrl = new URL(API_URL.article.list);
-        baseUrl.searchParams.set("id", galleryId);
-        if (options.searchKeyword) {
-            baseUrl.searchParams.set("s_type", options.searchType ?? "all");
-            baseUrl.searchParams.set("serVal", options.searchKeyword);
-        }
-        if (options.recommend) baseUrl.searchParams.set("recommend", "1");
-        if (options.notice) baseUrl.searchParams.set("notice", "1");
-        if (options.headId && options.headId > 0) baseUrl.searchParams.set("headid", String(options.headId));
-
-        const requestPage = (): URL => {
-            const url = new URL(baseUrl);
-            url.searchParams.set("page", String(page));
-            return url;
-        };
+        let refreshed = false;
+        const requestPage = (): URL => this.buildListUrl(options, page);
 
         for await (const result of paginate(requestPage(), {
             fetchFunction: this.http.ky,
             pagination: {
                 transform: async (response): Promise<ArticleListResult[]> => {
-                    const raw = await response.json();
-                    const root = firstObject(raw);
-                    if (isApiError(root)) {
-                        if (!refreshed && shouldRefreshAppId(root)) {
-                            await this.auth.refreshAppId({refreshClientToken: true});
-                            refreshed = true;
-                            return [];
-                        }
-                        throw apiError("load article list", root);
+                    const root = firstObject(await response.json());
+                    if (!isApiError(root)) {
+                        refreshed = false;
+                        return [root as unknown as ArticleListResult];
                     }
-                    refreshed = false;
-                    return [root as unknown as ArticleListResult];
+                    if (!refreshed && shouldRefreshAppId(root)) {
+                        refreshed = true;
+                        const retry = await getJsonWithAppIdRetry(this.http, this.auth, requestPage().toString(), "load article list");
+                        return [retry as unknown as ArticleListResult];
+                    }
+                    throw apiError("load article list", root);
                 },
                 paginate: ({currentItems}): PaginationNextPage | false => {
                     if (currentItems.length === 0) return false;
@@ -145,7 +130,11 @@ export class ArticleManager {
      * @returns 게시글 정보, 본문/추천수 정보, 원본 응답입니다.
      */
     async read(options: ArticleReadOptions): Promise<ArticleReadResult> {
-        return this.readWithAppId(options, true);
+        const url = new URL(API_URL.article.read);
+        url.searchParams.set("id", options.gallery);
+        url.searchParams.set("no", String(options.articleId));
+        const root = await getJsonWithAppIdRetry(this.http, this.auth, url.toString(), "read article");
+        return root as unknown as ArticleReadResult;
     }
 
     /**
@@ -219,7 +208,7 @@ export class ArticleManager {
         multipart["use_gall_nickname"] = "0";
         multipart["write_movie"] = "0";
 
-        appendArticleCaptcha(multipart, options.captcha);
+        appendCaptchaFields(multipart, options.captcha, "code", "dcblock");
         if (options.adultCode) multipart["adult_code"] = options.adultCode;
 
         const raw = await postMultipartJson(this.http, API_URL.article.write, multipart);
@@ -326,14 +315,11 @@ export class ArticleManager {
         return json as unknown as ArticleModifyInfoResult;
     }
 
-    private async listWithAppId(
-        options: ArticleListOptions,
-        retryOnRefresh: boolean
-    ): Promise<ArticleListResult> {
-        const galleryId = options.gallery;
+    /** 게시글 목록 요청 URL을 만듭니다. `list`와 `listPages`가 같은 쿼리 파라미터를 쓰도록 통일합니다. */
+    private buildListUrl(options: ArticleListOptions, page: number): URL {
         const url = new URL(API_URL.article.list);
-        url.searchParams.set("id", galleryId);
-        url.searchParams.set("page", String(options.page ?? 1));
+        url.searchParams.set("id", options.gallery);
+        url.searchParams.set("page", String(page));
 
         if (options.searchKeyword) {
             url.searchParams.set("s_type", options.searchType ?? "all");
@@ -343,51 +329,17 @@ export class ArticleManager {
         if (options.notice) url.searchParams.set("notice", "1");
         if (options.headId && options.headId > 0) url.searchParams.set("headid", String(options.headId));
 
-        const raw = await this.http.ky.get(url.toString()).json();
-        const root = firstObject(raw);
-        if (isApiError(root)) {
-            if (retryOnRefresh && shouldRefreshAppId(root)) {
-                await this.auth.refreshAppId({refreshClientToken: true});
-                return this.listWithAppId(options, false);
-            }
-            throw apiError("load article list", root);
-        }
-
-        return root as unknown as ArticleListResult;
-    }
-
-    private async readWithAppId(
-        options: ArticleReadOptions,
-        retryOnRefresh: boolean
-    ): Promise<ArticleReadResult> {
-        const galleryId = options.gallery;
-        const url = new URL(API_URL.article.read);
-        url.searchParams.set("id", galleryId);
-        url.searchParams.set("no", String(options.articleId));
-
-        const raw = await this.http.ky.get(url.toString()).json();
-        const root = firstObject(raw);
-        if (isApiError(root)) {
-            if (retryOnRefresh && shouldRefreshAppId(root)) {
-                await this.auth.refreshAppId({refreshClientToken: true});
-                return this.readWithAppId(options, false);
-            }
-            throw apiError("read article", root);
-        }
-
-        return root as unknown as ArticleReadResult;
+        return url;
     }
 
     private async vote(url: string, options: ArticleVoteOptions): Promise<ArticleVoteResult> {
-        const galleryId = options.gallery;
-        const json = await this.uploadArticleAction(url, {
-            id: galleryId,
-            no: options.articleId,
-            ...(options.captcha ? {
-                rand_code: options.captcha.dccode ?? options.captcha.captcha ?? "",
-                captcha_code: options.captcha.code
-            } : {})
-        });
+        const multipart: Record<string, string | number | boolean | Blob | File | null | undefined> = {
+            id: options.gallery,
+            no: options.articleId
+        };
+        appendCaptchaFields(multipart, options.captcha, "rand_code", "captcha_code");
+
+        const json = await this.uploadArticleAction(url, multipart);
 
         const cause = nullableString(json["cause"]) ?? "";
         if (!booleanValue(json["result"]) && isCaptchaCause(cause)) {
@@ -412,16 +364,6 @@ export class ArticleManager {
     private requireSession(action: string): Session {
         return requireSession(this.getSession, action);
     }
-}
-
-/** 글 작성 multipart에 캡챠 답변 필드(`code`, `dcblock`)를 추가합니다. */
-function appendArticleCaptcha(
-    multipart: Record<string, string | number | boolean | Blob | File | null | undefined>,
-    captcha?: CaptchaAnswer
-): void {
-    if (!captcha?.code) return;
-    multipart["code"] = captcha.dccode ?? captcha.captcha ?? "";
-    multipart["dcblock"] = captcha.code;
 }
 
 export class ScopedGalleryArticleManager {

@@ -1,4 +1,4 @@
-import type {CaptchaChallenge} from "../types/captcha";
+import type {CaptchaAnswer, CaptchaChallenge} from "../types/captcha";
 import {AuthExpiredError, DCInsideError} from "./errors";
 import {booleanValue, firstNonEmptyString, nullableString, objectValue} from "./json";
 
@@ -54,6 +54,18 @@ export function apiError(action: string, value: unknown): DCInsideError {
 export function isCaptchaCause(cause: string): boolean {
     const normalized = cause.toLowerCase();
     return normalized.includes("captcha") || cause.includes("보안코드") || cause.includes("자동입력") || cause.includes("코드");
+}
+
+/** multipart 폼에 캡챠 답변 필드를 추가합니다. `codeKey`는 세션 식별자, `answerKey`는 사용자 입력 필드 이름입니다. */
+export function appendCaptchaFields(
+    fields: Record<string, unknown>,
+    captcha: CaptchaAnswer | undefined,
+    codeKey: string,
+    answerKey: string
+): void {
+    if (!captcha?.code) return;
+    fields[codeKey] = captcha.dccode ?? captcha.captcha ?? "";
+    fields[answerKey] = captcha.code;
 }
 
 /** 응답에서 캡챠 챌린지 정보(이미지 URL, 세션 식별자)를 추출합니다. 여러 키 후보를 순회하며 첫 값을 채택합니다. */
