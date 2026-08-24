@@ -29,6 +29,18 @@ const list = await gallery.articles.list({
 
 반환값은 `{gallery, articles, raw}`입니다. `raw`에는 DCInside 원본 응답이 들어갑니다.
 
+## 페이지 순회
+
+`listPages`는 목록을 페이지 단위로 비동기 순회합니다. 빈 목록 페이지를 받으면 자동으로 종료합니다.
+
+```ts
+for await (const page of client.gallery("mi$bjwg64").articles.listPages()) {
+    console.log(page.gall_list.length);
+}
+```
+
+`page` 옵션으로 시작 페이지를 지정할 수 있습니다. 목록/읽기 요청은 `app_id`가 만료되면 한 번 자동 갱신해 같은 페이지를 재요청합니다.
+
 ## 읽기
 
 ```ts

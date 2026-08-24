@@ -147,9 +147,9 @@ inferGalleryType("pr$dororong");        // "person"
 
 | 위치                                                  | 주요 메서드                                                                                                          |
 |-------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------|
-| `client.gallery(gallery).articles`                    | `list`, `write`                                                                                                      |
+| `client.gallery(gallery).articles`                    | `list`, `listPages`, `write`                                                                                        |
 | `client.gallery(gallery).article(articleId)`          | `read`, `delete`, `modifyInfo`, `reportLink`, `upvote`, `downvote`, `hitUpvote`                                      |
-| `client.gallery(gallery).article(articleId).comments` | `list`, `write`, `reply`, `delete`                                                                                   |
+| `client.gallery(gallery).article(articleId).comments` | `list`, `listPages`, `write`, `reply`, `delete`                                                                      |
 | `client.dccons`                                       | `list`, `detail`, `insert`, `buy`                                                                                    |
 | `client.galleries`                                    | `mainPage`, `minorInfo`, `uploadMovie`, `rankings.main/minor/mini/person`                                            |
 | `client.management`                                   | `setNotice`, `setRecommend`, `changeHeadText`, `blockUser`, `blockNoMember`, `gallerySettingLink`, `userBlockLink`   |

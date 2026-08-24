@@ -16,6 +16,18 @@ console.log(comments.comments);
 
 `CommentData.content`는 일반 텍스트 또는 디시콘 정보입니다. 삭제된 댓글은 `deleteFlag` 값이 채워질 수 있습니다.
 
+## 페이지 순회
+
+`listPages`는 댓글을 페이지 단위로 비동기 순회합니다. 응답의 `total_page`에 도달하거나 빈 목록을 받으면 종료합니다.
+
+```ts
+for await (const page of client.gallery("mi$bjwg64").article(1557).comments.listPages()) {
+    console.log(page.comment_list.length);
+}
+```
+
+`page` 옵션으로 시작 페이지를 지정할 수 있습니다. `app_id`가 만료되면 한 번 자동 갱신해 같은 페이지를 재요청합니다.
+
 ## 작성
 
 ```ts

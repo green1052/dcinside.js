@@ -15,6 +15,14 @@ for (const alarm of result.items) {
 
 `AlarmItem`은 알림 종류, 갤러리 정보, 게시글/댓글 번호, 작성자 정보, 제목/본문, 생성 시각, 읽음 여부를 포함합니다.
 
+`listAlarmsPages`로 알림을 페이지 단위로 비동기 순회할 수 있습니다. 빈 목록 페이지를 받으면 종료합니다.
+
+```ts
+for await (const page of client.notifications.listAlarmsPages()) {
+    console.log(page.data.length);
+}
+```
+
 ## 게시글 알림
 
 게시글에 댓글/답글이 달리면 알림을 받습니다.
