@@ -27,6 +27,6 @@
     },
     "dependencies": {
         "fetch-extras": "^3.2.1",
-        "ky": "^2.0.2"
+        "ky": "^2.1.0"
     }
 }

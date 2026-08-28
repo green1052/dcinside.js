@@ -6,7 +6,7 @@
       "name": "@green-1052/dcinside.js",
       "dependencies": {
         "fetch-extras": "^3.2.1",
-        "ky": "^2.0.2",
+        "ky": "^2.1.0",
       },
       "devDependencies": {
         "@types/bun": "^1.4.0",
@@ -29,7 +29,7 @@
 
     "fetch-extras": ["fetch-extras@3.2.1", "", {}, "sha512-MuxNR+WUQiu6i4xEDrtoSzSwoqDR2QhN8KU5jlFdAyM3aJmPYwOVC/PwkL5tqyzFMoxz9aGzYyPKRrnSkJQsEA=="],
 
-    "ky": ["ky@2.0.2", "", {}, "sha512-/GmXpo9F9W+f8n4Ivr2iH+7h7wL7jLbLKWkMlpflcCRb6kGjBfTlASEXaZ9qUgNTn4VgS0P2pwxxzQ4EM6Ulgg=="],
+    "ky": ["ky@2.1.0", "", {}, "sha512-nIKwelw+7qVqKOlX4Eht6GXfEXlDHcdIjyLWV3s119kYt5s+70ayTnYS+0fRNmtgGRRAfqdeWQbh8YizqkS0ng=="],
 
     "undici-types": ["undici-types@8.3.0", "", {}, "sha512-j375ScV60dom+YkPFIfTLcOiPxkN/buHz5GobjLhixFuANaNs3C9l4GmrWqejgXWJ7BbJcFYpTEUkS1Ge8bpZQ=="],
   }
