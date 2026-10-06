@@ -47,6 +47,7 @@ export class DCInside {
     readonly app: AppApi;
 
     session: Session | null;
+    private pendingRelogin: Promise<boolean> | null = null;
 
     constructor(options: DCInsideOptions = {}) {
         this.http = new Http(options.http);
@@ -57,13 +58,8 @@ export class DCInside {
         this.http.context = {
             appId: () => this.auth.appId(),
             refreshAppId: () => this.auth.refreshAppId(),
-            relogin: async () => {
-                const session = this.session;
-                if (session?.type !== "login") return false;
-                this.session = await this.auth.login(session.id, session.password, {mode: "login_quick"})
-                    .catch(() => this.auth.login(session.id, session.password));
-                return true;
-            }
+            // 동시에 만료된 요청들이 로그인을 한 번만 하도록 합칩니다.
+            relogin: () => (this.pendingRelogin ??= this.relogin().finally(() => (this.pendingRelogin = null)))
         };
 
         const ctx: ApiContext = {http: this.http, auth: this.auth, session: () => this.session};
@@ -80,6 +76,15 @@ export class DCInside {
         this.autoImages = new AutoImageApi(ctx);
         this.ai = new AiImageApi(ctx);
         this.app = new AppApi(ctx);
+    }
+
+    /** 저장된 아이디/비밀번호로 앱처럼 `login_quick` 재로그인합니다. 실패하면 `login_normal`로 한 번 더 시도합니다. */
+    private async relogin(): Promise<boolean> {
+        const session = this.session;
+        if (session?.type !== "login") return false;
+        this.session = await this.auth.login(session.id, session.password, {mode: "login_quick"})
+            .catch(() => this.auth.login(session.id, session.password));
+        return true;
     }
 
     /** 로그인하고 세션으로 씁니다. */

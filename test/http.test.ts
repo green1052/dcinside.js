@@ -70,6 +70,19 @@ describe("Http", () => {
         expect(requests.at(-1)!.url.pathname).toBe("/api/x");
     });
 
+    test("concurrent certification_login responses share one re-login", async () => {
+        let expired = 2;
+        const {dc, requests} = makeClient(async (req) => {
+            if (req.url.pathname === "/api/login") {
+                await Bun.sleep(10);
+                return json({result: true, user_id: "myid"});
+            }
+            return json(expired-- > 0 ? {result: false, cause: "certification_login"} : {result: true});
+        }, loggedIn);
+        await Promise.all([dc.http.post("https://app.dcinside.com/api/a"), dc.http.post("https://app.dcinside.com/api/b")]);
+        expect(requests.filter((r) => r.url.pathname === "/api/login").length).toBe(1);
+    });
+
     test("maps result=false to ApiError and captcha causes to CaptchaRequiredError", async () => {
         const {dc} = makeClient((req) => json(req.url.pathname === "/a" ? {result: false, cause: "삭제된 글"} : [{result: "false", cause: "자동입력 방지코드를 입력해주세요"}]));
         const error = await dc.http.post("https://app.dcinside.com/a").catch((e) => e);
