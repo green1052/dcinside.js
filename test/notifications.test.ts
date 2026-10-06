@@ -88,15 +88,15 @@ describe("NotificationManager", () => {
 
     test("listAlarmsPages iterates until an empty data page", async () => {
         const {manager, requests} = makeManager((_, index) =>
-            json({data: index === 0 ? [{no: 1}, {no: 2}] : []})
+            json({lists: index === 0 ? [{idx: "1"}, {idx: "2"}] : []})
         );
 
         const results = [];
         for await (const page of manager.listAlarmsPages()) results.push(page);
 
         expect(results.length).toBe(1);
-        expect(results[0]!.data.length).toBe(2);
+        expect(results[0]!.lists!.length).toBe(2);
         expect(requests.length).toBe(2);
-        expect(await (await formOf(requests[1]!)).get("page")).toBe("2");
+        expect(new URL(requests[1]!.url).searchParams.get("page")).toBe("2");
     });
 });

@@ -60,6 +60,8 @@ export interface GalleryScopedNotificationListOptions {
 
 /** 알림(알람) 목록 조회 입력입니다. */
 export interface AlarmNotificationListOptions {
+    /** `I`는 내 글/댓글 알림, `U`는 구독한 게시글 알림입니다. 기본값은 `I`입니다. */
+    type?: "I" | "U";
     page?: number;
 }
 
@@ -112,29 +114,24 @@ export interface GalleryNotificationSubscription {
     gall_ko_name?: string;
 }
 
-/** 서버 알림(알람) 항목 원본입니다. */
+/** 서버 알림(알람) 항목 원본입니다. 공식 앱(5.3.6) `api/alarm/message` 응답 모델 기준입니다. */
 export interface AlarmItem {
-    id?: string;
-    gallery_id?: string;
-    no?: string;
-    post_no?: string;
-    comment_no?: string;
-    alarm_type?: string;
-    subject?: string;
+    idx?: string;
+    title?: string;
     message?: string;
-    memo?: string;
-    comment_memo?: string;
-    content?: string;
-    name?: string;
-    ip?: string;
+    gallery_id?: string;
+    gall_ko_name?: string;
+    content_no?: string;
+    comment_no?: number;
+    comment_content?: string;
+    comment_nick?: string;
+    comment_cnt?: number;
+    writer_nick?: string;
+    alarm_type?: string;
+    type?: "I" | "U";
     user_id?: string;
-    member_icon?: number;
+    ip?: string;
     regdate?: string;
-    write_time?: string;
-    m_time?: string;
-    datetime?: string;
-    is_read?: string | number | boolean;
-    read?: string | number | boolean;
 }
 
 /** 게시글 알림 구독 목록 응답 원본입니다. `lists`/`list`/`data` 중 하나에 배열이 들어갑니다. */
@@ -169,8 +166,8 @@ export interface GalleryNotificationListResult {
     [key: string]: unknown;
 }
 
-/** 알림(알람) 목록 응답 원본입니다. `data` 배열에 알림 항목이 들어갑니다. */
+/** 알림(알람) 목록 응답 원본입니다. `lists` 배열에 알림 항목이 들어갑니다. */
 export interface AlarmListResult {
-    data?: AlarmItem[];
+    lists?: AlarmItem[];
     [key: string]: unknown;
 }

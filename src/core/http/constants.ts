@@ -95,7 +95,7 @@ export const API_URL = {
 
     notification: {
         comment: "https://app.dcinside.com/api/comment_del.php",
-        alarmList: "https://app.dcinside.com/alarm/notification",
+        message: "https://app.dcinside.com/api/alarm/message",
         minor: "https://app.dcinside.com/alarm/minor-notification",
         minorConfirm: "https://app.dcinside.com/alarm/minor-notificationconfirm",
         article: "https://app.dcinside.com/api/alarm/article",

@@ -1,6 +1,5 @@
-import {paginate, type PaginationNextPage} from "fetch-extras";
 import type {AuthManager} from "../core/auth";
-import {type KyHttpClient, buildFormData, postMultipartJson} from "../core/http";
+import {type KyHttpClient, postMultipartJson} from "../core/http";
 import {API_URL} from "../core/http/constants";
 import {firstObject} from "../core/http/json";
 import type {
@@ -85,15 +84,11 @@ export class NotificationManager {
     /**
      * 알림(알람) 목록을 조회합니다.
      *
-     * @param input 페이지 입력입니다. 생략하면 1페이지를 조회합니다.
-     * @returns 알림 항목 목록과 원본 응답입니다.
+     * @param input 알림 종류(`I`: 내 글/댓글, `U`: 구독 게시글)와 페이지입니다. 기본값은 `I`, 1페이지입니다.
+     * @returns `lists`에 알림 항목이 담긴 원본 응답입니다.
      */
     async listAlarms(input: AlarmNotificationListOptions = {}): Promise<AlarmListResult> {
-        const raw = await postMultipartJson(this.http, API_URL.notification.alarmList, {
-            client_token: this.clientId,
-            page: String(input.page ?? 1)
-        });
-        return firstObject(raw) as unknown as AlarmListResult;
+        return this.get(API_URL.notification.message, {type: input.type ?? "I", page: String(input.page ?? 1)});
     }
 
     /**
@@ -102,30 +97,13 @@ export class NotificationManager {
      * 각 yield는 한 페이지의 {@link AlarmListResult}입니다. 빈 목록 페이지를 받으면 종료합니다.
      * 시작 페이지는 `input.page`로 지정(기본 1)합니다.
      *
-     * @param input 페이지 입력입니다.
+     * @param input 알림 종류와 시작 페이지입니다.
      * @returns 한 페이지 결과를 순차적으로 yield하는 async iterator.
      */
     async *listAlarmsPages(input: AlarmNotificationListOptions = {}): AsyncIterableIterator<AlarmListResult> {
-        let page = input.page ?? 1;
-
-        for await (const result of paginate(API_URL.notification.alarmList, {
-            fetchFunction: this.http.ky,
-            body: buildAlarmPageBody(this.clientId, page),
-            pagination: {
-                transform: async (response): Promise<AlarmListResult[]> => {
-                    const raw = await response.json();
-                    return [firstObject(raw) as unknown as AlarmListResult];
-                },
-                paginate: ({currentItems}): PaginationNextPage | false => {
-                    if (currentItems.length === 0) return false;
-                    const last = currentItems[currentItems.length - 1] as AlarmListResult;
-                    if (!last.data || last.data.length === 0) return false;
-                    page++;
-                    return {body: buildAlarmPageBody(this.clientId, page)};
-                }
-            }
-        })) {
-            if (!result.data || result.data.length === 0) continue;
+        for (let page = input.page ?? 1; ; page++) {
+            const result = await this.listAlarms({...input, page});
+            if (!result.lists?.length) return;
             yield result;
         }
     }
@@ -303,7 +281,3 @@ export class NotificationManager {
     }
 }
 
-/** 알림 목록 페이지 요청용 FormData를 생성합니다. `paginate`가 페이지마다 새 body로 전송합니다. */
-function buildAlarmPageBody(clientId: string, page: number): FormData {
-    return buildFormData({client_token: clientId, page: String(page)});
-}
