@@ -1,4 +1,5 @@
 import {toHex} from "../util";
+
 /** Google Android checkin 결과입니다. */
 export interface CheckinCredentials {
     androidId: bigint;
