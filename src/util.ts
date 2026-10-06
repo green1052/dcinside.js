@@ -11,7 +11,8 @@ export function first(value: unknown): JsonObject {
     if (!value || typeof value !== "object") return {};
     const object = value as JsonObject;
     const keys = Object.keys(object);
-    if (keys.length > 0 && keys.every((key) => /^\d+$/.test(key))) return first(object[keys.sort((a, b) => +a - +b)[0]!]);
+    // 정수 키는 Object.keys가 오름차순으로 돌려줍니다.
+    if (keys.length > 0 && keys.every((key) => /^\d+$/.test(key))) return first(object[keys[0]!]);
     return object;
 }
 

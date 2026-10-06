@@ -124,7 +124,8 @@ export class Http {
             throw isCaptchaCause(message) ? new CaptchaRequiredError(message, json) : new ApiError(message, json);
         }
         if (!response.ok) throw new HTTPError(response.status, text);
-        const result = options.list ? list(json) : Array.isArray(json) || isNumericKeyed(json) ? first(json) : json;
+        // 배열/숫자 키 객체는 앱처럼 첫 객체를 꺼냅니다. 보통 객체는 그대로입니다.
+        const result = options.list ? list(json) : json && typeof json === "object" ? first(json) : json;
         if (!options.as) return result;
         return options.list ? (result as unknown[]).map((item) => normalize(item, options.as!)) : normalize(result, options.as);
     }
@@ -139,12 +140,6 @@ export class Http {
         redirect.searchParams.set("hash", btoa(target.toString()));
         return redirect;
     }
-}
-
-function isNumericKeyed(value: unknown): boolean {
-    if (!value || typeof value !== "object") return false;
-    const keys = Object.keys(value);
-    return keys.length > 0 && keys.every((key) => /^\d+$/.test(key));
 }
 
 const scalar = (value: string | number | boolean) => (typeof value === "boolean" ? (value ? "1" : "0") : String(value));

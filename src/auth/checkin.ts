@@ -1,3 +1,4 @@
+import {toHex} from "../util";
 /** Google Android checkin 결과입니다. */
 export interface CheckinCredentials {
     androidId: bigint;
@@ -42,7 +43,7 @@ export function createCheckinRequest(): Uint8Array {
         stringField(5, model),
         stringField(6, locale),
         varintField(7, BigInt(Date.now() * 1000 + Math.floor(Math.random() * 1000))),
-        stringField(9, randomHex(12)),
+        stringField(9, toHex(crypto.getRandomValues(new Uint8Array(6)))),
         stringField(10, randomDigits(14)),
         stringField(12, timeZone),
         varintField(14, 3n),
@@ -178,10 +179,6 @@ function concat(chunks: Uint8Array[]): Uint8Array {
     return output;
 }
 
-function randomHex(length: number): string {
-    const bytes = crypto.getRandomValues(new Uint8Array(Math.ceil(length / 2)));
-    return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("").slice(0, length);
-}
 
 function randomDigits(length: number): string {
     const bytes = crypto.getRandomValues(new Uint8Array(length));
