@@ -1,7 +1,7 @@
 {
     "name": "@green-1052/dcinside.js",
-    "version": "1.1.1",
-    "description": "디시인사이드 비공식 API 클라이언트",
+    "version": "2.0.0",
+    "description": "디시인사이드 안드로이드 앱(5.3.6) API 비공식 클라이언트",
     "license": "GPL-3.0-only",
     "type": "module",
     "exports": {
@@ -24,9 +24,5 @@
     "devDependencies": {
         "@types/bun": "^1.4.2",
         "bun-plugin-dtsx": "^0.11.19"
-    },
-    "dependencies": {
-        "fetch-extras": "^3.2.1",
-        "ky": "^2.1.0"
     }
 }

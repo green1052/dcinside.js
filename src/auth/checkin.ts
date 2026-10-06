@@ -1,8 +1,12 @@
-import type {AndroidCheckinCredentials} from "../types";
+/** Google Android checkin 결과입니다. */
+export interface CheckinCredentials {
+    androidId: bigint;
+    securityToken: bigint;
+}
 
 type Field = Uint8Array;
 
-export function createAndroidCheckinRequest(): Uint8Array {
+export function createCheckinRequest(): Uint8Array {
     const locale = "ko_KR";
     const timeZone = "Asia/Seoul";
     const deviceCode = "e2s";
@@ -49,7 +53,7 @@ export function createAndroidCheckinRequest(): Uint8Array {
     ]);
 }
 
-export function parseAndroidCheckinResponse(bytes: Uint8Array): AndroidCheckinCredentials {
+export function parseCheckinResponse(bytes: Uint8Array): CheckinCredentials {
     const fields = readFields(bytes);
     const androidId = fields.find((field) => field.fieldNumber === 7 && field.wireType === 1);
     const securityToken = fields.find((field) => field.fieldNumber === 8 && field.wireType === 1);
