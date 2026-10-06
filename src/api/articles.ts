@@ -106,9 +106,9 @@ export interface PollCreateOptions {
  */
 export class ArticleApi extends Api {
     /** 게시글 목록과 갤러리 정보를 가져옵니다. (`gall_list_new.php`) */
-    list(options: ArticleListOptions): Promise<ArticleListResponse> {
+    async list(options: ArticleListOptions): Promise<ArticleListResponse> {
         const {search} = options;
-        return this.http.get(`${HOST.app}/api/gall_list_new.php`, {
+        return this.get("ArticleListResponse", `${HOST.app}/api/gall_list_new.php`, {
             id: options.gallery,
             page: options.page ?? 1,
             s_type: search ? search.type ?? "subject_m" : undefined,
@@ -134,7 +134,7 @@ export class ArticleApi extends Api {
 
     /** 게시글 본문과 정보를 읽습니다. (`gall_view_new.php`) */
     async read(gallery: string, no: number, options: ArticleReadOptions = {}): Promise<ArticleViewResponse> {
-        return this.http.get(`${HOST.app}/api/gall_view_new.php`, {
+        return this.get("ArticleViewResponse", `${HOST.app}/api/gall_view_new.php`, {
             id: gallery,
             no,
             confirm_id: this.userId,
@@ -145,8 +145,8 @@ export class ArticleApi extends Api {
     }
 
     /** 본문 이미지 원본 주소 목록입니다. (`view_img.php`) */
-    images(gallery: string, no: number): Promise<ArticleImage[]> {
-        return this.http.get(`${HOST.app}/api/view_img.php`, {id: gallery, no, confirm_id: this.userId}, {list: true});
+    async images(gallery: string, no: number): Promise<ArticleImage[]> {
+        return this.getList("ArticleImage", `${HOST.app}/api/view_img.php`, {id: gallery, no, confirm_id: this.userId});
     }
 
     /** 글을 쓰거나(`articleNo` 없음) 수정합니다. (`_app_write_api.php`) */
@@ -194,18 +194,18 @@ export class ArticleApi extends Api {
             }
         });
 
-        return this.http.post(`${HOST.upload}/_app_write_api.php`, fields);
+        return this.post("ApiResult", `${HOST.upload}/_app_write_api.php`, fields);
     }
 
     /** 수정 화면에 필요한 기존 제목/본문/첨부를 가져옵니다. (`gall_modify.php`) */
-    modifyInfo(gallery: string, no: number): Promise<ArticleModifyInfo> {
-        return this.http.post(`${HOST.app}/api/gall_modify.php`, {id: gallery, no, ...this.owner()});
+    async modifyInfo(gallery: string, no: number): Promise<ArticleModifyInfo> {
+        return this.post("ArticleModifyInfo", `${HOST.app}/api/gall_modify.php`, {id: gallery, no, ...this.owner()});
     }
 
     /** 글을 삭제합니다. (`gall_del.php`) */
     async delete(gallery: string, no: number, options: { checkLimit?: boolean } = {}): Promise<ArticleDeleteResult> {
         const session = this.requireSession();
-        return this.http.post(`${HOST.app}/api/gall_del.php`, {
+        return this.post("ArticleDeleteResult", `${HOST.app}/api/gall_del.php`, {
             ...(session.type === "anonymous" ? {write_pw: session.password} : {user_id: session.userId}),
             client_token: await this.clientToken(),
             id: gallery,
@@ -216,43 +216,43 @@ export class ArticleApi extends Api {
     }
 
     /** 추천합니다. 캡챠가 필요하면 `CaptchaRequiredError`가 납니다. (`_recommend_up.php`) */
-    upvote(gallery: string, no: number, captcha?: CaptchaAnswer): Promise<ArticleVoteResult> {
+    async upvote(gallery: string, no: number, captcha?: CaptchaAnswer): Promise<ArticleVoteResult> {
         return this.vote("_recommend_up.php", gallery, no, captcha);
     }
 
     /** 비추천합니다. (`_recommend_down.php`) */
-    downvote(gallery: string, no: number, captcha?: CaptchaAnswer): Promise<ArticleVoteResult> {
+    async downvote(gallery: string, no: number, captcha?: CaptchaAnswer): Promise<ArticleVoteResult> {
         return this.vote("_recommend_down.php", gallery, no, captcha);
     }
 
     /** 실베 추천(힛추)을 보냅니다. (`hit_recommend`) */
-    hitRecommend(gallery: string, no: number): Promise<ApiResult> {
-        return this.http.post(`${HOST.app}/api/hit_recommend`, {id: gallery, no, confirm_id: this.userId});
+    async hitRecommend(gallery: string, no: number): Promise<ApiResult> {
+        return this.post("ApiResult", `${HOST.app}/api/hit_recommend`, {id: gallery, no, confirm_id: this.userId});
     }
 
     /** 베스트 콘텐츠 추천을 보냅니다. (`bestcontent/recommend`) */
-    bestRecommend(gallery: string, no: number): Promise<ApiResult> {
-        return this.http.post(`${HOST.app}/bestcontent/recommend`, {id: gallery, no, confirm_id: this.userId});
+    async bestRecommend(gallery: string, no: number): Promise<ApiResult> {
+        return this.post("ApiResult", `${HOST.app}/bestcontent/recommend`, {id: gallery, no, confirm_id: this.userId});
     }
 
     /** 연관 갤러리/디시콘 정보입니다. (`relation_list.php`) */
     async related(gallery: string): Promise<RelatedGalleryArticles> {
-        return this.http.post(`${HOST.app}/api/relation_list.php`, {id: gallery, client_token: await this.clientToken()});
+        return this.post("RelatedGalleryArticles", `${HOST.app}/api/relation_list.php`, {id: gallery, client_token: await this.clientToken()});
     }
 
     /** 링크 미리보기(OG 태그)를 가져옵니다. (`oglink`) */
-    linkPreview(url: string): Promise<OgLink> {
-        return this.http.post(`${HOST.app}/api/oglink`, {url});
+    async linkPreview(url: string): Promise<OgLink> {
+        return this.post("OgLink", `${HOST.app}/api/oglink`, {url});
     }
 
     /** 내 글 이전(갤러리 이동) 정보를 조회합니다. (`my_transfer`) */
-    transferInfo(no: number): Promise<ArticleTransferResult> {
-        return this.http.post(`${HOST.app}/api/my_transfer`, {confirm_id: this.requireLogin().userId, no});
+    async transferInfo(no: number): Promise<ArticleTransferResult> {
+        return this.post("ArticleTransferResult", `${HOST.app}/api/my_transfer`, {confirm_id: this.requireLogin().userId, no});
     }
 
     /** 내 글 이전을 취소합니다. (`cancel_transfer`) */
-    cancelTransfer(no: number): Promise<ApiResult> {
-        return this.http.post(`${HOST.app}/api/cancel_transfer`, {confirm_id: this.requireLogin().userId, no});
+    async cancelTransfer(no: number): Promise<ApiResult> {
+        return this.post("ApiResult", `${HOST.app}/api/cancel_transfer`, {confirm_id: this.requireLogin().userId, no});
     }
 
     /** 앱의 신고 웹페이지 주소입니다. */
@@ -281,12 +281,12 @@ export class ArticleApi extends Api {
             ...indexed("voteItem", options.items)
         };
         options.images?.forEach((image, index) => (fields[`vote_img[${index}]`] = image));
-        return this.http.post(`${HOST.upload}/_app_vote_upload.php`, fields);
+        return this.post("ApiResult", `${HOST.upload}/_app_vote_upload.php`, fields);
     }
 
     /** 투표 마감일을 바꿉니다. (`votemodify`) */
-    modifyPoll(gallery: string, no: number, voteConfirm: string, endDate?: string): Promise<ApiResult> {
-        return this.http.post(`${HOST.app}/api/votemodify`, {
+    async modifyPoll(gallery: string, no: number, voteConfirm: string, endDate?: string): Promise<ApiResult> {
+        return this.post("ApiResult", `${HOST.app}/api/votemodify`, {
             user_id: this.userId,
             id: gallery,
             no,
@@ -297,12 +297,12 @@ export class ArticleApi extends Api {
     }
 
     /** 투표를 종료합니다. (`m.dcinside.com/poll/finish`) */
-    finishPoll(conKey: string, poll: string, password?: string): Promise<PollFinishResult> {
-        return this.http.post(`${HOST.mobile}/poll/finish`, {con_key: conKey, poll, pw: password}, {appId: false});
+    async finishPoll(conKey: string, poll: string, password?: string): Promise<PollFinishResult> {
+        return this.post("PollFinishResult", `${HOST.mobile}/poll/finish`, {con_key: conKey, poll, pw: password}, {appId: false});
     }
 
     private vote(path: string, gallery: string, no: number, captcha?: CaptchaAnswer): Promise<ArticleVoteResult> {
-        return this.http.post(`${HOST.app}/api/${path}`, {
+        return this.post("ArticleVoteResult", `${HOST.app}/api/${path}`, {
             id: gallery,
             confirm_id: this.userId,
             no,

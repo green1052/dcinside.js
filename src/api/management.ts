@@ -49,52 +49,52 @@ export type ManageHistoryCategory = "avoid" | "delete" | "setting";
  */
 export class ManagementApi extends Api {
     /** 공지로 올리거나 내립니다. (`_manager_request.php`, `notify`) */
-    setNotice(gallery: string, no: number): Promise<ManagerActionResult> {
+    async setNotice(gallery: string, no: number): Promise<ManagerActionResult> {
         return this.request(gallery, no, {mode: "notify"});
     }
 
     /** 개념글로 지정하거나 해제합니다. (`recommend`) */
-    setRecommend(gallery: string, no: number): Promise<ManagerActionResult> {
+    async setRecommend(gallery: string, no: number): Promise<ManagerActionResult> {
         return this.request(gallery, no, {mode: "recommend"});
     }
 
     /** 글을 끌어올립니다. (`bump`) */
-    bump(gallery: string, no: number): Promise<ManagerActionResult> {
+    async bump(gallery: string, no: number): Promise<ManagerActionResult> {
         return this.request(gallery, no, {mode: "bump"});
     }
 
     /** 말머리를 바꿉니다. (`headtext`) */
-    changeHeadText(gallery: string, no: number, headNo: number): Promise<ManagerActionResult> {
+    async changeHeadText(gallery: string, no: number, headNo: number): Promise<ManagerActionResult> {
         return this.request(gallery, no, {mode: "headtext", headtxt_no: headNo});
     }
 
     /** 공지 순서를 바꿉니다. `order`는 공지 글 번호를 원하는 순서대로 넘깁니다. (`change_noti`) */
-    reorderNotices(gallery: string, no: number, order: number[]): Promise<ManagerActionResult> {
+    async reorderNotices(gallery: string, no: number, order: number[]): Promise<ManagerActionResult> {
         return this.request(gallery, no, {mode: "change_noti", ...indexed("o_no", order)});
     }
 
     /** 오늘의 글로 고정합니다. (`fixtoday`) */
-    fixToday(gallery: string, no: number): Promise<ApiResult> {
-        return this.http.post(`${HOST.app}/api/fixtoday`, {user_id: this.requireLogin().userId, id: gallery, no});
+    async fixToday(gallery: string, no: number): Promise<ApiResult> {
+        return this.post("ApiResult", `${HOST.app}/api/fixtoday`, {user_id: this.requireLogin().userId, id: gallery, no});
     }
 
     /** 글의 이미지를 차단합니다. (`management/{종류}/blockImg/{id}`) */
-    blockImage(gallery: string, no: number, target: ImageBlockTarget & { imgSrc: string; subject: string }): Promise<ApiResult> {
-        return this.http.post(this.managementUrl(gallery, "blockImg"), {
+    async blockImage(gallery: string, no: number, target: ImageBlockTarget & { imgSrc: string; subject: string }): Promise<ApiResult> {
+        return this.post("ApiResult", this.managementUrl(gallery, "blockImg"), {
             confirm_id: this.requireLogin().userId, no, rel1: target.rel1, rel2: target.rel2, imgSrc: target.imgSrc, subject: target.subject
         });
     }
 
     /** 이미지 차단을 풉니다. (`blockImgClear`) */
-    clearImageBlock(gallery: string, target: ImageBlockTarget): Promise<ApiResult> {
-        return this.http.post(this.managementUrl(gallery, "blockImgClear"), {
+    async clearImageBlock(gallery: string, target: ImageBlockTarget): Promise<ApiResult> {
+        return this.post("ApiResult", this.managementUrl(gallery, "blockImgClear"), {
             confirm_id: this.requireLogin().userId, rel1: target.rel1, rel2: target.rel2
         });
     }
 
     /** 관리 내역입니다. (`managehistory`) */
-    history(gallery: string, options: { category?: ManageHistoryCategory; page?: number; mine?: boolean; search?: string } = {}): Promise<ManageHistoryResponse> {
-        return this.http.post(`${HOST.app}/api/managehistory`, {
+    async history(gallery: string, options: { category?: ManageHistoryCategory; page?: number; mine?: boolean; search?: string } = {}): Promise<ManageHistoryResponse> {
+        return this.post("ManageHistoryResponse", `${HOST.app}/api/managehistory`, {
             confirm_id: this.requireLogin().userId,
             id: gallery,
             category: options.category,
@@ -105,26 +105,26 @@ export class ManagementApi extends Api {
     }
 
     /** 매니저/부매니저 정보와 위임 가능 회원입니다. (`manager_info`) */
-    managerInfo(gallery: string): Promise<ManagerInfo> {
-        return this.http.post(`${HOST.app}/api/manager_info`, {confirm_id: this.requireLogin().userId, id: gallery});
+    async managerInfo(gallery: string): Promise<ManagerInfo> {
+        return this.post("ManagerInfo", `${HOST.app}/api/manager_info`, {confirm_id: this.requireLogin().userId, id: gallery});
     }
 
     /** 매니저 위임을 신청합니다. (`manager_entrust`) */
-    entrust(gallery: string, memo: string): Promise<ManagerEntrustResult> {
-        return this.http.post(`${HOST.app}/api/manager_entrust`, {confirm_id: this.requireLogin().userId, entrust_memo: memo, id: gallery});
+    async entrust(gallery: string, memo: string): Promise<ManagerEntrustResult> {
+        return this.post("ManagerEntrustResult", `${HOST.app}/api/manager_entrust`, {confirm_id: this.requireLogin().userId, entrust_memo: memo, id: gallery});
     }
 
     /** 매니저 임명 제안에 응답합니다. (`minor/minor-appointagreemanager`) */
-    respondAppointment(gallery: string, mode: string, agree: boolean): Promise<ManagerAppointResult> {
-        return this.http.post(`${HOST.app}/minor/minor-appointagreemanager`, {
+    async respondAppointment(gallery: string, mode: string, agree: boolean): Promise<ManagerAppointResult> {
+        return this.post("ManagerAppointResult", `${HOST.app}/minor/minor-appointagreemanager`, {
             id: gallery, confirm_id: this.requireLogin().userId, mode, agree
         });
     }
 
     /** 이용자를 차단합니다. 앱이 아닌 모바일 웹 엔드포인트(`minor_avoidadd`)입니다. */
-    blockUser(options: BlockUserOptions): Promise<ApiResult> {
+    async blockUser(options: BlockUserOptions): Promise<ApiResult> {
         const category = options.category ?? "custom";
-        return this.http.post(`${HOST.app}/api/minor_avoidadd`, {
+        return this.post("ApiResult", `${HOST.app}/api/minor_avoidadd`, {
             user_id: this.requireLogin().userId,
             _token: "",
             avoid_hour: options.hours ?? 1,
@@ -137,9 +137,9 @@ export class ManagementApi extends Api {
     }
 
     /** 비회원 IP/통신사/이미지 차단을 설정합니다. 모바일 웹 엔드포인트(`management/minor/nomember`)입니다. */
-    blockNoMember(options: BlockNoMemberOptions): Promise<ApiResult> {
+    async blockNoMember(options: BlockNoMemberOptions): Promise<ApiResult> {
         this.requireLogin();
-        return this.http.post(`${HOST.mobile}/management/minor/nomember/${options.gallery}`, {
+        return this.post("ApiResult", `${HOST.mobile}/management/minor/nomember/${options.gallery}`, {
             proxyDate: formatDate(options.proxyUntil),
             mobileDate: formatDate(options.cellularUntil),
             imgDate: formatDate(options.image?.until),
@@ -171,7 +171,7 @@ export class ManagementApi extends Api {
     }
 
     private request(gallery: string, no: number, fields: Record<string, string | number>): Promise<ManagerActionResult> {
-        return this.http.post(`${HOST.app}/api/_manager_request.php`, {id: gallery, user_id: this.requireLogin().userId, no, ...fields});
+        return this.post("ManagerActionResult", `${HOST.app}/api/_manager_request.php`, {id: gallery, user_id: this.requireLogin().userId, no, ...fields});
     }
 
     private managementUrl(gallery: string, action: string): string {

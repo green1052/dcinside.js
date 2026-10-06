@@ -1,6 +1,9 @@
 import type {Auth, LoginSession, Session} from "../auth";
 import {SessionRequiredError} from "../errors";
-import type {Http} from "../http";
+import type {Fields, Http, RequestOptions, ResponseName} from "../http";
+import type {ResponseMap} from "../types/responses";
+
+type Options = Omit<RequestOptions, "as" | "list">;
 
 /** API 모듈이 공유하는 의존성입니다. */
 export interface ApiContext {
@@ -16,6 +19,25 @@ export abstract class Api {
 
     protected get http(): Http {
         return this.ctx.http;
+    }
+
+    /** GET을 보내고 응답을 `as` 모델로 정규화합니다. */
+    protected get<K extends ResponseName>(as: K, url: string, query: Fields = {}, options: Options = {}): Promise<ResponseMap[K]> {
+        return this.http.get(url, query, {...options, as});
+    }
+
+    /** GET을 보내고 배열 응답의 각 항목을 `as` 모델로 정규화합니다. */
+    protected getList<K extends ResponseName>(as: K, url: string, query: Fields = {}, options: Options = {}): Promise<ResponseMap[K][]> {
+        return this.http.get(url, query, {...options, as, list: true});
+    }
+
+    /** multipart POST를 보내고 응답을 `as` 모델로 정규화합니다. */
+    protected post<K extends ResponseName>(as: K, url: string, fields: Fields = {}, options: Options = {}): Promise<ResponseMap[K]> {
+        return this.http.post(url, fields, {...options, as});
+    }
+
+    protected postList<K extends ResponseName>(as: K, url: string, fields: Fields = {}, options: Options = {}): Promise<ResponseMap[K][]> {
+        return this.http.post(url, fields, {...options, as, list: true});
     }
 
     /** 로그인했으면 `user_id`, 아니면 `undefined`입니다. 앱의 `confirm_id`/`user_id` 필드에 씁니다. */

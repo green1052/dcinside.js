@@ -1,5 +1,5 @@
 import {HOST} from "../constants";
-import type {Fields} from "../http";
+import type {Fields, ResponseName} from "../http";
 import type {
     AlarmMessageList,
     AlarmSetting,
@@ -7,7 +7,8 @@ import type {
     ApiResult,
     ArticleAlarmConfig,
     KeywordAlarmSubscriptions,
-    MinorNotificationResponse
+    MinorNotificationResponse,
+    ResponseMap
 } from "../types/responses";
 import {indexed} from "../util";
 import {Api} from "./context";
@@ -28,8 +29,8 @@ const ALARM = `${HOST.app}/api/alarm`;
  */
 export class NotificationApi extends Api {
     /** 알림함 목록입니다. (`alarm/message`) */
-    messages(type: AlarmType = "I", page = 1): Promise<AlarmMessageList> {
-        return this.get("message", {type, page});
+    async messages(type: AlarmType = "I", page = 1): Promise<AlarmMessageList> {
+        return this.alarmGet("AlarmMessageList", "message", {type, page});
     }
 
     /** 빈 페이지가 나올 때까지 알림함을 순회합니다. */
@@ -42,48 +43,48 @@ export class NotificationApi extends Api {
     }
 
     /** 알림을 지웁니다. `idx`는 `messages()` 항목의 `idx`입니다. (`alarm/del_message`) */
-    deleteMessages(idx: string[]): Promise<ApiResult> {
-        return this.post("del_message", indexed("del_message", idx));
+    async deleteMessages(idx: string[]): Promise<ApiResult> {
+        return this.alarmPost("ApiResult", "del_message", indexed("del_message", idx));
     }
 
     /** 알림함을 비웁니다. (`alarm/del_all_message`) */
-    deleteAllMessages(): Promise<ApiResult> {
-        return this.post("del_all_message", {});
+    async deleteAllMessages(): Promise<ApiResult> {
+        return this.alarmPost("ApiResult", "del_all_message", {});
     }
 
     /** 지운 알림을 되살립니다. `data`는 앱이 저장해 둔 복원 데이터(JSON)입니다. (`alarm/restore`) */
-    restoreMessages(data: unknown): Promise<ApiResult> {
-        return this.post("restore", {restore_type: "del_restore", restore_data: JSON.stringify(data)});
+    async restoreMessages(data: unknown): Promise<ApiResult> {
+        return this.alarmPost("ApiResult", "restore", {restore_type: "del_restore", restore_data: JSON.stringify(data)});
     }
 
     /** 알림 설정입니다. (`alarm/setting`) */
-    settings(): Promise<AlarmSetting> {
-        return this.get("setting", {});
+    async settings(): Promise<AlarmSetting> {
+        return this.alarmGet("AlarmSetting", "setting", {});
     }
 
     /** 알림 설정을 바꿉니다. */
-    updateSettings(settings: AlarmSettingUpdate): Promise<ApiResult> {
-        return this.post("setting", settings);
+    async updateSettings(settings: AlarmSettingUpdate): Promise<ApiResult> {
+        return this.alarmPost("ApiResult", "setting", settings);
     }
 
     /** 특정 글 알림 수신 여부를 바꿉니다. (`alarm/receive`) */
-    setReceive(gallery: string, no: number, receive: boolean): Promise<ApiResult> {
-        return this.post("receive", {id: gallery, no, receive});
+    async setReceive(gallery: string, no: number, receive: boolean): Promise<ApiResult> {
+        return this.alarmPost("ApiResult", "receive", {id: gallery, no, receive});
     }
 
     /** 글의 알림 구독 상태입니다. (`alarm/get_article_config`) */
-    articleConfig(gallery: string, no: number, user?: string): Promise<ArticleAlarmConfig> {
-        return this.get("get_article_config", {id: gallery, no, user});
+    async articleConfig(gallery: string, no: number, user?: string): Promise<ArticleAlarmConfig> {
+        return this.alarmGet("ArticleAlarmConfig", "get_article_config", {id: gallery, no, user});
     }
 
     /** 구독 중인 글 목록입니다. (`alarm/article`) */
-    articles(options: { gallery?: string; type?: AlarmType } = {}): Promise<AlarmSubscriptions> {
-        return this.get("article", {type: options.type, id: options.gallery});
+    async articles(options: { gallery?: string; type?: AlarmType } = {}): Promise<AlarmSubscriptions> {
+        return this.alarmGet("AlarmSubscriptions", "article", {type: options.type, id: options.gallery});
     }
 
     /** 글 알림을 구독합니다. */
-    subscribeArticle(input: { gallery: string; no: number; galleryName: string; nickname: string; subject: string; writeTime?: string }): Promise<ApiResult> {
-        return this.post("article", {
+    async subscribeArticle(input: { gallery: string; no: number; galleryName: string; nickname: string; subject: string; writeTime?: string }): Promise<ApiResult> {
+        return this.alarmPost("ApiResult", "article", {
             id: input.gallery,
             no: input.no,
             ko_name: input.galleryName,
@@ -94,73 +95,73 @@ export class NotificationApi extends Api {
     }
 
     /** 글 알림 구독을 끊습니다. */
-    unsubscribeArticle(gallery: string, no: number): Promise<ApiResult> {
-        return this.post("del_article", {article_type: "A", type: "U", id: gallery, no});
+    async unsubscribeArticle(gallery: string, no: number): Promise<ApiResult> {
+        return this.alarmPost("ApiResult", "del_article", {article_type: "A", type: "U", id: gallery, no});
     }
 
     /** 구독 중인 이용자 목록입니다. (`alarm/user`) */
-    users(gallery?: string): Promise<AlarmSubscriptions> {
-        return this.get("user", {id: gallery});
+    async users(gallery?: string): Promise<AlarmSubscriptions> {
+        return this.alarmGet("AlarmSubscriptions", "user", {id: gallery});
     }
 
     /** 이용자 새 글 알림을 구독합니다. */
-    subscribeUser(input: { gallery: string; galleryName?: string; userId: string; nickname?: string }): Promise<ApiResult> {
-        return this.post("user", {id: input.gallery, ko_name: input.galleryName, user_id: input.userId, nickname: input.nickname});
+    async subscribeUser(input: { gallery: string; galleryName?: string; userId: string; nickname?: string }): Promise<ApiResult> {
+        return this.alarmPost("ApiResult", "user", {id: input.gallery, ko_name: input.galleryName, user_id: input.userId, nickname: input.nickname});
     }
 
-    unsubscribeUser(gallery: string, userId: string): Promise<ApiResult> {
-        return this.post("del_user", {id: gallery, user_id: userId});
+    async unsubscribeUser(gallery: string, userId: string): Promise<ApiResult> {
+        return this.alarmPost("ApiResult", "del_user", {id: gallery, user_id: userId});
     }
 
     /** 키워드 알림 목록입니다. (`alarm/keyword`) */
-    keywords(gallery?: string): Promise<KeywordAlarmSubscriptions> {
-        return this.get("keyword", {id: gallery});
+    async keywords(gallery?: string): Promise<KeywordAlarmSubscriptions> {
+        return this.alarmGet("KeywordAlarmSubscriptions", "keyword", {id: gallery});
     }
 
-    subscribeKeyword(gallery: string, keyword: string, galleryName?: string): Promise<ApiResult> {
-        return this.post("keyword", {keyword, id: gallery, ko_name: galleryName});
+    async subscribeKeyword(gallery: string, keyword: string, galleryName?: string): Promise<ApiResult> {
+        return this.alarmPost("ApiResult", "keyword", {keyword, id: gallery, ko_name: galleryName});
     }
 
-    unsubscribeKeyword(gallery: string, keyword: string, galleryName?: string): Promise<ApiResult> {
-        return this.post("del_keyword", {keyword, id: gallery, ko_name: galleryName});
+    async unsubscribeKeyword(gallery: string, keyword: string, galleryName?: string): Promise<ApiResult> {
+        return this.alarmPost("ApiResult", "del_keyword", {keyword, id: gallery, ko_name: galleryName});
     }
 
     /** 갤러리의 키워드 알림을 모두 끊습니다. */
-    unsubscribeAllKeywords(gallery: string): Promise<ApiResult> {
-        return this.post("del_keyword_all", {id: gallery});
+    async unsubscribeAllKeywords(gallery: string): Promise<ApiResult> {
+        return this.alarmPost("ApiResult", "del_keyword_all", {id: gallery});
     }
 
     /** 개념글 알림 갤러리 목록입니다. (`alarm/recomm`) */
-    recommends(): Promise<AlarmSubscriptions> {
-        return this.get("recomm", {});
+    async recommends(): Promise<AlarmSubscriptions> {
+        return this.alarmGet("AlarmSubscriptions", "recomm", {});
     }
 
-    subscribeRecommend(gallery: string, galleryName?: string): Promise<ApiResult> {
-        return this.post("recomm", {id: gallery, ko_name: galleryName});
+    async subscribeRecommend(gallery: string, galleryName?: string): Promise<ApiResult> {
+        return this.alarmPost("ApiResult", "recomm", {id: gallery, ko_name: galleryName});
     }
 
-    unsubscribeRecommend(gallery: string, galleryName?: string): Promise<ApiResult> {
-        return this.post("del_recomm", {id: gallery, ko_name: galleryName});
+    async unsubscribeRecommend(gallery: string, galleryName?: string): Promise<ApiResult> {
+        return this.alarmPost("ApiResult", "del_recomm", {id: gallery, ko_name: galleryName});
     }
 
     /** 공지 알림 갤러리 목록입니다. (`alarm/notify`) */
-    notices(): Promise<AlarmSubscriptions> {
-        return this.get("notify", {});
+    async notices(): Promise<AlarmSubscriptions> {
+        return this.alarmGet("AlarmSubscriptions", "notify", {});
     }
 
-    subscribeNotice(gallery: string, galleryName?: string): Promise<ApiResult> {
-        return this.post("notify", {id: gallery, ko_name: galleryName});
+    async subscribeNotice(gallery: string, galleryName?: string): Promise<ApiResult> {
+        return this.alarmPost("ApiResult", "notify", {id: gallery, ko_name: galleryName});
     }
 
-    unsubscribeNotice(gallery: string, galleryName?: string): Promise<ApiResult> {
-        return this.post("del_notify", {id: gallery, ko_name: galleryName});
+    async unsubscribeNotice(gallery: string, galleryName?: string): Promise<ApiResult> {
+        return this.alarmPost("ApiResult", "del_notify", {id: gallery, ko_name: galleryName});
     }
 
     /**
      * 댓글 알림을 켭니다. 앱은 `comment_del.php`에 `mode=comment_noti`로 보냅니다. 끄는 API는 없습니다.
      */
     async subscribeComment(gallery: string, no: number, commentNo: number): Promise<ApiResult> {
-        return this.http.post(`${HOST.app}/api/comment_del.php`, {
+        return this.post("ApiResult", `${HOST.app}/api/comment_del.php`, {
             user_id: this.userId,
             client_token: await this.clientToken(),
             id: gallery,
@@ -174,20 +175,20 @@ export class NotificationApi extends Api {
     }
 
     /** 마이너 갤러리 매니저 관련 알림(임명/해임)입니다. (`alarm/minor-notification`) */
-    minorNotification(gallery: string): Promise<MinorNotificationResponse> {
-        return this.http.post(`${HOST.app}/alarm/minor-notification`, {id: gallery, confirm_id: this.requireLogin().userId});
+    async minorNotification(gallery: string): Promise<MinorNotificationResponse> {
+        return this.post("MinorNotificationResponse", `${HOST.app}/alarm/minor-notification`, {id: gallery, confirm_id: this.requireLogin().userId});
     }
 
     /** 마이너 갤러리 알림을 확인 처리합니다. (`alarm/minor-notificationconfirm`) */
-    confirmMinorNotification(gallery: string, no: number): Promise<ApiResult> {
-        return this.http.post(`${HOST.app}/alarm/minor-notificationconfirm`, {id: gallery, confirm_id: this.requireLogin().userId, no});
+    async confirmMinorNotification(gallery: string, no: number): Promise<ApiResult> {
+        return this.post("ApiResult", `${HOST.app}/alarm/minor-notificationconfirm`, {id: gallery, confirm_id: this.requireLogin().userId, no});
     }
 
-    private async get<T>(path: string, query: Fields): Promise<T> {
-        return this.http.get(`${ALARM}/${path}`, {client_id: await this.clientToken(), ...query});
+    private async alarmGet<K extends ResponseName>(as: K, path: string, query: Fields): Promise<ResponseMap[K]> {
+        return this.get(as, `${ALARM}/${path}`, {client_id: await this.clientToken(), ...query});
     }
 
-    private async post<T>(path: string, fields: Fields): Promise<T> {
-        return this.http.post(`${ALARM}/${path}`, {client_id: await this.clientToken(), ...fields});
+    private async alarmPost<K extends ResponseName>(as: K, path: string, fields: Fields): Promise<ResponseMap[K]> {
+        return this.post(as, `${ALARM}/${path}`, {client_id: await this.clientToken(), ...fields});
     }
 }

@@ -1,6 +1,8 @@
 import {HOST} from "../constants";
-import type {Fields} from "../http";
-import type {ApiResult, AutoImageGalleryList, AutoImageList, AutoImageSettingResult} from "../types/responses";
+import type {Fields, ResponseName} from "../http";
+import type {ApiResult, AutoImageGalleryList, AutoImageList, AutoImageSettingResult,
+    ResponseMap
+} from "../types/responses";
 import {indexed} from "../util";
 import {Api} from "./context";
 
@@ -13,50 +15,50 @@ const GLOBAL = "X";
  */
 export class AutoImageApi extends Api {
     /** 갤러리의 자동짤 목록과 설정입니다. (`autozzal/list`) */
-    list(gallery = GLOBAL): Promise<AutoImageList> {
-        return this.get("list", {id: gallery});
+    async list(gallery = GLOBAL): Promise<AutoImageList> {
+        return this.zzalGet("AutoImageList", "list", {id: gallery});
     }
 
     /** 자동짤을 설정한 갤러리 목록입니다. (`autozzal/my_list`, `mode=gallery`) */
-    galleries(): Promise<AutoImageGalleryList> {
-        return this.get("my_list", {mode: "gallery"});
+    async galleries(): Promise<AutoImageGalleryList> {
+        return this.zzalGet("AutoImageGalleryList", "my_list", {mode: "gallery"});
     }
 
     /** 내가 올린 자동짤 이미지 전체입니다. (`autozzal/my_list`, `mode=all`) */
-    myImages(): Promise<AutoImageGalleryList> {
-        return this.get("my_list", {mode: "all"});
+    async myImages(): Promise<AutoImageGalleryList> {
+        return this.zzalGet("AutoImageGalleryList", "my_list", {mode: "all"});
     }
 
     /** 자동짤 사용/랜덤 여부를 바꿉니다. `random: true`면 랜덤, 아니면 사용 여부입니다. (`autozzal/setting`) */
-    setting(enabled: boolean, options: { random?: boolean; gallery?: string } = {}): Promise<AutoImageSettingResult> {
-        return this.post("setting", {mode: options.random ? "random" : "use", use: enabled, id: options.gallery ?? GLOBAL});
+    async setting(enabled: boolean, options: { random?: boolean; gallery?: string } = {}): Promise<AutoImageSettingResult> {
+        return this.zzalPost("AutoImageSettingResult", "setting", {mode: options.random ? "random" : "use", use: enabled, id: options.gallery ?? GLOBAL});
     }
 
     /** 대표 자동짤을 정합니다. (`autozzal/main_image`) */
-    setMain(image: string, gallery = GLOBAL): Promise<AutoImageSettingResult> {
-        return this.post("main_image", {id: gallery, img: image});
+    async setMain(image: string, gallery = GLOBAL): Promise<AutoImageSettingResult> {
+        return this.zzalPost("AutoImageSettingResult", "main_image", {id: gallery, img: image});
     }
 
     /** 자동짤을 추가합니다. (`autozzal/insert`) */
-    add(images: string[], gallery = GLOBAL): Promise<ApiResult> {
-        return this.post("insert", {id: gallery, ...indexed("img", images)});
+    async add(images: string[], gallery = GLOBAL): Promise<ApiResult> {
+        return this.zzalPost("ApiResult", "insert", {id: gallery, ...indexed("img", images)});
     }
 
     /** 갤러리에서 자동짤을 뺍니다. (`autozzal/delete`) */
-    remove(images: string[], gallery = GLOBAL): Promise<ApiResult> {
-        return this.post("delete", {id: gallery, ...indexed("img", images)});
+    async remove(images: string[], gallery = GLOBAL): Promise<ApiResult> {
+        return this.zzalPost("ApiResult", "delete", {id: gallery, ...indexed("img", images)});
     }
 
     /** 내 자동짤 이미지를 완전히 지웁니다. (`autozzal/my_delete`) */
-    removeMine(images: string[]): Promise<ApiResult> {
-        return this.post("my_delete", indexed("img", images));
+    async removeMine(images: string[]): Promise<ApiResult> {
+        return this.zzalPost("ApiResult", "my_delete", indexed("img", images));
     }
 
-    private async get<T>(path: string, query: Fields): Promise<T> {
-        return this.http.get(`${HOST.app}/api/autozzal/${path}`, {confirm_id: this.requireLogin().userId, client_id: await this.clientToken(), ...query});
+    private async zzalGet<K extends ResponseName>(as: K, path: string, query: Fields): Promise<ResponseMap[K]> {
+        return this.get(as, `${HOST.app}/api/autozzal/${path}`, {confirm_id: this.requireLogin().userId, client_id: await this.clientToken(), ...query});
     }
 
-    private async post<T>(path: string, fields: Fields): Promise<T> {
-        return this.http.post(`${HOST.app}/api/autozzal/${path}`, {confirm_id: this.requireLogin().userId, client_id: await this.clientToken(), ...fields});
+    private async zzalPost<K extends ResponseName>(as: K, path: string, fields: Fields): Promise<ResponseMap[K]> {
+        return this.post(as, `${HOST.app}/api/autozzal/${path}`, {confirm_id: this.requireLogin().userId, client_id: await this.clientToken(), ...fields});
     }
 }

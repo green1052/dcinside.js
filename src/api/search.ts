@@ -23,8 +23,8 @@ export interface SearchOptions {
 
 /** 통합 검색입니다. (`_total_search_new.php`) */
 export class SearchApi extends Api {
-    search(keyword: string, options: SearchOptions = {}): Promise<SearchResponse> {
-        return this.http.post(`${HOST.app}/api/_total_search_new.php`, {
+    async search(keyword: string, options: SearchOptions = {}): Promise<SearchResponse> {
+        return this.post("SearchResponse", `${HOST.app}/api/_total_search_new.php`, {
             keyword,
             page: options.page,
             confirm_id: this.userId,

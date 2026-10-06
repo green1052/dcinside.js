@@ -1,12 +1,13 @@
 import {HOST} from "../constants";
-import type {Fields} from "../http";
+import type {Fields, ResponseName} from "../http";
 import type {
     AiCharacterPromptResult,
     AiFillPromptsResult,
     AiImageInsertResult,
     AiImageStatus,
     AiPromptListResult,
-    AiResampleResult
+    AiResampleResult,
+    ResponseMap
 } from "../types/responses";
 import {Api} from "./context";
 
@@ -29,13 +30,13 @@ export interface AiImageOptions {
 export class AiImageApi extends Api {
     /** 사용 가능 모델/샘플러/남은 횟수입니다. (`recom_prompt_new`) */
     async status(): Promise<AiImageStatus> {
-        return this.post("recom_prompt_new", {client_id: await this.clientToken()});
+        return this.aiPost("AiImageStatus", "recom_prompt_new", {client_id: await this.clientToken()});
     }
 
     /** 이미지를 생성합니다. (`insert_aiImg`) */
     async generate(options: AiImageOptions): Promise<AiImageInsertResult> {
         const ref = options.reference;
-        return this.post("insert_aiImg", {
+        return this.aiPost("AiImageInsertResult", "insert_aiImg", {
             gallery_id: options.gallery,
             client_id: await this.clientToken(),
             prompt: options.prompt,
@@ -52,13 +53,13 @@ export class AiImageApi extends Api {
     }
 
     /** 저장한 프롬프트 목록입니다. (`prompt_list`) */
-    prompts(): Promise<AiPromptListResult> {
-        return this.post("prompt_list", {});
+    async prompts(): Promise<AiPromptListResult> {
+        return this.aiPost("AiPromptListResult", "prompt_list", {});
     }
 
     /** 프롬프트를 새로 저장하거나(`title`) 덮어씁니다(`idx`). (`save_prompt`) */
-    savePrompt(prompt: { prompt: string; negativePrompt?: string } & ({ title: string } | { idx: number })): Promise<AiPromptListResult> {
-        return this.post("save_prompt", {
+    async savePrompt(prompt: { prompt: string; negativePrompt?: string } & ({ title: string } | { idx: number })): Promise<AiPromptListResult> {
+        return this.aiPost("AiPromptListResult", "save_prompt", {
             type: "idx" in prompt ? "modify" : "new",
             prompt: prompt.prompt,
             neg_prompt: prompt.negativePrompt ?? "",
@@ -67,26 +68,26 @@ export class AiImageApi extends Api {
         });
     }
 
-    deletePrompt(idx: number): Promise<AiPromptListResult> {
-        return this.post("del_prompt_list", {idx});
+    async deletePrompt(idx: number): Promise<AiPromptListResult> {
+        return this.aiPost("AiPromptListResult", "del_prompt_list", {idx});
     }
 
     /** 키워드에 맞는 캐릭터 프롬프트 추천입니다. (`character_prompt`) */
-    characterPrompt(keyword: string): Promise<AiCharacterPromptResult> {
-        return this.http.post(`${HOST.app}/character_prompt`, {confirm_id: this.requireLogin().userId, keyword});
+    async characterPrompt(keyword: string): Promise<AiCharacterPromptResult> {
+        return this.post("AiCharacterPromptResult", `${HOST.app}/character_prompt`, {confirm_id: this.requireLogin().userId, keyword});
     }
 
     /** 참조 이미지를 올립니다. (`_app_aiImg_resample_upload.php`) */
-    resample(gallery: string, image: File): Promise<AiResampleResult> {
-        return this.http.post(`${HOST.upload}/_app_aiImg_resample_upload.php`, {gall_id: gallery, resample_img_file: image});
+    async resample(gallery: string, image: File): Promise<AiResampleResult> {
+        return this.post("AiResampleResult", `${HOST.upload}/_app_aiImg_resample_upload.php`, {gall_id: gallery, resample_img_file: image});
     }
 
     /** 이미지에서 프롬프트를 뽑아냅니다. (`_app_aiImg_fill_prompts.php`) */
-    fillPrompts(image: File): Promise<AiFillPromptsResult> {
-        return this.http.post(`${HOST.upload}/_app_aiImg_fill_prompts.php`, {prompt_img: image});
+    async fillPrompts(image: File): Promise<AiFillPromptsResult> {
+        return this.post("AiFillPromptsResult", `${HOST.upload}/_app_aiImg_fill_prompts.php`, {prompt_img: image});
     }
 
-    private post<T>(path: string, fields: Fields): Promise<T> {
-        return this.http.post(`${HOST.app}/${path}`, {user_id: this.requireLogin().userId, ...fields});
+    private aiPost<K extends ResponseName>(as: K, path: string, fields: Fields): Promise<ResponseMap[K]> {
+        return this.post(as, `${HOST.app}/${path}`, {user_id: this.requireLogin().userId, ...fields});
     }
 }

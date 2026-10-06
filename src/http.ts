@@ -1,6 +1,11 @@
 import {APP, HOST, REDIRECTED_PATHS} from "./constants";
 import {ApiError, AuthExpiredError, CaptchaRequiredError, HTTPError} from "./errors";
+import {normalize} from "./normalize";
+import type {ResponseMap} from "./types/responses";
 import {first, isCaptchaCause, isFailure, list, parseJson} from "./util";
+
+/** `as` 옵션에 쓰는 응답 이름입니다. */
+export type ResponseName = keyof ResponseMap;
 
 /** 폼/쿼리 필드 값입니다. `null`/`undefined`는 생략하고, boolean은 앱처럼 `"1"`/`"0"`으로 보냅니다. */
 export type FieldValue = string | number | boolean | Blob | null | undefined;
@@ -28,7 +33,11 @@ export interface RequestOptions {
     urlencoded?: boolean;
     /** 이 요청에만 덧붙일 헤더입니다. */
     headers?: Record<string, string>;
+    /** 응답 모델 이름입니다. 주면 앱 Gson 규칙으로 값을 정규화하고 그 타입으로 돌려줍니다. */
+    as?: ResponseName;
 }
+
+type Typed<K extends ResponseName> = RequestOptions & { as: K };
 
 /** HTTP 레이어가 인증 정보를 얻고 갱신하는 통로입니다. `DCInside`가 연결합니다. */
 export interface AuthContext {
@@ -67,12 +76,18 @@ export class Http {
         } as RequestInit);
     }
 
-    get<T>(url: string, query: Fields = {}, options: RequestOptions = {}): Promise<T> {
-        return this.send("GET", url, query, options) as Promise<T>;
+    get<K extends ResponseName>(url: string, query: Fields, options: Typed<K> & { list: true }): Promise<ResponseMap[K][]>;
+    get<K extends ResponseName>(url: string, query: Fields, options: Typed<K>): Promise<ResponseMap[K]>;
+    get<T = unknown>(url: string, query?: Fields, options?: RequestOptions): Promise<T>;
+    get(url: string, query: Fields = {}, options: RequestOptions = {}): Promise<unknown> {
+        return this.send("GET", url, query, options);
     }
 
-    post<T>(url: string, fields: Fields = {}, options: RequestOptions = {}): Promise<T> {
-        return this.send("POST", url, fields, options) as Promise<T>;
+    post<K extends ResponseName>(url: string, fields: Fields, options: Typed<K> & { list: true }): Promise<ResponseMap[K][]>;
+    post<K extends ResponseName>(url: string, fields: Fields, options: Typed<K>): Promise<ResponseMap[K]>;
+    post<T = unknown>(url: string, fields?: Fields, options?: RequestOptions): Promise<T>;
+    post(url: string, fields: Fields = {}, options: RequestOptions = {}): Promise<unknown> {
+        return this.send("POST", url, fields, options);
     }
 
     private async send(method: "GET" | "POST", url: string, fields: Fields, options: RequestOptions, retried = false): Promise<unknown> {
@@ -94,7 +109,7 @@ export class Http {
 
         const object = first(json);
         const cause = typeof object["cause"] === "string" ? object["cause"] : "";
-        const expired = cause === "certification" || object["refresh_join"] === true ? "appId"
+        const expired = cause === "certification" || String(object["refresh_join"]) === "true" ? "appId"
             : cause === "certification_login" ? "login" : null;
         if (expired && this.context) {
             if (retried) throw new AuthExpiredError(expired, cause, json);
@@ -109,7 +124,9 @@ export class Http {
             throw isCaptchaCause(message) ? new CaptchaRequiredError(message, json) : new ApiError(message, json);
         }
         if (!response.ok) throw new HTTPError(response.status, text);
-        return options.list ? list(json) : Array.isArray(json) || isNumericKeyed(json) ? first(json) : json;
+        const result = options.list ? list(json) : Array.isArray(json) || isNumericKeyed(json) ? first(json) : json;
+        if (!options.as) return result;
+        return options.list ? (result as unknown[]).map((item) => normalize(item, options.as!)) : normalize(result, options.as);
     }
 
     private buildGetUrl(target: URL, query: Fields): URL {

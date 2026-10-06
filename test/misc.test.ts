@@ -23,7 +23,7 @@ describe("ManagementApi", () => {
 
     test("requires login", async () => {
         const {dc} = makeClient(() => json({}));
-        expect(() => dc.management.bump("g", 1)).toThrow(SessionRequiredError);
+        await expect(dc.management.bump("g", 1)).rejects.toBeInstanceOf(SessionRequiredError);
     });
 });
 

@@ -41,8 +41,8 @@ export interface CommentWriteOptions {
  */
 export class CommentApi extends Api {
     /** 댓글 목록입니다. (`comment_new.php`) */
-    list(gallery: string, no: number, options: CommentListOptions = {}): Promise<CommentListResponse> {
-        return this.http.get(`${HOST.app}/api/comment_new.php`, {
+    async list(gallery: string, no: number, options: CommentListOptions = {}): Promise<CommentListResponse> {
+        return this.get("CommentListResponse", `${HOST.app}/api/comment_new.php`, {
             style: options.sort ? undefined : "new",
             csort: options.sort,
             id: gallery,
@@ -65,8 +65,8 @@ export class CommentApi extends Api {
     }
 
     /** 이미지에 달린 댓글 목록입니다. (`img_comment_list`) */
-    imageComments(gallery: string, no: number, fileNo: string, options: CommentListOptions = {}): Promise<CommentListResponse> {
-        return this.http.get(`${HOST.app}/api/img_comment_list`, {
+    async imageComments(gallery: string, no: number, fileNo: string, options: CommentListOptions = {}): Promise<CommentListResponse> {
+        return this.get("CommentListResponse", `${HOST.app}/api/img_comment_list`, {
             id: gallery,
             no,
             re_page: options.page,
@@ -79,8 +79,8 @@ export class CommentApi extends Api {
     }
 
     /** 글 안에서 댓글을 검색합니다. `mine: true`면 내 댓글만 찾습니다. (`search_comment`) */
-    search(gallery: string, no: number, keyword?: string, options: { mine?: boolean } = {}): Promise<CommentSearchResponse> {
-        return this.http.get(`${HOST.app}/api/search_comment`, {
+    async search(gallery: string, no: number, keyword?: string, options: { mine?: boolean } = {}): Promise<CommentSearchResponse> {
+        return this.get("CommentSearchResponse", `${HOST.app}/api/search_comment`, {
             id: gallery,
             no,
             serval: keyword,
@@ -112,11 +112,11 @@ export class CommentApi extends Api {
             fields["comment_memo"] = content.dccons.map((dccon) => dccon.tag).join("");
             content.dccons.forEach((dccon, index) => (fields[`detail_idx[${index}]`] = dccon.detailIdx));
         }
-        return this.http.post(`${HOST.app}/api/comment_ok.php`, fields);
+        return this.post("ApiResult", `${HOST.app}/api/comment_ok.php`, fields);
     }
 
     /** 답글을 답니다. `write(…, {parent})`와 같습니다. */
-    reply(gallery: string, no: number, parent: ParentComment, content: CommentContent, options: Omit<CommentWriteOptions, "parent"> = {}): Promise<ApiResult> {
+    async reply(gallery: string, no: number, parent: ParentComment, content: CommentContent, options: Omit<CommentWriteOptions, "parent"> = {}): Promise<ApiResult> {
         return this.write(gallery, no, content, {...options, parent});
     }
 
@@ -124,7 +124,7 @@ export class CommentApi extends Api {
     async writeVoice(gallery: string, no: number, file: File, options: CommentWriteOptions & { text?: string; downloadable?: boolean } = {}): Promise<ApiResult> {
         const session = this.requireSession();
         const {id: _, no: __, ...target} = this.target(gallery, no, options);
-        return this.http.post(`${HOST.upload}/_app_upload.php`, {
+        return this.post("ApiResult", `${HOST.upload}/_app_upload.php`, {
             ...target,
             gall_id: gallery,
             gall_no: no,
@@ -146,7 +146,7 @@ export class CommentApi extends Api {
     /** 댓글을 지웁니다. (`comment_del.php`) */
     async delete(gallery: string, no: number, commentNo: number, article?: CommentWriteOptions["article"]): Promise<ApiResult> {
         const session = this.requireSession();
-        return this.http.post(`${HOST.app}/api/comment_del.php`, {
+        return this.post("ApiResult", `${HOST.app}/api/comment_del.php`, {
             ...(session.type === "anonymous" ? {comment_pw: session.password} : {user_id: session.userId}),
             client_token: await this.clientToken(),
             id: gallery,

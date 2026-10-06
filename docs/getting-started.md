@@ -74,7 +74,19 @@ await dc.login("id", "pw", {
 import type {ArticleListResponse, PostItem} from "@green-1052/dcinside.js";
 ```
 
+서버는 같은 필드를 `"123"`, `123`, `true`처럼 섞어서 보냅니다. 앱은 Gson이 읽으면서 모델 타입으로 바꿔 쓰는데, 이 라이브러리도 같은 규칙으로 응답을 정규화합니다. 그래서 타입에 `number`라고 적힌 값은 실제로도 숫자입니다.
+
+| 모델 타입 | 규칙 |
+| --- | --- |
+| `string` | 숫자/불리언은 문자열로 (`true` → `"true"`) |
+| `int` | 앱 `IntTypeAdapter`처럼 `null`/`""`은 `0`, 불리언은 `1`/`0`, `"12"`는 `12` |
+| 그 밖의 숫자 | 숫자 문자열은 숫자로 |
+| `boolean` | `"true"`, `"1"`, `"Y"`, `1`은 `true` |
+
+바꿀 수 없는 값(숫자 필드에 `"abc"` 등)은 빠지고, 모델에 없는 키는 그대로 남습니다.
 배열로 오는 응답(`[{...}]`)은 앱처럼 첫 객체를 꺼내 돌려줍니다. 목록 응답은 배열 그대로 돌려줍니다.
+
+타입과 스키마는 `scripts/gen-types.ts`로 다시 만들 수 있습니다(jadx로 디컴파일한 APK 소스 필요).
 
 ## 저수준 요청
 
@@ -83,4 +95,7 @@ import type {ArticleListResponse, PostItem} from "@green-1052/dcinside.js";
 ```ts
 const result = await dc.http.post("https://app.dcinside.com/api/어딘가", {id: "programming"});
 const raw = await dc.http.get(url, query, {raw: true, list: true, appId: false});
+
+// as에 응답 모델 이름을 주면 그 타입으로 정규화해서 돌려줍니다.
+const view = await dc.http.get("https://app.dcinside.com/api/gall_view_new.php", {id: "programming", no: 1}, {as: "ArticleViewResponse"});
 ```

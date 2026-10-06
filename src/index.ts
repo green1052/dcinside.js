@@ -9,7 +9,7 @@ export {
     type LoginSession,
     type Session
 } from "./auth";
-export {Http, type AuthContext, type FieldValue, type Fields, type HttpOptions, type RequestOptions} from "./http";
+export {Http, type AuthContext, type FieldValue, type Fields, type HttpOptions, type RequestOptions, type ResponseName} from "./http";
 export {captchaUrl, newCaptchaKey, type CaptchaKind} from "./captcha";
 export {APP, FIREBASE, HOST} from "./constants";
 export {
