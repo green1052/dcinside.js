@@ -18,11 +18,13 @@
     "scripts": {
         "build": "bun run build.ts",
         "test": "bun test",
+        "typecheck": "tsc --noEmit",
         "prepublishOnly": "bun run build"
     },
     "repository": "github:green1052/dcinside.js",
     "devDependencies": {
         "@types/bun": "^1.4.2",
-        "bun-plugin-dtsx": "^0.11.19"
+        "bun-plugin-dtsx": "^0.11.19",
+        "typescript": "^7.0.2"
     }
 }
