@@ -1,214 +1,122 @@
 # dcinside.js
 
-디시인사이드 비공식 API 클라이언트
+디시인사이드 안드로이드 앱 API를 그대로 쓰는 비공식 클라이언트입니다.
+공식 앱 **5.3.6 (100175)** 을 디컴파일해 요청 형식과 응답 모델을 맞췄습니다.
+
+- 앱이 쓰는 엔드포인트 130여 개를 모듈별로 제공합니다.
+- 응답 타입 124개는 앱의 Gson 모델에서 생성해서 서버 키 이름과 똑같습니다.
+- `client_token`과 `app_id`는 첫 요청 때 자동으로 발급하고, 만료되면 갱신한 뒤 다시 보냅니다.
+- 런타임 의존성이 없습니다. Bun과 Node 18+ 내장 `fetch`만 씁니다.
 
 ## 설치
 
 ```sh
-bun install @green-1052/dcinside.js
+bun add @green-1052/dcinside.js
 ```
 
 ## 빠른 시작
 
 ```ts
-import {DCInsideClient} from "@green-1052/dcinside.js";
+import {DCInside} from "@green-1052/dcinside.js";
 
-const client = new DCInsideClient();
+const dc = new DCInside();
 
-const gallery = client.gallery("mi$bjwg64");
+const list = await dc.articles.list({gallery: "programming"});
+const first = list.gall_list![0]!;
 
-const list = await gallery.articles.list();
+const article = await dc.articles.read("programming", first.no!);
+console.log(article.view_info?.subject);
+console.log(article.view_main?.memo); // 본문 HTML
 
-const article = gallery.article(list.articles[0]!.id);
-const firstArticle = await article.read();
-
-console.log(firstArticle.info.subject);
-console.log(firstArticle.main.content);
+const comments = await dc.comments.list("programming", first.no!);
+for (const comment of comments.comment_list ?? []) console.log(comment.name, comment.comment_memo);
 ```
 
-`client.gallery(...)`에는 `football_new9`, `krstock`, `mi$bjwg64`, `pr$dororong`처럼 하나의 문자열만 넘기면 됩니다.
+갤러리 ID는 앱과 같습니다. 메인/마이너는 `programming`처럼 그대로, 미니는 `mi$id`, 인물은 `pr$id`로 씁니다.
 
-첫 요청에서는 앱 인증에 필요한 `client_token`과 `app_id`를 자동 발급합니다. 이 과정은 몇 초 걸릴 수 있고, 이후 요청은 캐시된 값을 재사용합니다. `app_id`는 공식 앱처럼 약 11시간
-동안 로컬 캐시에 자동 저장됩니다.
+첫 요청에서는 Google checkin, Firebase, GCM 등록, `app_id` 발급을 차례로 거칩니다. 몇 초 걸리고, 이후에는 캐시를 씁니다.
+매번 발급하지 않으려면 인증 정보를 저장해 두세요.
+
+```ts
+await Bun.write("device.json", JSON.stringify(dc.auth.exportCredentials()));
+
+const saved = await Bun.file("device.json").json();
+const dc2 = new DCInside({credentials: saved});
+```
 
 ## 세션
 
-글쓰기, 댓글 작성, 추천, 삭제, 관리 기능은 세션이 필요합니다.
+글쓰기, 댓글, 추천, 삭제처럼 작성자가 필요한 기능은 세션을 먼저 정해야 합니다.
 
 ```ts
-const client = new DCInsideClient();
-const gallery = client.gallery("mi$bjwg64");
-const article = gallery.article(1);
+// 유동(익명)
+dc.useAnonymous("ㅇㅇ", "1234");
+await dc.comments.write("programming", 1, "댓글");
 
-client.useAnonymous("닉네임", "비밀번호");
-
-await article.comments.write({
-    content: "댓글 내용",
-});
+// 로그인
+await dc.login("아이디", "비밀번호");
+await dc.articles.upvote("programming", 1);
 ```
 
-```ts
-await client.login("dcinside-id", "password");
+로그인 세션이 만료되면 저장된 아이디/비밀번호로 다시 로그인하고, 실패한 요청을 한 번 더 보냅니다.
 
-await client.gallery("programming").article(1).upvote();
-```
-
-현재 세션은 `client.currentUser`와 `client.session`에서 확인할 수 있습니다.
-
-## 게시글 작성
+## 글쓰기
 
 ```ts
-client.useAnonymous("ㅇㅇ", "password");
-const gallery = client.gallery("mi$bjwg64");
+dc.useAnonymous("ㅇㅇ", "1234");
 
-const written = await gallery.articles.write({
+await dc.articles.write({
+    gallery: "programming",
     subject: "제목",
     content: [
-        "일반 텍스트",
-        {type: "html", html: "<p>HTML 본문</p>"},
-    ],
-});
-
-console.log(written.articleId);
-```
-
-수정은 `mode: "modify"`와 `articleId`를 함께 전달합니다.
-
-```ts
-await gallery.articles.write({
-    mode: "modify",
-    articleId: 123,
-    subject: "수정된 제목",
-    content: ["수정된 본문"],
+        "일반 텍스트 블록\n줄바꿈은 그대로 들어갑니다.",
+        {type: "image", file: Bun.file("cat.png")},
+        {type: "html", html: "<b>굵게</b>"}
+    ]
 });
 ```
 
-DCInside 작성 API가 `잠시후 다시 이용해주세요.`를 반환하면 요청 형식은 통과했지만 서버가 작성을 거절한 상태일 가능성이 큽니다. 너무 짧거나 반복된 제목/본문, 갤러리의 비회원/세션 정책, IP 제한,
-짧은 시간 안의 반복 작성이 원인일 수 있습니다.
+## 에러
 
-## 캡챠 (보안코드)
+| 에러 | 언제 |
+| --- | --- |
+| `ApiError` | 서버가 `result: false`와 `cause`를 돌려줬을 때. `error.cause`, `error.response` |
+| `CaptchaRequiredError` | 자동입력 방지 코드가 필요할 때 (`ApiError` 하위) |
+| `OtpRequiredError` | 로그인에 OTP가 필요할 때 |
+| `AuthExpiredError` | `app_id`나 로그인 세션 갱신까지 실패했을 때 |
+| `SessionRequiredError` | 세션 없이 작성 기능을 호출했을 때 |
+| `HTTPError` | JSON이 아닌 오류 응답 |
 
-일부 갤러리에서는 글/댓글 작성이나 추천 시 보안코드를 요구합니다. 서버가 캡챠를 요구하면 `CaptchaRequiredError`가 throw 됩니다. 에러의 `challenge`에서 이미지 URL과 세션 식별자를
-꺼내 사용자에게 입력받은 뒤
-`captcha` 옵션으로 다시 전송하면 됩니다.
+캡챠가 나오면 이미지를 띄우고 답을 받아 다시 보냅니다.
 
 ```ts
-import {CaptchaRequiredError, createCaptchaChallenge, downloadCaptchaImage} from "@green-1052/dcinside.js";
-import {writeFileSync} from "node:fs";
+import {CaptchaRequiredError, captchaUrl, newCaptchaKey} from "@green-1052/dcinside.js";
 
 try {
-    await gallery.article(1).upvote();
+    await dc.articles.upvote("programming", 1);
 } catch (error) {
-    if (error instanceof CaptchaRequiredError) {
-        const challenge = error.challenge.imageUrl ? error.challenge : createCaptchaChallenge(error.action, "mi$bjwg64");
-        const image = await downloadCaptchaImage({url: challenge.imageUrl!});
-        writeFileSync("./captcha.png", image.bytes);
-        // 사용자에게 captcha.png를 보여주고 코드를 입력받은 뒤 재시도
-        await gallery.article(1).upvote({captcha: {code: userInput, dccode: challenge.captcha}});
-    }
+    if (!(error instanceof CaptchaRequiredError)) throw error;
+    const key = newCaptchaKey();
+    console.log(captchaUrl("recommend", key, "programming"));
+    await dc.articles.upvote("programming", 1, {key, code: "사용자가 읽은 글자"});
 }
 ```
 
-캡챠 종류는 작업에 따라 자동 선택됩니다: 글 작성 → `article`, 댓글/답글 → `comment`, 추천 → `recommend`, 로그인 → `login`.
+## 문서
 
-## 인증 만료
+| 문서 | 내용 |
+| --- | --- |
+| [시작하기](docs/getting-started.md) | 클라이언트 옵션, 프록시, 인증 흐름, 세션 저장 |
+| [게시글](docs/articles.md) | 목록, 읽기, 쓰기, 수정, 삭제, 추천, 투표 |
+| [댓글](docs/comments.md) | 목록, 작성, 답글, 디시콘, 보이스 댓글 |
+| [갤러리·검색](docs/galleries.md) | 갤러리 정보, 랭킹, 메인, 실베, 통합 검색 |
+| [알림](docs/notifications.md) | 알림함, 구독, 알림 설정 |
+| [사용자](docs/user.md) | 내 갤러리, 즐겨찾기, 미니갤 가입, 스크랩 |
+| [관리](docs/management.md) | 공지/개념글/말머리, 차단, 관리 내역 |
+| [디시콘](docs/dccons.md) | 보유 목록, 상세, 구매, 폴더 |
+| [미디어](docs/media.md) | 이미지/동영상/보이스 업로드, 자동짤, AI 이미지 |
+| [엔드포인트 목록](docs/endpoints.md) | 메서드별 실제 엔드포인트 |
 
-`app_id`나 로그인 세션이 만료되면 `AuthExpiredError`가 throw 됩니다. `kind`가 `appId`이면 앱 인증 만료, `loginSession`이면 로그인 세션 만료입니다. HTTP
-클라이언트가 만료 응답을 감지하면 자동으로 갱신 후 재시도합니다.
+## 라이선스
 
-## 로그인 (OTP / 캡챠)
-
-```ts
-await client.login("dcinside-id", "password", {
-    otp: "123456", // 2차 인증 번호 (필요한 계정만)
-});
-```
-
-OTP가 필요하면 `LoginOtpRequiredError`, 로그인 캡챠가 필요하면 `LoginCaptchaRequiredError`가 throw 됩니다. 로그인 캡챠도 `captcha` 옵션으로 답변을 전달할 수
-있습니다.
-
-## gallery
-
-공개 API에서는 갤러리 식별자를 `gallery` 하나로만 받습니다. 일반/마이너는 `football_new9`, `krstock`처럼 그대로 넘기고, 미니/인물만 `mi$...`, `pr$...` 접두사를 붙이면
-됩니다.
-
-접두사가 없는 ID에 접두사를 붙이거나 ID에서 갤러리 종류를 추론할 때는 헬퍼를 사용할 수 있습니다.
-
-```ts
-import {inferGalleryType, normalizeGalleryId} from "@green-1052/dcinside.js";
-
-normalizeGalleryId("bjwg64", "mini");   // "mi$bjwg64"
-inferGalleryType("pr$dororong");        // "person"
-```
-
-## 구조
-
-`client`에서 바로 쓰는 건 전역 매니저만 남겨두고, 게시글/댓글은 갤러리 스코프 아래로 내렸습니다.
-
-| 위치                                                  | 주요 메서드                                                                                                          |
-|-------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------|
-| `client.gallery(gallery).articles`                    | `list`, `listPages`, `write`                                                                                        |
-| `client.gallery(gallery).article(articleId)`          | `read`, `delete`, `modifyInfo`, `reportLink`, `upvote`, `downvote`, `hitUpvote`                                      |
-| `client.gallery(gallery).article(articleId).comments` | `list`, `listPages`, `write`, `reply`, `delete`                                                                      |
-| `client.dccons`                                       | `list`, `detail`, `insert`, `buy`                                                                                    |
-| `client.galleries`                                    | `mainPage`, `minorInfo`, `uploadMovie`, `rankings.main/minor/mini/person`                                            |
-| `client.management`                                   | `setNotice`, `setRecommend`, `changeHeadText`, `blockUser`, `blockNoMember`, `gallerySettingLink`, `userBlockLink`   |
-| `client.search`                                       | `galleries`, `total`                                                                                                 |
-| `client.user`                                         | `myGalleries`, `managedGalleries`, `joinedMiniGalleries`, `addFavoriteGallery`, `joinMiniGallery`, `quitMiniGallery` |
-
-자세한 예시는 [docs](./docs)를 참고하세요.
-
-## 프록시
-
-Bun fetch의 `proxy` 옵션을 그대로 전달할 수 있습니다.
-
-```ts
-const client = new DCInsideClient({
-    http: {
-        proxy: "http://127.0.0.1:8080",
-    },
-});
-```
-
-## 에러 처리
-
-API 실패는 `DCInsideError` 또는 하위 에러로 전달됩니다.
-
-```ts
-import {
-    AuthExpiredError,
-    AuthenticationError,
-    CaptchaRequiredError,
-    DCInsideError,
-    HTTPError,
-    LoginCaptchaRequiredError,
-    LoginOtpRequiredError
-} from "@green-1052/dcinside.js";
-
-try {
-    await client.gallery("mi$bjwg64").articles.write({
-        subject: "제목",
-        content: ["본문"],
-    });
-} catch (error) {
-    if (error instanceof CaptchaRequiredError) {
-        console.error("캡챠 필요", error.action, error.challenge);
-    } else if (error instanceof AuthExpiredError) {
-        console.error("인증 만료", error.kind, error.cause);
-    } else if (error instanceof LoginOtpRequiredError) {
-        console.error("OTP 필요");
-    } else if (error instanceof LoginCaptchaRequiredError) {
-        console.error("로그인 캡챠 필요");
-    } else if (error instanceof AuthenticationError) {
-        console.error("인증 실패", error.message);
-    } else if (error instanceof HTTPError) {
-        console.error("HTTP 실패", error.statusCode);
-    } else if (error instanceof DCInsideError) {
-        console.error("API 실패", error.message);
-    }
-}
-```
-
-## Special Thanks
-
-- KotlinInside
+GPL-3.0-only
