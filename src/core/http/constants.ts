@@ -115,8 +115,8 @@ export const API_URL = {
 export const DC_APP = {
     signature: "5rJxRKJ2YLHgBgj6RdMZBl2X0KcftUuMoXVug0bsKd0=",
     package: "com.dcinside.app.android",
-    versionCode: "100166",
-    versionName: "5.2.17",
+    versionCode: "100175",
+    versionName: "5.3.6",
     targetVersion: "36",
     userAgent: "dcinside.app",
     referer: "http://www.dcinside.com"
