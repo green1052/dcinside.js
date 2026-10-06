@@ -135,7 +135,8 @@ export class Http {
         }
         if (target.origin !== HOST.app || !REDIRECTED_PATHS.has(target.pathname)) return target;
         const redirect = new URL("/api/redirect.php", HOST.app);
-        redirect.searchParams.set("hash", Buffer.from(target.toString()).toString("base64"));
+        // URL 문자열은 퍼센트 인코딩된 ASCII라 btoa로 충분합니다.
+        redirect.searchParams.set("hash", btoa(target.toString()));
         return redirect;
     }
 }

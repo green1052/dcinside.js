@@ -1,9 +1,8 @@
-import {createHash} from "node:crypto";
 import {APP, FIREBASE, HOST} from "../constants";
 import {ApiError, CaptchaRequiredError, DCInsideError, OtpRequiredError} from "../errors";
 import type {Http} from "../http";
 import type {LoginResult} from "../types/responses";
-import {first, isCaptchaCause} from "../util";
+import {first, isCaptchaCause, toHex} from "../util";
 import {type CheckinCredentials, createCheckinRequest, parseCheckinResponse} from "./checkin";
 
 export type {CheckinCredentials};
@@ -182,7 +181,8 @@ export class Auth {
         const check = first(await this.http.get(`${HOST.json2}/json0/app_check_A_rina_one_new.php`, {}, {appId: false, raw: true}));
         const date = check["date"];
         if (typeof date !== "string" || !date) throw new DCInsideError("app_check 응답에 date가 없습니다.");
-        return createHash("sha256").update(`dcArdchk_${date}`).digest("hex");
+        const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`dcArdchk_${date}`));
+        return toHex(digest);
     }
 
     private async issueClientToken(): Promise<string> {

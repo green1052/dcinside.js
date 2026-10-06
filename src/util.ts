@@ -1,5 +1,10 @@
 export type JsonObject = Record<string, unknown>;
 
+/** 바이트를 소문자 16진수 문자열로 바꿉니다. */
+export function toHex(bytes: ArrayBuffer | Uint8Array): string {
+    return Array.from(new Uint8Array(bytes), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
 /** 앱의 `Jsons.parse`처럼 배열 응답이면 첫 요소를, 숫자 키 객체면 첫 값을 꺼냅니다. */
 export function first(value: unknown): JsonObject {
     if (Array.isArray(value)) value = value[0];
