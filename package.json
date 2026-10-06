@@ -1,6 +1,6 @@
 {
     "name": "@green-1052/dcinside.js",
-    "version": "2.0.0",
+    "version": "2.0.1",
     "description": "디시인사이드 안드로이드 앱(5.3.6) API 비공식 클라이언트",
     "license": "GPL-3.0-only",
     "type": "module",
