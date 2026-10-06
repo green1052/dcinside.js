@@ -1,4 +1,4 @@
-import {SCHEMA} from "./types/schema";
+import SCHEMA from "./types/schema.json";
 
 /**
  * 응답 값을 앱 Gson 모델 타입에 맞춥니다. 서버는 같은 필드를 `"12"`/`12`/`true`처럼 섞어 보내고
@@ -43,7 +43,7 @@ export function normalize(value: unknown, spec: string): unknown {
         const inner = spec.slice(1, -1);
         return Object.fromEntries(Object.entries(object).map(([key, item]) => [key, normalize(item, inner)]));
     }
-    const fields = SCHEMA[spec];
+    const fields = (SCHEMA as Record<string, Record<string, string>>)[spec];
     if (!fields) return object;
     const out: Record<string, unknown> = {...object};
     for (const [key, fieldSpec] of Object.entries(fields)) {

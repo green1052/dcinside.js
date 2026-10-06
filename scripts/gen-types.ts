@@ -278,9 +278,7 @@ const topNames = Object.values(TOP).flatMap((entries) => Object.values(entries))
 out += `\n/** \`Http\`의 \`as\` 옵션에 쓰는 응답 이름과 타입입니다. */\nexport interface ResponseMap {\n${topNames.map((n) => `    ${n}: ${n};`).join("\n")}\n}\n`;
 writeFileSync(`${outDir}/responses.ts`, out);
 
-const sorted = Object.fromEntries([...schema].sort(([a], [b]) => a.localeCompare(b)));
-writeFileSync(`${outDir}/schema.ts`, `// scripts/gen-types.ts가 생성합니다. 직접 고치지 마세요.
-// 모델 이름 → {키: 스펙}. 스펙 형식은 scripts/gen-types.ts의 tsType 주석을 보세요.
-export const SCHEMA: Record<string, Record<string, string>> = ${JSON.stringify(sorted, null, 4)};
-`);
+// 모델 이름 → {키: 스펙}. JSON이라 선언 파일(.d.ts)에 값이 실리지 않습니다. diff가 보기 좋게 모델당 한 줄입니다.
+const lines = [...schema].sort(([a], [b]) => a.localeCompare(b)).map(([name, fields]) => `${JSON.stringify(name)}:${JSON.stringify(fields)}`);
+writeFileSync(`${outDir}/schema.json`, `{\n${lines.join(",\n")}\n}\n`);
 console.log(`${[...sections.values()].flat().length} declarations`);
