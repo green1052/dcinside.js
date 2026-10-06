@@ -56,13 +56,15 @@ describe("NotificationManager", () => {
         expect(await (await formOf(requests[0]!)).get("keyword")).toBe("키워드");
     });
 
-    test("listAlarms posts client_token and page", async () => {
-        const {manager, requests} = makeManager(() => json({data: []}));
+    test("listAlarms GETs api/alarm/message with type and page", async () => {
+        const {manager, requests} = makeManager(() => json({lists: []}));
         await manager.listAlarms({page: 2});
 
-        const form = await formOf(requests[0]!);
-        expect(form.get("client_token")).toBe("fcm-token");
-        expect(form.get("page")).toBe("2");
+        const url = new URL(requests[0]!.url);
+        expect(requests[0]!.method).toBe("GET");
+        expect(url.pathname).toBe("/api/alarm/message");
+        expect(url.searchParams.get("type")).toBe("I");
+        expect(url.searchParams.get("page")).toBe("2");
     });
 
     test("listUserSubscriptions GETs with gallery filter (POST would register)", async () => {
