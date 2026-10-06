@@ -30,6 +30,7 @@ export {AutoImageApi} from "./api/auto-images";
 export {CommentApi, type CommentContent, type CommentListOptions, type CommentWriteOptions, type ParentComment} from "./api/comments";
 export {DCConApi, type DCConRef} from "./api/dccons";
 export {GalleryApi, type GalleryKind} from "./api/galleries";
+export {GallogApi, type GallogCategory, type GallogHome, type GallogItem, type GallogList, type GuestbookEntry} from "./api/gallog";
 export {ManagementApi, type BlockCategory, type BlockNoMemberOptions, type BlockUserOptions, type ImageBlockTarget, type ManageHistoryCategory} from "./api/management";
 export {NotificationApi, type AlarmSettingUpdate, type AlarmType} from "./api/notifications";
 export {SearchApi, type SearchOptions, type SearchType} from "./api/search";

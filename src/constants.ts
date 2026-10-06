@@ -6,7 +6,9 @@ export const APP = {
     /** 앱 서명 인증서 SHA-256(Base64). `app_id` 발급에 사용합니다. */
     signature: "5rJxRKJ2YLHgBgj6RdMZBl2X0KcftUuMoXVug0bsKd0=",
     userAgent: "dcinside.app",
-    referer: "http://www.dcinside.com/"
+    referer: "http://www.dcinside.com/",
+    /** 앱 웹뷰 UA입니다. Android WebView 기본 UA 뒤에 ` dcinside.app`을 붙입니다(`WebViews.m`). */
+    webViewUserAgent: "Mozilla/5.0 (Linux; Android 16; SM-S928N Build/BP4A.251205.006; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/144.0.7500.8 Mobile Safari/537.36 dcinside.app"
 } as const;
 
 /** 앱에 내장된 Firebase/GCM 설정입니다. */

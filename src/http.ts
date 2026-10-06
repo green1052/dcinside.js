@@ -26,6 +26,8 @@ export interface RequestOptions {
     raw?: boolean;
     /** POST 본문을 multipart 대신 urlencoded로 보냅니다. 모바일 웹 엔드포인트용입니다. */
     urlencoded?: boolean;
+    /** 이 요청에만 덧붙일 헤더입니다. */
+    headers?: Record<string, string>;
 }
 
 /** HTTP 레이어가 인증 정보를 얻고 갱신하는 통로입니다. `DCInside`가 연결합니다. */
@@ -81,8 +83,8 @@ export class Http {
         }
 
         const response = method === "GET"
-            ? await this.fetch(this.buildGetUrl(target, all))
-            : await this.fetch(target, {method, body: options.urlencoded ? toSearchParams(all) : toFormData(all)});
+            ? await this.fetch(this.buildGetUrl(target, all), {headers: options.headers})
+            : await this.fetch(target, {method, headers: options.headers, body: options.urlencoded ? toSearchParams(all) : toFormData(all)});
         const text = await response.text();
         const json = parseJson(text);
         if (json === undefined) {

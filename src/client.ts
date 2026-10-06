@@ -6,6 +6,7 @@ import {CommentApi} from "./api/comments";
 import type {ApiContext} from "./api/context";
 import {DCConApi} from "./api/dccons";
 import {GalleryApi} from "./api/galleries";
+import {GallogApi} from "./api/gallog";
 import {ManagementApi} from "./api/management";
 import {NotificationApi} from "./api/notifications";
 import {SearchApi} from "./api/search";
@@ -34,6 +35,7 @@ export class DCInside {
     readonly articles: ArticleApi;
     readonly comments: CommentApi;
     readonly galleries: GalleryApi;
+    readonly gallog: GallogApi;
     readonly search: SearchApi;
     readonly notifications: NotificationApi;
     readonly user: UserApi;
@@ -68,6 +70,7 @@ export class DCInside {
         this.articles = new ArticleApi(ctx);
         this.comments = new CommentApi(ctx);
         this.galleries = new GalleryApi(ctx);
+        this.gallog = new GallogApi(ctx);
         this.search = new SearchApi(ctx);
         this.notifications = new NotificationApi(ctx);
         this.user = new UserApi(ctx);
