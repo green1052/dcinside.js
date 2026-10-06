@@ -118,6 +118,23 @@ try {
 | [미디어](docs/media.md) | 이미지/동영상/보이스 업로드, 자동짤, AI 이미지 |
 | [엔드포인트 목록](docs/endpoints.md) | 메서드별 실제 엔드포인트 |
 
+## 개발
+
+```sh
+bun test            # 테스트 (네트워크 없이 fetch를 목으로 바꿔 요청 형식을 검증)
+bun run typecheck
+bun run build
+```
+
+새 앱 버전이 나오면 [jadx](https://github.com/skylot/jadx)로 APK를 디컴파일한 뒤 아래 스크립트로 비교합니다.
+
+| 스크립트 | 하는 일 |
+| --- | --- |
+| `scripts/extract-endpoints.ts` | 앱 요청 빌더를 풀어 엔드포인트/파라미터/응답 모델 목록을 뽑습니다 |
+| `scripts/gen-types.ts` | Gson 모델에서 `src/types/responses.ts`, `schema.ts`를 다시 만듭니다 |
+
+버전 문자열(`src/constants.ts`의 `APP.versionCode`/`versionName`)은 `AndroidManifest.xml`에서 확인합니다.
+
 ## 라이선스
 
 GPL-3.0-only
