@@ -58,6 +58,20 @@
 | `galleries.pumHistory()` | `GET app.dcinside.com/api/pum/history` |
 | `galleries.uploadRestriction()` | `GET app.dcinside.com/api/chk_upload_restriction` |
 
+## `dc.gallog`
+
+앱은 갤로그를 웹뷰로 엽니다. 아래는 모바일 웹 페이지입니다.
+
+| 메서드 | 엔드포인트 |
+| --- | --- |
+| `gallog.url()` | `URL m.dcinside.com/gallog/{id}` |
+| `gallog.home()` | `GET m.dcinside.com/gallog/{id}` |
+| `gallog.posts()` | `GET m.dcinside.com/gallog/{id}?menu=G_all` (G, E, N, P) |
+| `gallog.comments()` | `GET m.dcinside.com/gallog/{id}?menu=R_all` (R, D, I, L) |
+| `gallog.scraps()` | `GET m.dcinside.com/gallog/{id}?menu=B` |
+| `gallog.guestbook()` | `GET m.dcinside.com/gallog/{id}?menu=U` |
+| `gallog.resolveGallery()` | `POST m.dcinside.com/gallog/list-direct` |
+
 ## `dc.search`
 
 | 메서드 | 엔드포인트 |

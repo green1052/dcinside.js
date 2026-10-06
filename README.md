@@ -110,6 +110,7 @@ try {
 | [게시글](docs/articles.md) | 목록, 읽기, 쓰기, 수정, 삭제, 추천, 투표 |
 | [댓글](docs/comments.md) | 목록, 작성, 답글, 디시콘, 보이스 댓글 |
 | [갤러리·검색](docs/galleries.md) | 갤러리 정보, 랭킹, 메인, 실베, 통합 검색 |
+| [갤로그](docs/gallog.md) | 작성 글/댓글, 스크랩, 방명록 |
 | [알림](docs/notifications.md) | 알림함, 구독, 알림 설정 |
 | [사용자](docs/user.md) | 내 갤러리, 즐겨찾기, 미니갤 가입, 스크랩 |
 | [관리](docs/management.md) | 공지/개념글/말머리, 차단, 관리 내역 |
