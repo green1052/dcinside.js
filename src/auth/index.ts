@@ -63,7 +63,10 @@ const APP_ID_TTL = 11 * 60 * 60 * 1000;
  * 네이티브 라이브러리(`libnative-lib.so`) 안에 있습니다.
  */
 export class Auth {
-    /** 새 app_id를 받은 뒤 기다리는 시간(ms)입니다. 갓 발급된 app_id는 잠시 certification 오류가 납니다. */
+    /**
+     * 갓 발급된 app_id가 서버에 반영되는 데 걸리는 최대 시간(ms)입니다. 이 시간 안에 certification 오류가 나면
+     * 새로 발급하지 않고 남은 시간만 기다렸다가 같은 app_id로 다시 보냅니다.
+     */
     appIdSettleMs = 5000;
     private checkin: CheckinCredentials | null = null;
     private fid: string | null = null;
@@ -89,8 +92,13 @@ export class Auth {
         return this.pendingAppId;
     }
 
-    /** 캐시된 `app_id`를 버리고 다시 발급합니다. */
-    refreshAppId(): Promise<string> {
+    /** 캐시된 `app_id`를 버리고 다시 발급합니다. 갓 발급한 `app_id`면 반영될 때까지 기다린 뒤 그대로 돌려줍니다. */
+    async refreshAppId(): Promise<string> {
+        const age = this.appIdIssuedAt ? Date.now() - this.appIdIssuedAt : Infinity;
+        if (this.appIdValue && age < this.appIdSettleMs) {
+            await new Promise((resolve) => setTimeout(resolve, this.appIdSettleMs - age));
+            return this.appIdValue;
+        }
         this.appIdValue = null;
         return this.appId();
     }
@@ -164,7 +172,6 @@ export class Auth {
             client_token: clientToken
         }, {appId: false, raw: true});
         if (!response.app_id) throw new DCInsideError(`app_id 발급 실패: ${JSON.stringify(response)}`);
-        await new Promise((resolve) => setTimeout(resolve, this.appIdSettleMs));
         this.appIdValue = response.app_id;
         this.appIdIssuedAt = Date.now();
         return response.app_id;

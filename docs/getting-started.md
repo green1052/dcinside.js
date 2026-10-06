@@ -38,7 +38,7 @@ const dc = new DCInside({
    앱에서는 이 부분이 네이티브 라이브러리(`libnative-lib.so`) 안에 있습니다.
 
 `app_id`는 앱처럼 11시간 동안 재사용합니다. 서버가 `cause: "certification"`이나 `refresh_join: true`를 돌려주면 새로 발급하고 요청을 한 번 다시 보냅니다.
-갓 발급한 `app_id`는 서버에 반영될 때까지 잠깐 거부되므로 발급 직후 5초 기다립니다. `dc.auth.appIdSettleMs`로 바꿀 수 있습니다.
+갓 발급한 `app_id`는 서버에 반영될 때까지 잠깐 거부될 수 있습니다. 발급 후 5초(`dc.auth.appIdSettleMs`) 안에 `certification`이 오면 새로 발급하지 않고 남은 시간만 기다렸다가 같은 `app_id`로 다시 보냅니다.
 
 ```ts
 await dc.auth.appId();                 // 미리 발급

@@ -39,6 +39,18 @@ describe("Http", () => {
         expect(verify.fields["vName"]).toBe("5.3.6");
     });
 
+    test("a just-issued app_id waits out the settle window instead of being re-issued", async () => {
+        const {dc, requests} = makeClient((_, i) => json(i === 0 ? {result: false, cause: "certification"} : {result: true}));
+        dc.auth.appIdSettleMs = 60; // makeClient의 app_id는 방금 발급된 것으로 들어갑니다.
+
+        const started = Date.now();
+        await dc.http.post("https://app.dcinside.com/api/x");
+
+        expect(Date.now() - started).toBeGreaterThanOrEqual(40);
+        expect(requests.map((r) => r.fields["app_id"])).toEqual(["APP", "APP"]);
+        expect(requests.some((r) => r.url.pathname === "/auth/mobile_app_verification")).toBe(false);
+    });
+
     test("treats refresh_join like an expired app_id", async () => {
         const {dc, requests} = makeClient((req) => {
             if (req.url.hostname === "json2.dcinside.com") return json({date: "d"});
