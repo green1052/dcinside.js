@@ -65,13 +65,25 @@ describe("NotificationManager", () => {
         expect(form.get("page")).toBe("2");
     });
 
-    test("listUserSubscriptions passes gallery filter", async () => {
+    test("listUserSubscriptions GETs with gallery filter (POST would register)", async () => {
         const {manager, requests} = makeManager(() => json({data: []}));
         await manager.listUserSubscriptions({galleryId: "g"});
 
-        const form = await formOf(requests[0]!);
-        expect(form.get("client_id")).toBe("fcm-token");
-        expect(form.get("id")).toBe("g");
+        expect(requests[0]!.method).toBe("GET");
+        const url = new URL(requests[0]!.url);
+        expect(url.pathname).toBe("/api/alarm/user");
+        expect(url.searchParams.get("client_id")).toBe("fcm-token");
+        expect(url.searchParams.get("id")).toBe("g");
+    });
+
+    test("listRecommendNotifications GETs without extra params", async () => {
+        const {manager, requests} = makeManager(() => json({data: []}));
+        await manager.listRecommendNotifications();
+
+        expect(requests[0]!.method).toBe("GET");
+        const url = new URL(requests[0]!.url);
+        expect(url.pathname).toBe("/api/alarm/recomm");
+        expect([...url.searchParams.keys()]).toEqual(["client_id"]);
     });
 
     test("listAlarmsPages iterates until an empty data page", async () => {

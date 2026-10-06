@@ -182,11 +182,7 @@ export class NotificationManager {
      * @returns 게시글 알림 구독 목록과 원본 응답입니다.
      */
     async listArticleSubscriptions(input: GalleryScopedNotificationListOptions = {}): Promise<ArticleNotificationListResult> {
-        const fields: Record<string, string | number | boolean | null | undefined> = {client_id: this.clientId};
-        if (input.type) fields["type"] = input.type;
-        if (input.galleryId) fields["id"] = input.galleryId;
-        const raw = await postMultipartJson(this.http, API_URL.notification.article, fields);
-        return firstObject(raw) as unknown as ArticleNotificationListResult;
+        return this.get(API_URL.notification.article, {type: input.type, id: input.galleryId});
     }
 
     /**
@@ -196,10 +192,7 @@ export class NotificationManager {
      * @returns 이용자 구독 목록과 원본 응답입니다.
      */
     async listUserSubscriptions(input: GalleryScopedNotificationListOptions = {}): Promise<UserNotificationListResult> {
-        const fields: Record<string, string | number | boolean | null | undefined> = {client_id: this.clientId};
-        if (input.galleryId) fields["id"] = input.galleryId;
-        const raw = await postMultipartJson(this.http, API_URL.notification.user, fields);
-        return firstObject(raw) as unknown as UserNotificationListResult;
+        return this.get(API_URL.notification.user, {id: input.galleryId});
     }
 
     /**
@@ -209,10 +202,7 @@ export class NotificationManager {
      * @returns 키워드 알림 구독 목록과 원본 응답입니다.
      */
     async listKeywordNotifications(input: GalleryScopedNotificationListOptions = {}): Promise<KeywordNotificationListResult> {
-        const fields: Record<string, string | number | boolean | null | undefined> = {client_id: this.clientId};
-        if (input.galleryId) fields["id"] = input.galleryId;
-        const raw = await postMultipartJson(this.http, API_URL.notification.keyword, fields);
-        return firstObject(raw) as unknown as KeywordNotificationListResult;
+        return this.get(API_URL.notification.keyword, {id: input.galleryId});
     }
 
     /**
@@ -252,8 +242,7 @@ export class NotificationManager {
      * @returns 개념글 알림 구독 목록과 원본 응답입니다.
      */
     async listRecommendNotifications(): Promise<GalleryNotificationListResult> {
-        const raw = await postMultipartJson(this.http, API_URL.notification.recommend, {client_id: this.clientId});
-        return firstObject(raw) as unknown as GalleryNotificationListResult;
+        return this.get(API_URL.notification.recommend, {});
     }
 
     /**
@@ -277,8 +266,7 @@ export class NotificationManager {
      * @returns 공지 알림 구독 목록과 원본 응답입니다.
      */
     async listNoticeNotifications(): Promise<GalleryNotificationListResult> {
-        const raw = await postMultipartJson(this.http, API_URL.notification.notice, {client_id: this.clientId});
-        return firstObject(raw) as unknown as GalleryNotificationListResult;
+        return this.get(API_URL.notification.notice, {});
     }
 
     /**
@@ -294,6 +282,18 @@ export class NotificationManager {
         };
         if (input.galleryName) fields["ko_name"] = input.galleryName;
         return this.post(input.enable ? API_URL.notification.notice : API_URL.notification.noticeDelete, fields);
+    }
+
+    /**
+     * 알림 목록 엔드포인트로 GET 요청을 보냅니다. 공식 앱은 같은 URL에 POST하면 등록,
+     * GET하면 목록 조회로 사용합니다. 값이 없는 파라미터는 생략합니다.
+     */
+    private async get<T>(url: string, params: Record<string, string | undefined>): Promise<T> {
+        const searchParams = new URLSearchParams({client_id: this.clientId});
+        for (const [key, value] of Object.entries(params)) {
+            if (value) searchParams.set(key, value);
+        }
+        return firstObject(await this.http.ky.get(url, {searchParams}).json()) as T;
     }
 
     /** 알림 엔드포인트로 multipart POST 요청을 보내고 결과를 파싱합니다. */
