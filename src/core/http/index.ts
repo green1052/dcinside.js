@@ -224,12 +224,20 @@ function stripInjectedContext(request: Request): Request {
     return next;
 }
 
+/** 공식 앱(5.3.6)이 `redirect.php`로 감싸서 보내는 GET 엔드포인트입니다. 나머지 GET은 그대로 보냅니다. */
+const REDIRECTED_GET_PATHS = new Set([
+    "/api/gall_list_new.php",
+    "/api/gall_view_new.php",
+    "/api/comment_new.php",
+    "/api/view_img.php"
+]);
+
 function redirectAppApiGet({request}: { request: Request }): Request | void {
     if (request.method !== "GET") return;
 
     const url = new URL(request.url);
     const redirect = new URL(API_URL.redirect);
-    if (url.origin !== redirect.origin || !url.pathname.startsWith("/api/") || url.pathname === redirect.pathname) return;
+    if (url.origin !== redirect.origin || !REDIRECTED_GET_PATHS.has(url.pathname)) return;
 
     const hash = Buffer.from(url.toString()).toString("base64");
     redirect.searchParams.set("hash", hash);

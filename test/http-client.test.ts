@@ -97,6 +97,21 @@ describe("KyHttpClient auth retry", () => {
         expect(counters.refreshAppId).toBe(1);
     });
 
+    test("only the app's redirected GET endpoints are wrapped in redirect.php", async () => {
+        const calls: Request[] = [];
+        const fetchMock = (async (input: Request) => {
+            calls.push(input.clone());
+            return new Response(JSON.stringify({result: true}), {status: 200});
+        }) as unknown as typeof fetch;
+        const http = new KyHttpClient({fetch: fetchMock});
+
+        await http.ky.get("https://app.dcinside.com/api/comment_new.php?id=a").json();
+        await http.ky.get("https://app.dcinside.com/api/chk_upload_restriction?id=a").json();
+
+        expect(new URL(calls[0]!.url).pathname).toBe("/api/redirect.php");
+        expect(new URL(calls[1]!.url).pathname).toBe("/api/chk_upload_restriction");
+    });
+
     test("non-auth errors throw HTTPError without retry", async () => {
         let callCount = 0;
         const fetchMock = (async () => {
