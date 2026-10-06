@@ -23,6 +23,13 @@ describe("ArticleApi", () => {
         expect(requests.map((r) => r.fields["page"])).toEqual(["1", "2", "3"]);
     });
 
+    test("pages stops when the server repeats the last page", async () => {
+        const {dc} = makeClient((req) => json([{gall_list: [{no: Number(req.fields["page"]) > 2 ? 20 : 10 * Number(req.fields["page"])}]}]));
+        const pages = [];
+        for await (const page of dc.articles.pages({gallery: "g"})) pages.push(page.gall_list![0]!.no);
+        expect(pages).toEqual([10, 20]);
+    });
+
     test("read passes client_id and permission password", async () => {
         const {dc, requests} = makeClient(() => json([{view_info: {subject: "s"}, view_main: {memo: "m"}}]));
         const view = await dc.articles.read("g", 10, {password: "pw"});

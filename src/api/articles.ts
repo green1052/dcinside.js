@@ -123,11 +123,15 @@ export class ArticleApi extends Api {
         });
     }
 
-    /** 빈 페이지가 나올 때까지 목록을 페이지 단위로 순회합니다. */
+    /** 빈 페이지나 같은 페이지가 나올 때까지 목록을 페이지 단위로 순회합니다. */
     async* pages(options: ArticleListOptions): AsyncGenerator<ArticleListResponse> {
+        let previous: number | undefined;
         for (let page = options.page ?? 1; ; page++) {
             const result = await this.list({...options, page});
-            if (!result.gall_list?.length) return;
+            const first = result.gall_list?.[0]?.no;
+            // 마지막 페이지를 넘기면 서버가 같은 페이지를 다시 주기도 합니다.
+            if (first === undefined || first === previous) return;
+            previous = first;
             yield result;
         }
     }

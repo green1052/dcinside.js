@@ -35,9 +35,12 @@ export class NotificationApi extends Api {
 
     /** 빈 페이지가 나올 때까지 알림함을 순회합니다. */
     async* messagePages(type: AlarmType = "I", page = 1): AsyncGenerator<AlarmMessageList> {
+        let previous: string | undefined;
         for (; ; page++) {
             const result = await this.messages(type, page);
-            if (!result.lists?.length) return;
+            const first = result.lists?.[0]?.idx;
+            if (first === undefined || first === previous) return;
+            previous = first;
             yield result;
         }
     }
