@@ -86,7 +86,7 @@ import type {ArticleListResponse, PostItem} from "@green-1052/dcinside.js";
 바꿀 수 없는 값(숫자 필드에 `"abc"` 등)은 빠지고, 모델에 없는 키는 그대로 남습니다.
 배열로 오는 응답(`[{...}]`)은 앱처럼 첫 객체를 꺼내 돌려줍니다. 목록 응답은 배열 그대로 돌려줍니다.
 
-타입과 스키마는 `scripts/gen-types.ts`로 다시 만들 수 있습니다(jadx로 디컴파일한 APK 소스 필요).
+타입과 스키마는 `scripts/gen-types.ts`로 다시 만들 수 있습니다.
 
 ## 저수준 요청
 

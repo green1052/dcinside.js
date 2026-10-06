@@ -125,7 +125,7 @@ bun run typecheck
 bun run build
 ```
 
-새 앱 버전이 나오면 [jadx](https://github.com/skylot/jadx)로 APK를 디컴파일한 뒤 아래 스크립트로 비교합니다.
+새 앱 버전이 나오면 아래 스크립트로 비교합니다.
 
 | 스크립트 | 하는 일 |
 | --- | --- |
