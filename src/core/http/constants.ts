@@ -87,7 +87,7 @@ export const API_URL = {
 
     mainInfo: {
         appMain: "https://json2.dcinside.com/json3/main_content.php",
-        galleryRanking: "https://json2.dcinside.com/json3/ranking_gallery.php",
+        galleryRanking: "https://json2.dcinside.com/json1/ranking_gallery.php",
         minorGalleryRanking: "https://json2.dcinside.com/json1/mgallmain/mgallery_ranking.php",
         miniGalleryRanking: "https://json2.dcinside.com/json1/migallmain/migallery_ranking.php",
         personGalleryRanking: "https://json2.dcinside.com/json1/prgallmain/prgallery_ranking.php"
