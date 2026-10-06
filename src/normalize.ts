@@ -45,12 +45,12 @@ export function normalize(value: unknown, spec: string): unknown {
     }
     const fields = (SCHEMA as Record<string, Record<string, string>>)[spec];
     if (!fields) return object;
-    const out: Record<string, unknown> = {...object};
-    for (const [key, fieldSpec] of Object.entries(fields)) {
-        if (!(key in object)) continue;
-        const normalized = normalize(object[key], fieldSpec);
-        if (normalized === undefined) delete out[key];
-        else out[key] = normalized;
+    // 응답에 실제로 있는 키만 돕니다(모델 필드보다 훨씬 적습니다).
+    const out: Record<string, unknown> = {};
+    for (const key in object) {
+        const fieldSpec = fields[key];
+        const normalized = fieldSpec ? normalize(object[key], fieldSpec) : object[key];
+        if (normalized !== undefined) out[key] = normalized;
     }
     return out;
 }
