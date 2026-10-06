@@ -153,9 +153,10 @@ export class Auth {
     }
 
     private async issueAppId(): Promise<string> {
-        const clientToken = await this.ensureClientToken();
+        // app_check 날짜 토큰은 client_token과 무관하므로 같이 받습니다.
+        const [clientToken, valueToken] = await Promise.all([this.ensureClientToken(), this.valueToken()]);
         const response = await this.http.post<{ app_id?: string }>(`${HOST.sign}/auth/mobile_app_verification`, {
-            value_token: await this.valueToken(),
+            value_token: valueToken,
             signature: APP.signature,
             pkg: APP.package,
             vCode: APP.versionCode,
@@ -178,11 +179,12 @@ export class Auth {
     }
 
     private async issueClientToken(): Promise<string> {
-        this.checkin ??= await this.androidCheckin();
-        const authToken = await this.firebaseInstallation();
+        // checkin과 Firebase Installation은 서로 의존하지 않습니다.
+        const [checkin, authToken] = await Promise.all([this.checkin ?? this.androidCheckin(), this.firebaseInstallation()]);
+        this.checkin = checkin;
         const token = await this.register(authToken, {"X-subtype": FIREBASE.sender, sender: FIREBASE.sender, "X-scope": "*"});
-        // 앱이 구독하는 토픽입니다. 실패해도 토큰 사용에는 지장이 없습니다.
-        await Promise.allSettled(["/topics/DcRefreshRemoteConfig", "/topics/DcShowNoticeMessage"].map((topic) =>
+        // 앱이 구독하는 토픽입니다. 토큰 사용과는 무관하므로 기다리지 않고, 실패는 무시합니다.
+        void Promise.allSettled(["/topics/DcRefreshRemoteConfig", "/topics/DcShowNoticeMessage"].map((topic) =>
             this.register(authToken, {"X-gcm.topic": topic, "X-subtype": token, sender: token, "X-scope": topic})));
         this.clientToken = token;
         return token;
