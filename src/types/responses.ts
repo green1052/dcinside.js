@@ -1,4 +1,4 @@
-// 이 파일은 디시인사이드 공식 앱 5.3.6(100175)의 Gson 응답 모델에서 생성했습니다.
+// 이 파일은 디시인사이드 공식 앱 5.3.20(100191)의 Gson 응답 모델에서 생성했습니다.
 // 서버가 내려주는 키 이름을 그대로 쓰며, 모든 필드는 서버 사정에 따라 빠질 수 있어 optional입니다.
 
 // ── 공통 ────────────────────────────────────────────────────────────────────
@@ -15,7 +15,6 @@ export interface ApiResult {
 
 /** 앱 모델 `com.dcinside.app.realm.J` */
 export interface LoginResult {
-    auth_change?: number;
     user_no?: string;
     user_id?: string;
     name?: string;
@@ -34,6 +33,7 @@ export interface LoginResult {
     best_galler?: string;
     best_date?: string;
     is_security_code?: string;
+    auth_change?: number;
 }
 
 // ── 게시글 ───────────────────────────────────────────────────────────────────
@@ -52,12 +52,12 @@ export interface ProfileInfo {
 
 /** 앱 모델 `com.dcinside.app.response.PostHead` */
 export interface PostHead {
+    del_limit?: boolean;
     no?: number;
     name?: string;
     level?: number;
     selected?: boolean;
     recomm_unused?: boolean;
-    del_limit?: boolean;
 }
 
 /** 앱 모델 `com.dcinside.app.response.PostHeadPlaceHolder` */
@@ -68,13 +68,6 @@ export interface PostHeadPlaceHolder {
 
 /** 앱 모델 `com.dcinside.app.response.GalleryInfo` */
 export interface GalleryInfo {
-    member_limit?: number;
-    gall_hide?: boolean;
-    profile_img?: string;
-    member_grant?: number;
-    use_auto_delete?: string;
-    use_secret?: string;
-    anonymous?: string;
     use_relation_no?: string;
     use_list_fix?: string;
     is_mini?: boolean;
@@ -91,15 +84,14 @@ export interface GalleryInfo {
     realname_gall?: boolean;
     head_text_up_dt?: number;
     type?: string;
-    category?: number;
-    gall_title?: string;
-    file_cnt?: number;
-    file_size?: number;
     is_minor?: boolean;
     ser_total_page?: number;
     ser_pos?: string;
+    category?: number;
     no_write?: boolean;
+    gall_title?: string;
     captcha?: boolean;
+    file_cnt?: number;
     code_count?: number;
     is_adult?: boolean;
     is_lady?: number;
@@ -117,18 +109,19 @@ export interface GalleryInfo {
     total_member?: number;
     member_state?: number;
     member_join?: boolean;
+    member_limit?: number;
+    gall_hide?: boolean;
+    profile_img?: string;
+    member_grant?: number;
+    file_size?: number;
+    use_auto_delete?: string;
+    is_grant_major?: boolean;
+    use_secret?: string;
+    anonymous?: string;
 }
 
 /** 앱 모델 `com.dcinside.app.response.PostItem` */
 export interface PostItem {
-    auto_del?: boolean;
-    poll_icon?: boolean;
-    fixtop?: boolean;
-    secret?: boolean;
-    del_plan?: boolean;
-    movie_icon?: string;
-    realtime_chk?: string;
-    realtime_l_chk?: string;
     realtime_color_icon?: boolean;
     adult_icon?: boolean;
     comment_memo?: string;
@@ -139,16 +132,14 @@ export interface PostItem {
     spoiler?: string;
     is_spoiler_headtext?: boolean;
     headnum?: string;
-    result?: string;
-    cause?: string;
-    subject?: string;
-    name?: string;
-    img_icon?: string;
     recommend?: number;
     voice_icon?: string;
     winnerta_icon?: string;
+    result?: string;
     recommend_icon?: string;
+    cause?: string;
     hit_chk?: string;
+    subject?: string;
     best_chk?: string;
     pum_chk?: string;
     hit?: number;
@@ -165,6 +156,16 @@ export interface PostItem {
     headtext?: string;
     memo?: string;
     thumbnail?: string;
+    auto_del?: boolean;
+    poll_icon?: boolean;
+    fixtop?: boolean;
+    secret?: boolean;
+    del_plan?: boolean;
+    name?: string;
+    movie_icon?: string;
+    img_icon?: string;
+    realtime_chk?: string;
+    realtime_l_chk?: string;
 }
 
 /** 앱 모델 `com.dcinside.app.response.j` */
@@ -179,14 +180,52 @@ export interface ArticleListResponse {
     is_illegal_keyword?: boolean;
 }
 
+/** 앱 모델 `com.dcinside.app.model.PumInfo` */
+export interface PumInfo {
+    user_id?: string;
+    nickname?: string;
+    hit_cnt?: number;
+    gall_id?: string;
+    recommend_cnt?: number;
+    gall_no?: string;
+    comment_cnt?: number;
+    gall_name?: string;
+    regdate?: string;
+    gallercon?: string;
+    ip?: string;
+    delete_type?: string;
+    member_icon?: string;
+    memo?: string;
+    thumb?: string;
+    is_secret?: boolean;
+    "data-rel1"?: string;
+    "data-rel2"?: string;
+    "data-banned"?: number;
+    gall_type?: string;
+    subject?: string;
+}
+
+/** 앱 모델 `com.dcinside.app.model.U.a` */
+export interface ArticleViewResponseViewMain extends ApiResult {
+    recommend?: number;
+    recommend_member?: number;
+    nonrecommend?: number;
+    managerskill?: boolean;
+    nonrecomm_use?: boolean;
+    pum_cnt?: number;
+    pum_info?: PumInfo;
+    manager_block_img?: boolean;
+    memo?: string;
+}
+
 /** 앱 모델 `com.dcinside.app.model.OtherPost` */
 export interface OtherPost {
+    spoiler?: string;
     no?: number;
     subject?: string;
     ip?: string;
     name?: string;
     user_id?: string;
-    spoiler?: string;
 }
 
 /** 앱 모델 `com.dcinside.app.model.PrevPost` */
@@ -199,14 +238,6 @@ export interface NextPost extends OtherPost {
 
 /** 앱 모델 `com.dcinside.app.model.PostInfo` */
 export interface PostInfo {
-    recommend_code_count?: number;
-    recommend_captcha_type?: string;
-    isNotice?: string;
-    date_time?: string;
-    head_text?: PostHead[];
-    headid?: number;
-    manager_situation?: string;
-    member_grant?: number;
     board_del_scope?: number;
     board_modify_scope?: number;
     del_time?: string;
@@ -225,15 +256,10 @@ export interface PostInfo {
     gall_nickname?: string;
     capture_nickname?: string;
     spoiler?: string;
-    galltitle?: string;
     is_spoiler_headtext?: boolean;
-    subject?: string;
     is_person?: boolean;
-    category?: number;
     prev_post?: PrevPost;
-    no?: number;
     next_post?: NextPost;
-    name?: string;
     realname_gall?: boolean;
     level?: string;
     is_manager_headtext?: boolean;
@@ -241,10 +267,13 @@ export interface PostInfo {
     profile_img?: string;
     member_icon?: number;
     prgall_img?: string;
+    galltitle?: string;
     gallercon?: string;
     not_allowed_pum?: boolean;
+    subject?: string;
     ip?: string;
     use_txtcon?: boolean;
+    category?: number;
     best_chk?: string;
     txtcon_target?: string;
     best_comid?: string;
@@ -263,53 +292,25 @@ export interface PostInfo {
     comment_captcha?: boolean;
     comment_code_count?: number;
     recommend_captcha?: boolean;
-}
-
-/** 앱 모델 `com.dcinside.app.model.PumInfo` */
-export interface PumInfo {
-    gall_id?: string;
-    gall_no?: string;
-    gall_name?: string;
-    gall_type?: string;
-    subject?: string;
-    user_id?: string;
-    nickname?: string;
-    hit_cnt?: number;
-    recommend_cnt?: number;
-    comment_cnt?: number;
-    regdate?: string;
-    gallercon?: string;
-    ip?: string;
-    delete_type?: string;
-    member_icon?: string;
-    memo?: string;
-    thumb?: string;
-    is_secret?: boolean;
-    "data-rel1"?: string;
-    "data-rel2"?: string;
-    "data-banned"?: number;
-}
-
-/** 앱 모델 `com.dcinside.app.model.U.a` */
-export interface ArticleViewResponseViewMain extends ApiResult {
-    memo?: string;
-    recommend?: number;
-    recommend_member?: number;
-    nonrecommend?: number;
-    managerskill?: boolean;
-    nonrecomm_use?: boolean;
-    pum_cnt?: number;
-    pum_info?: PumInfo;
-    manager_block_img?: boolean;
+    recommend_code_count?: number;
+    recommend_captcha_type?: string;
+    isNotice?: string;
+    date_time?: string;
+    head_text?: PostHead[];
+    no?: number;
+    headid?: number;
+    name?: string;
+    manager_situation?: string;
+    member_grant?: number;
 }
 
 /** 앱 모델 `com.dcinside.app.model.U` */
 export interface ArticleViewResponse extends ApiResult {
-    view_info?: PostInfo;
     view_main?: ArticleViewResponseViewMain;
     is_confirm_id?: boolean;
     refresh_join?: boolean;
     objection_url?: string;
+    view_info?: PostInfo;
 }
 
 /** 앱 모델 `com.dcinside.app.model.PostImage` */
@@ -322,7 +323,6 @@ export interface ArticleImage {
 
 /** 앱 모델 `com.dcinside.app.model.PostModify` */
 export interface ArticleModifyInfo extends ApiResult {
-    gall_id?: string;
     gall_no?: number;
     subject?: string;
     memo?: Record<string, string>[];
@@ -339,6 +339,7 @@ export interface ArticleModifyInfo extends ApiResult {
     use_ai_write?: boolean;
     is_manager_headtext?: boolean;
     headid?: number;
+    gall_id?: string;
 }
 
 /** 앱 모델 `com.dcinside.app.response.i` */
@@ -364,12 +365,12 @@ export interface RelatedGalleryArticlesTotal {
 
 /** 앱 모델 `com.dcinside.app.model.RelationData.Follow` */
 export interface Follow {
+    is_new?: string;
     ko_name?: string;
     id?: string;
     minor?: boolean;
     mini?: boolean;
     gall_state?: string;
-    is_new?: string;
 }
 
 /** 앱 모델 `com.dcinside.app.model.RelationData.a` */
@@ -445,16 +446,14 @@ export interface TconInfo {
 
 /** 앱 모델 `com.dcinside.app.response.m` */
 export interface CommentListResponseComment {
-    name?: string;
-    user_id?: string;
-    member_icon?: number;
-    gallercon?: string;
-    comment_memo?: string;
     ipData?: string;
     voice?: string;
     dccon?: string;
+    name?: string;
     dccon_type?: string;
+    user_id?: string;
     dccon_detail_idx?: string;
+    member_icon?: number;
     comment_no?: number;
     date_time?: string;
     level?: string;
@@ -466,6 +465,8 @@ export interface CommentListResponseComment {
     nonuser_num?: string;
     mention?: Mention;
     txtcon?: TconInfo;
+    gallercon?: string;
+    comment_memo?: string;
 }
 
 /** 앱 모델 `com.dcinside.app.response.n` */
@@ -503,12 +504,12 @@ export interface ManagerItem {
 
 /** 앱 모델 `com.dcinside.app.model.MiniInfo` */
 export interface MiniInfo {
+    write_scope?: string;
     gall_hide?: number;
     total_member?: number;
     member_limit?: number;
     list_scope?: string;
     view_scope?: string;
-    write_scope?: string;
 }
 
 /** 앱 모델 `com.dcinside.app.model.ManagerRecordData` */
@@ -525,7 +526,6 @@ export interface ManagerRecord {
 
 /** 앱 모델 `com.dcinside.app.model.MinorInfo` */
 export interface GalleryIntro extends ApiResult {
-    id?: string;
     ko_name?: string;
     img?: string;
     mgallery_desc?: string;
@@ -539,6 +539,7 @@ export interface GalleryIntro extends ApiResult {
     cate_name?: string;
     mini?: MiniInfo;
     person?: ManagerRecord;
+    id?: string;
 }
 
 /** 앱 모델 `com.dcinside.app.model.D` */
@@ -554,14 +555,14 @@ export interface UserGallogCount {
     reply_cnt?: number;
 }
 
-/** 앱 모델 `com.dcinside.app.recent.C3768d` */
+/** 앱 모델 `com.dcinside.app.recent.C3386d` */
 export interface GalleryRankInfoGallery {
     id?: string;
     rank?: number;
     new_post?: number;
 }
 
-/** 앱 모델 `com.dcinside.app.recent.C3776l` */
+/** 앱 모델 `com.dcinside.app.recent.C3394l` */
 export interface GalleryRankInfo {
     result?: boolean;
     gallery_list?: GalleryRankInfoGallery[];
@@ -569,26 +570,26 @@ export interface GalleryRankInfo {
 
 /** 앱 모델 `com.dcinside.app.model.MajorRanking` */
 export interface MajorGalleryRanking {
+    num?: number;
+    gall_state?: string;
     category?: string;
     link?: string;
     id?: string;
     rank_type?: string;
     rank?: number;
-    num?: number;
-    gall_state?: string;
 }
 
 /** 앱 모델 `com.dcinside.app.model.MinorRanking` */
 export interface MinorGalleryRanking {
+    rank?: number;
+    gall_state?: string;
+    job?: string;
     ko_name?: string;
+    job_detail?: string;
     link?: string;
     id?: string;
     rank_type?: string;
     rank_updown?: number;
-    rank?: number;
-    gall_state?: string;
-    job?: string;
-    job_detail?: string;
 }
 
 /** 앱 모델 `com.dcinside.app.model.E` */
@@ -701,7 +702,6 @@ export interface ManagerInfoEntrustMember {
 
 /** 앱 모델 `com.dcinside.app.response.g` */
 export interface ManagerInfo extends ApiResult {
-    master_id?: string;
     master_name?: string;
     situation?: string;
     dday?: number;
@@ -711,6 +711,7 @@ export interface ManagerInfo extends ApiResult {
     submanager?: ManagerItem[];
     entrust_member?: ManagerInfoEntrustMember[];
     request?: boolean;
+    master_id?: string;
 }
 
 /** 앱 모델 `com.dcinside.app.response.f` */
@@ -720,8 +721,8 @@ export interface ManagerEntrustResult extends ApiResult {
 
 /** 앱 모델 `com.dcinside.app.model.J` */
 export interface ManagerAppointResult extends ApiResult {
-    reason?: string;
     code?: string;
+    reason?: string;
 }
 
 /** 앱 모델 `com.dcinside.app.model.P` */
@@ -780,7 +781,7 @@ export interface SearchResponse {
 
 // ── 알림 ────────────────────────────────────────────────────────────────────
 
-/** 앱 모델 `X.d.a` */
+/** 앱 모델 `T.d.a` */
 export interface AlarmMessageListList {
     idx?: string;
     title?: string;
@@ -800,25 +801,25 @@ export interface AlarmMessageListList {
     comment_no?: number;
 }
 
-/** 앱 모델 `X.d` */
+/** 앱 모델 `T.d` */
 export interface AlarmMessageList {
     lists?: AlarmMessageListList[];
 }
 
-/** 앱 모델 `X.e` */
+/** 앱 모델 `T.e` */
 export interface ArticleAlarmConfig {
     self_article?: boolean;
     article?: boolean;
     user?: boolean;
 }
 
-/** 앱 모델 `X.f.d` */
+/** 앱 모델 `T.f.d` */
 export interface KeywordAlarmSubscriptionsListsUser {
     user_id?: string;
     nickname?: string;
 }
 
-/** 앱 모델 `X.f.b` */
+/** 앱 모델 `T.f.b` */
 export interface KeywordAlarmSubscriptionsLists {
     id?: string;
     ko_name?: string;
@@ -834,13 +835,13 @@ export interface KeywordAlarmSubscriptionsLists {
     user?: KeywordAlarmSubscriptionsListsUser[];
 }
 
-/** 앱 모델 `X.f` */
+/** 앱 모델 `T.f` */
 export interface KeywordAlarmSubscriptions {
     lists?: Record<string, KeywordAlarmSubscriptionsLists>;
     total?: number;
 }
 
-/** 앱 모델 `X.f.c` */
+/** 앱 모델 `T.f.c` */
 export interface AlarmSubscriptions {
     lists?: KeywordAlarmSubscriptionsLists[];
     total?: number;
@@ -907,8 +908,8 @@ export interface MyGalleryResponseMygall {
 
 /** 앱 모델 `com.dcinside.app.model.C` */
 export interface MyGalleryResponse extends ApiResult {
-    mygall?: MyGalleryResponseMygall[];
     favori?: MyGalleryResponseMygall[];
+    mygall?: MyGalleryResponseMygall[];
 }
 
 /** 앱 모델 `com.dcinside.app.model.I` */
@@ -928,9 +929,9 @@ export interface ManagedGallery extends ApiResult {
 
 /** 앱 모델 `com.dcinside.app.response.h` */
 export interface JoinedMiniGalleries extends ApiResult {
-    myjoinmini_in?: MyGalleryResponseMygall[];
     myjoinmini_hold?: MyGalleryResponseMygall[];
     myjoinmini_out?: MyGalleryResponseMygall[];
+    myjoinmini_in?: MyGalleryResponseMygall[];
 }
 
 /** 앱 모델 `com.dcinside.app.response.c` */
@@ -943,7 +944,7 @@ export interface MiniGalleryJoinConfirmResult extends ApiResult {
     status?: string;
 }
 
-/** 앱 모델 `com.dcinside.app.model.C3064n` */
+/** 앱 모델 `com.dcinside.app.model.C2682n` */
 export interface HitconSettingResult {
     result?: string;
     cause?: string;
@@ -989,23 +990,23 @@ export interface ScrapShareMultiResult {
 
 // ── 디시콘 ───────────────────────────────────────────────────────────────────
 
-/** 앱 모델 `com.dcinside.app.model.C3071v` */
+/** 앱 모델 `com.dcinside.app.model.C2689v` */
 export interface DCConListResponseTab {
     package_idx?: number;
     title?: string;
     img?: string;
 }
 
-/** 앱 모델 `com.dcinside.app.model.C3069t` */
+/** 앱 모델 `com.dcinside.app.model.C2687t` */
 export interface DCConItem extends ApiResult {
-    detail_idx?: number;
     package_idx?: number;
     title?: string;
     img?: string;
     fav?: number;
+    detail_idx?: number;
 }
 
-/** 앱 모델 `com.dcinside.app.model.C3070u` */
+/** 앱 모델 `com.dcinside.app.model.C2688u` */
 export interface DCConListResponse {
     result?: string;
     cause?: string;
@@ -1014,7 +1015,7 @@ export interface DCConListResponse {
     hasFav?: boolean;
 }
 
-/** 앱 모델 `com.dcinside.app.model.C3067q.b` */
+/** 앱 모델 `com.dcinside.app.model.C2685q.b` */
 export interface DCConPackageDetailInfo {
     package_idx?: string;
     main_img?: string;
@@ -1026,12 +1027,12 @@ export interface DCConPackageDetailInfo {
     reg_date?: string;
 }
 
-/** 앱 모델 `com.dcinside.app.model.C3067q.a` */
+/** 앱 모델 `com.dcinside.app.model.C2685q.a` */
 export interface DCConPackageDetailDetail {
     img?: string;
 }
 
-/** 앱 모델 `com.dcinside.app.model.C3067q` */
+/** 앱 모델 `com.dcinside.app.model.C2685q` */
 export interface DCConPackageDetail {
     result?: boolean;
     cause?: string;
@@ -1039,35 +1040,35 @@ export interface DCConPackageDetail {
     detail?: DCConPackageDetailDetail[];
 }
 
-/** 앱 모델 `com.dcinside.app.model.C3074y` */
+/** 앱 모델 `com.dcinside.app.model.C2692y` */
 export interface DCConBuyResult extends ApiResult {
     code?: string;
 }
 
-/** 앱 모델 `com.dcinside.app.model.C3073x` */
+/** 앱 모델 `com.dcinside.app.model.C2691x` */
 export interface DCConInsertResult extends ApiResult {
-    img_src?: string;
     alt?: string;
     img_tag?: string;
+    img_src?: string;
 }
 
 /** 앱 모델 `com.dcinside.app.response.b` */
 export interface DCConSettingList extends ApiResult {
-    use_list?: DCConItem[];
     unuse_list?: DCConItem[];
+    use_list?: DCConItem[];
 }
 
 /** 앱 모델 `com.dcinside.app.model.BigDcconResult` */
 export interface BigDCConResult {
+    article_cnt?: number;
+    comment_cnt?: number;
+    result_status?: string;
     result?: boolean;
+    cause?: string;
     expire?: number;
     article_limit?: number;
     comment_limit?: number;
     day_limit?: number;
-    article_cnt?: number;
-    comment_cnt?: number;
-    result_status?: string;
-    cause?: string;
 }
 
 /** 앱 모델 `com.dcinside.app.model.A` */
@@ -1083,7 +1084,7 @@ export interface DCConFolderListTab {
     hide?: number;
 }
 
-/** 앱 모델 `com.dcinside.app.model.C3068s` */
+/** 앱 모델 `com.dcinside.app.model.C2686s` */
 export interface DCConFolderList {
     result?: string;
     cause?: string;
@@ -1130,25 +1131,25 @@ export interface AutoImage {
     extension?: string;
 }
 
-/** 앱 모델 `p007b0.a` */
+/** 앱 모델 `X.a` */
 export interface AutoImageList extends ApiResult {
-    id?: string;
     ko_name?: string;
     random?: string;
     use?: string;
     main_image?: number;
     imgInfo?: AutoImage[];
+    id?: string;
 }
 
-/** 앱 모델 `p007b0.b` */
+/** 앱 모델 `X.b` */
 export interface AutoImageSettingResult extends ApiResult {
-    gallery_id?: string;
     main_image?: number;
     random?: string;
     use?: string;
+    gallery_id?: string;
 }
 
-/** 앱 모델 `p007b0.c` */
+/** 앱 모델 `X.c` */
 export interface AutoImageGalleryListImgInfo {
     id?: string;
     ko_name?: string;
@@ -1158,17 +1159,30 @@ export interface AutoImageGalleryListImgInfo {
     images?: AutoImage[];
 }
 
-/** 앱 모델 `p007b0.d` */
+/** 앱 모델 `X.d` */
 export interface AutoImageGalleryList extends ApiResult {
     imgInfo?: AutoImageGalleryListImgInfo[];
 }
 
-/** 앱 모델 `p007b0.e` */
+/** 앱 모델 `X.e` */
 export interface AutoImageUploadResult extends ApiResult {
     imgInfo?: AutoImage[];
 }
 
 // ── AI 이미지 ────────────────────────────────────────────────────────────────
+
+/** 앱 모델 `com.dcinside.app.write.menu.ai.type.LoraModel` */
+export interface LoraModel {
+    add_prompt?: string;
+    image_src?: string;
+    name?: string;
+    idx?: number;
+    promptAccent?: string;
+    type?: string;
+    prompt_type?: string;
+    default?: string;
+    prompt?: string;
+}
 
 /** 앱 모델 `com.dcinside.app.write.menu.ai.type.AiSampleList` */
 export interface AiSampleList {
@@ -1176,32 +1190,19 @@ export interface AiSampleList {
     real?: string[];
 }
 
-/** 앱 모델 `com.dcinside.app.write.menu.ai.type.LoraModel` */
-export interface LoraModel {
-    idx?: number;
-    type?: string;
-    prompt_type?: string;
-    default?: string;
-    prompt?: string;
-    add_prompt?: string;
-    image_src?: string;
-    name?: string;
-    promptAccent?: string;
-}
-
 /** 앱 모델 `com.dcinside.app.model.AiImageStatusResult` */
 export interface AiImageStatus {
+    styles?: string[];
+    lora_list?: Record<string, LoraModel>;
+    models?: Record<string, string>;
     result?: boolean;
     generate_cnt?: number;
     set_cnt?: number;
     prompts?: string[];
     samples?: AiSampleList;
-    styles?: string[];
-    lora_list?: Record<string, LoraModel>;
-    models?: Record<string, string>;
 }
 
-/** 앱 모델 `com.dcinside.app.model.C3057g` */
+/** 앱 모델 `com.dcinside.app.model.C2675g` */
 export interface AiImageInsertResult {
     result?: boolean;
     msg?: string;
@@ -1219,7 +1220,7 @@ export interface AiPromptLoadItem {
     negative_prompt?: string;
 }
 
-/** 앱 모델 `com.dcinside.app.model.C3061k` */
+/** 앱 모델 `com.dcinside.app.model.C2679k` */
 export interface AiPromptListResult {
     result?: boolean;
     msg?: string;
@@ -1227,14 +1228,14 @@ export interface AiPromptListResult {
     list_cnt?: number;
 }
 
-/** 앱 모델 `com.dcinside.app.model.C3063m` */
+/** 앱 모델 `com.dcinside.app.model.C2681m` */
 export interface AiResampleResult {
     result?: boolean;
     msg?: string;
     filename?: string;
 }
 
-/** 앱 모델 `com.dcinside.app.model.C3062l` */
+/** 앱 모델 `com.dcinside.app.model.C2680l` */
 export interface AiFillPromptsResult {
     result?: boolean;
     prompts?: string;
@@ -1255,7 +1256,7 @@ export interface AiCharacterPromptResult {
 
 // ── 앱 ─────────────────────────────────────────────────────────────────────
 
-/** 앱 모델 `com.dcinside.app.model.C3051a` */
+/** 앱 모델 `com.dcinside.app.model.C2669a` */
 export interface AppCheck {
     result?: boolean;
     cause?: string;
@@ -1264,6 +1265,7 @@ export interface AppCheck {
     notice_update?: boolean;
     gall_id?: string;
     date?: string;
+    force?: boolean;
 }
 
 /** 앱 모델 `com.dcinside.app.model.l0` */

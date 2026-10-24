@@ -4,6 +4,7 @@
 //   bun scripts/gen-types.ts <jadx 출력>/sources src/types
 // 새 앱 버전에서 모델 클래스 이름(난독화)이 바뀌면 아래 TOP 표를 고쳐야 합니다.
 import {existsSync, readFileSync, writeFileSync} from "node:fs";
+import {APP} from "../src/constants";
 
 const root = process.argv[2]!;
 const outDir = process.argv[3]!;
@@ -32,7 +33,7 @@ const TOP: Record<string, Record<string, string>> = {
         "com.dcinside.app.model.MinorInfo": "GalleryIntro",
         "com.dcinside.app.model.D": "PersonGalleryProfile",
         "com.dcinside.app.model.m0": "UserGallogCount",
-        "com.dcinside.app.recent.C3776l": "GalleryRankInfo",
+        "com.dcinside.app.recent.C3394l": "GalleryRankInfo",
         "com.dcinside.app.model.MajorRanking": "MajorGalleryRanking",
         "com.dcinside.app.model.MinorRanking": "MinorGalleryRanking",
         "com.dcinside.app.model.E": "RecommendArticle",
@@ -52,10 +53,10 @@ const TOP: Record<string, Record<string, string>> = {
     },
     "검색": {"com.dcinside.app.totalsearch.a": "SearchResponse"},
     "알림": {
-        "X.d": "AlarmMessageList",
-        "X.e": "ArticleAlarmConfig",
-        "X.f": "KeywordAlarmSubscriptions",
-        "X.f.c": "AlarmSubscriptions",
+        "T.d": "AlarmMessageList",
+        "T.e": "ArticleAlarmConfig",
+        "T.f": "KeywordAlarmSubscriptions",
+        "T.f.c": "AlarmSubscriptions",
         "com.dcinside.app.model.Y": "AlarmSetting",
         "com.dcinside.app.model.N": "MinorNotificationResponse"
     },
@@ -65,22 +66,22 @@ const TOP: Record<string, Record<string, string>> = {
         "com.dcinside.app.response.h": "JoinedMiniGalleries",
         "com.dcinside.app.response.c": "MiniGalleryJoinResponse",
         "com.dcinside.app.response.d": "MiniGalleryJoinConfirmResult",
-        "com.dcinside.app.model.C3064n": "HitconSettingResult",
+        "com.dcinside.app.model.C2682n": "HitconSettingResult",
         "com.dcinside.app.response.p": "ScrapFolderList",
         "com.dcinside.app.response.s": "ScrapFolderResult",
         "com.dcinside.app.response.r": "ScrapShareResult",
         "com.dcinside.app.response.q": "ScrapShareMultiResult"
     },
     "디시콘": {
-        "com.dcinside.app.model.C3070u": "DCConListResponse",
-        "com.dcinside.app.model.C3069t": "DCConItem",
-        "com.dcinside.app.model.C3067q": "DCConPackageDetail",
-        "com.dcinside.app.model.C3074y": "DCConBuyResult",
-        "com.dcinside.app.model.C3073x": "DCConInsertResult",
+        "com.dcinside.app.model.C2688u": "DCConListResponse",
+        "com.dcinside.app.model.C2687t": "DCConItem",
+        "com.dcinside.app.model.C2685q": "DCConPackageDetail",
+        "com.dcinside.app.model.C2692y": "DCConBuyResult",
+        "com.dcinside.app.model.C2691x": "DCConInsertResult",
         "com.dcinside.app.response.b": "DCConSettingList",
         "com.dcinside.app.model.BigDcconResult": "BigDCConResult",
         "com.dcinside.app.model.A": "DCConFolderResult",
-        "com.dcinside.app.model.C3068s": "DCConFolderList"
+        "com.dcinside.app.model.C2686s": "DCConFolderList"
     },
     "업로드": {
         "com.dcinside.app.model.VideoUploadResult": "VideoUploadResult",
@@ -88,28 +89,30 @@ const TOP: Record<string, Record<string, string>> = {
         "com.dcinside.app.model.n0": "VoiceDownloadResult"
     },
     "자동짤": {
-        "p007b0.a": "AutoImageList",
-        "p007b0.b": "AutoImageSettingResult",
-        "p007b0.d": "AutoImageGalleryList",
-        "p007b0.e": "AutoImageUploadResult"
+        "X.a": "AutoImageList",
+        "X.b": "AutoImageSettingResult",
+        "X.d": "AutoImageGalleryList",
+        "X.e": "AutoImageUploadResult"
     },
     "AI 이미지": {
         "com.dcinside.app.model.AiImageStatusResult": "AiImageStatus",
-        "com.dcinside.app.model.C3057g": "AiImageInsertResult",
-        "com.dcinside.app.model.C3061k": "AiPromptListResult",
-        "com.dcinside.app.model.C3063m": "AiResampleResult",
-        "com.dcinside.app.model.C3062l": "AiFillPromptsResult",
+        "com.dcinside.app.model.C2675g": "AiImageInsertResult",
+        "com.dcinside.app.model.C2679k": "AiPromptListResult",
+        "com.dcinside.app.model.C2681m": "AiResampleResult",
+        "com.dcinside.app.model.C2680l": "AiFillPromptsResult",
         "com.dcinside.app.write.menu.ai.type.b": "AiCharacterPromptResult"
     },
     "앱": {
-        "com.dcinside.app.model.C3051a": "AppCheck",
+        "com.dcinside.app.model.C2669a": "AppCheck",
         "com.dcinside.app.model.l0": "AppUpdateNotice",
         "com.dcinside.app.model.Q": "AppNotice"
     }
 };
 
 const cache = new Map<string, string>();
-const read = (p: string) => cache.get(p) ?? (cache.set(p, readFileSync(p, "utf8")), cache.get(p)!);
+// gson 어노테이션을 import해 `@c(`로 쓴 파일도 같은 정규식으로 읽도록 전체 이름으로 바꿉니다.
+const normalize = (src: string) => /^import com\.google\.gson\.annotations\.c;/m.test(src) ? src.replace(/@c\(/g, "@com.google.gson.annotations.c(") : src;
+const read = (p: string) => cache.get(p) ?? (cache.set(p, normalize(readFileSync(p, "utf8"))), cache.get(p)!);
 
 function locate(fqcn: string) {
     const parts = fqcn.split(".");
@@ -133,7 +136,7 @@ function locate(fqcn: string) {
             decl = m[2]!;
             body = block(body, m.index + m[0].length - 1);
         }
-        return {body, kind, decl};
+        return {body, kind, decl, src};
     }
     return null;
 }
@@ -157,11 +160,26 @@ function ownLevel(body: string) {
     return out;
 }
 
-function resolveConst(expr: string): string {
+/** jadx가 `NotificationCompat.f27181G0`, `extends AbstractC6879d1`처럼 import한 단순 이름을 쓰면 import에서 전체 이름을 찾습니다. */
+function qualify(name: string, owner: string, src = locate(owner)?.src ?? "") {
+    const [head, ...rest] = name.split(".");
+    const imported = new RegExp(String.raw`^import ([\w.]+\.${head});`, "m").exec(src)?.[1];
+    if (imported) return [imported, ...rest].join(".");
+    if (name.includes(".")) return name;
+    // 자바처럼 자기 내부 클래스 → 바깥 클래스의 내부 클래스 → 같은 패키지 순으로 찾습니다.
+    const parts = owner.split(".");
+    for (let i = parts.length; i > 0; i--) {
+        const candidate = `${parts.slice(0, i).join(".")}.${name}`;
+        if (locate(candidate) || existsSync(`${root}/${parts.slice(0, i).join("/")}`)) return candidate;
+    }
+    return name;
+}
+
+function resolveConst(expr: string, owner: string, src: string): string {
     expr = expr.trim();
     if (expr.startsWith("\"")) return JSON.parse(expr);
     const i = expr.lastIndexOf(".");
-    const loc = locate(expr.slice(0, i));
+    const loc = locate(qualify(expr.slice(0, i), owner, src));
     const m = loc && new RegExp(String.raw`\b${expr.slice(i + 1)} = ("(?:[^"\\]|\\.)*")`).exec(loc.body);
     if (!m) throw new Error(`unresolved const ${expr}`);
     return JSON.parse(m[1]!);
@@ -202,8 +220,7 @@ function tsType(javaType: string, owner: string, hint: string): [string, string]
         return [`Record<string, ${ts}>`, `{${spec}}`];
     }
     if (/^(Object|com\.google\.gson\.\w+|org\.json\.\w+)$/.test(t)) return ["unknown", "?"];
-    const fq = t.includes(".") ? t : `${owner.split(".").slice(0, -1).join(".")}.${t}`;
-    const name = emit(fq, hint);
+    const name = emit(qualify(t, owner), hint);
     return [name, enums.has(name) ? "s" : name];
 }
 const wrap = (t: string) => (t.includes("|") ? `(${t})` : t);
@@ -231,8 +248,9 @@ function emit(fqcn: string, hint: string, top?: string): string {
     const own = ownLevel(loc.body);
     const fieldRe = /@com\.google\.gson\.annotations\.c\((?:alternate = (?:\{[^}]*\})?, )?(?:value = )?([^,)]+)[^)]*\)\s*(?:@[\w.]+(?:\([^)]*\))?\s*)*(?:(?:private|public|protected|final|transient|volatile)\s+)*([\w.$<>, ?\[\]]+?)\s+(\w+)\s*(?:=[^;]*)?;/g;
     const pending: [string, string][] = [];
-    for (const m of own.matchAll(fieldRe)) pending.push([resolveConst(m[1]!), m[2]!]);
-    const ext = /\bextends ([\w.$]+)/.exec(loc.decl)?.[1];
+    for (const m of own.matchAll(fieldRe)) pending.push([resolveConst(m[1]!, fqcn, loc.src), m[2]!]);
+    const rawExt = /\bextends ([\w.$]+)/.exec(loc.decl)?.[1];
+    const ext = rawExt && qualify(rawExt, fqcn, loc.src);
     let parent = "";
     const fields: Record<string, string> = {};
     if (ext && !/^(java|android|kotlin|io\.realm|androidx)\./.test(ext)) {
@@ -262,12 +280,14 @@ for (const [section, entries] of Object.entries(TOP)) {
     sections.set(section, []);
     for (const [fqcn, name] of Object.entries(entries)) { used.add(name); names.set(fqcn, name); }
 }
+// 내부 모델 이름은 첫 필드에서 지어서 필드 순서가 바뀌면 달라집니다. 이미 공개한 이름은 여기서 고정합니다.
+for (const [fqcn, name] of Object.entries({"com.dcinside.app.model.B": "MyGalleryResponseMygall"})) { used.add(name); names.set(fqcn, name); }
 for (const [section, entries] of Object.entries(TOP)) {
     currentSection = section;
     for (const [fqcn, name] of Object.entries(entries)) emit(fqcn, name, name);
 }
 
-let out = `// 이 파일은 디시인사이드 공식 앱 5.3.6(100175)의 Gson 응답 모델에서 생성했습니다.
+let out = `// 이 파일은 디시인사이드 공식 앱 ${APP.versionName}(${APP.versionCode})의 Gson 응답 모델에서 생성했습니다.
 // 서버가 내려주는 키 이름을 그대로 쓰며, 모든 필드는 서버 사정에 따라 빠질 수 있어 optional입니다.
 `;
 for (const [section, decls] of sections) {
