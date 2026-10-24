@@ -34,7 +34,8 @@ jobs:
                         echo "skip: $VERSION already on npm"
                     else
                         npm publish
-                        # 기존 컨벤션대로 v 접두사 없는 주석 태그를 만듭니다.
+                        git config user.name "green1052"
+                        git config user.email "green1052@pm.me"
                         git tag -a "$VERSION" -m "$VERSION"
                         git push origin "$VERSION"
                     fi
