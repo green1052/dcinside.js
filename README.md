@@ -2,7 +2,7 @@
 
 디시인사이드 안드로이드 앱 API를 그대로 쓰는 비공식 클라이언트입니다.
 
-- 앱이 쓰는 엔드포인트 130여 개를 모듈별로 제공합니다.
+- 앱이 쓰는 엔드포인트 140여 개를 모듈별로 제공합니다.
 - 응답 타입 124개는 앱의 Gson 모델에서 생성해서 서버 키 이름과 똑같습니다.
 - `client_token`과 `app_id`는 첫 요청 때 자동으로 발급하고, 만료되면 갱신한 뒤 다시 보냅니다.
 - 런타임 의존성이 없습니다. Bun과 Node 18+ 내장 `fetch`만 씁니다.
@@ -130,7 +130,7 @@ bun run build
 | 스크립트 | 하는 일 |
 | --- | --- |
 | `scripts/extract-endpoints.ts` | 앱 요청 빌더를 풀어 엔드포인트/파라미터/응답 모델 목록을 뽑습니다 |
-| `scripts/gen-types.ts` | Gson 모델에서 `src/types/responses.ts`, `schema.ts`를 다시 만듭니다 |
+| `scripts/gen-types.ts` | Gson 모델에서 `src/types/responses.ts`, `schema.json`을 다시 만듭니다 |
 
 버전 문자열(`src/constants.ts`의 `APP.versionCode`/`versionName`)은 `AndroidManifest.xml`에서 확인합니다.
 

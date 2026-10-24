@@ -1,4 +1,4 @@
-// 앱 Gson 모델에서 응답 타입(src/types/responses.ts)과 런타임 스키마(src/types/schema.ts)를 생성합니다.
+// 앱 Gson 모델에서 응답 타입(src/types/responses.ts)과 런타임 스키마(src/types/schema.json)를 생성합니다.
 //
 // 사용법: jadx로 APK를 디컴파일한 뒤
 //   bun scripts/gen-types.ts <jadx 출력>/sources src/types

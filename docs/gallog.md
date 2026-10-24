@@ -37,7 +37,8 @@ comments.items[0]?.originalTitle; // 원글 제목
 다음 페이지까지 모두 읽으려면 `nextPage`를 따라가면 됩니다.
 
 ```ts
-for (let page: number | null = 1; page; ) {
+let page: number | null = 1;
+while (page) {
     const result = await dc.gallog.posts("user_id", {page});
     // …
     page = result.nextPage;
