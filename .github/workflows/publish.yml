@@ -8,7 +8,7 @@ jobs:
     build-and-publish:
         runs-on: ubuntu-latest
         permissions:
-            contents: read
+            contents: write
             id-token: write
         steps:
             -   uses: actions/checkout@v7
@@ -34,4 +34,7 @@ jobs:
                         echo "skip: $VERSION already on npm"
                     else
                         npm publish
+                        # 기존 컨벤션대로 v 접두사 없는 주석 태그를 만듭니다.
+                        git tag -a "$VERSION" -m "$VERSION"
+                        git push origin "$VERSION"
                     fi
