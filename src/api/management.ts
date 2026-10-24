@@ -133,7 +133,7 @@ export class ManagementApi extends Api {
             id: options.gallery,
             no: options.no,
             comment_no: options.commentNo ?? ""
-        }, {urlencoded: true});
+        });
     }
 
     /** 비회원 IP/통신사/이미지 차단을 설정합니다. 모바일 웹 엔드포인트(`management/minor/nomember`)입니다. */
@@ -144,7 +144,7 @@ export class ManagementApi extends Api {
             mobileDate: formatDate(options.cellularUntil),
             imgDate: formatDate(options.image?.until),
             imgStatus: options.image?.status ?? ""
-        }, {urlencoded: true});
+        });
     }
 
     /** 앱의 갤러리 관리 웹페이지 주소입니다. 메인 갤러리는 `main: true`를 넘기세요. */

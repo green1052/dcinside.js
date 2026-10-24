@@ -48,11 +48,12 @@ export interface AuthContext {
 }
 
 const APP_ID_HOSTS = new Set([HOST.app, HOST.upload, HOST.mobile].map((url) => new URL(url).host));
+const UPLOAD_HOST = new URL(HOST.upload).host;
 
 /**
  * 공식 앱의 `ApiBase`와 같은 규칙으로 요청을 보냅니다.
  *
- * - POST는 항상 multipart/form-data입니다.
+ * - POST는 파일이 없으면 urlencoded, 파일이 있거나 upload 호스트면 multipart/form-data입니다.
  * - 앱이 감싸는 GET은 `redirect.php?hash=`로 보냅니다.
  * - 응답 cause가 `certification`이면 `app_id`를, `certification_login`이면 로그인을 갱신해 한 번 다시 보냅니다.
  */
@@ -136,7 +137,7 @@ export class Http {
      */
     private buildBody(target: URL, fields: Fields, options: RequestOptions): FormData | URLSearchParams {
         const hasFile = Object.values(fields).some((value) => value instanceof Blob);
-        if (hasFile || target.host === new URL(HOST.upload).host) return toFormData(fields);
+        if (hasFile || target.host === UPLOAD_HOST) return toFormData(fields);
         return options.urlencoded === false ? toFormData(fields) : toSearchParams(fields);
     }
 

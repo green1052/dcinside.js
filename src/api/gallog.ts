@@ -127,7 +127,7 @@ export class GallogApi extends Api {
      */
     async resolveGallery(item: Pick<GallogItem, "gallCode" | "gallType">): Promise<string> {
         const result = await this.http.post<{ gall_id?: string }>(`${HOST.mobile}/gallog/list-direct`,
-            {gall_code: item.gallCode, gall_type: item.gallType}, {appId: false, urlencoded: true, raw: true, headers: WEB_HEADERS});
+            {gall_code: item.gallCode, gall_type: item.gallType}, {appId: false, raw: true, headers: WEB_HEADERS});
         if (!result.gall_id) throw new DCInsideError(`갤러리를 찾을 수 없습니다: ${item.gallCode}`);
         if ("NISX".includes(item.gallType)) return `mi$${result.gall_id}`;
         if ("PLQ".includes(item.gallType)) return `pr$${result.gall_id}`;
