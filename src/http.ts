@@ -43,7 +43,7 @@ type Typed<K extends ResponseName> = RequestOptions & { as: K };
 export interface AuthContext {
     appId(): Promise<string>;
     refreshAppId(): Promise<unknown>;
-    /** 저장된 로그인 정보로 다시 로그인합니다. 로그인 세션이 없으면 `false`입니다. */
+    /** 저장된 로그인 정보로 다시 로그인합니다. 로그인 세션이 없거나 재로그인이 실패하면 `false`입니다. */
     relogin(): Promise<boolean>;
 }
 
@@ -115,7 +115,8 @@ export class Http {
         if (expired && this.context) {
             if (retried) throw new AuthExpiredError(expired, cause, json);
             if (expired === "appId") await this.context.refreshAppId();
-            else if (!(await this.context.relogin())) throw new AuthExpiredError("login", cause, json);
+            // 재로그인 자체가 실패해도(비밀번호 변경 등) 문서 계약대로 AuthExpiredError로 통일합니다.
+            else if (!(await this.context.relogin().catch(() => false))) throw new AuthExpiredError("login", cause, json);
             // 원래 필드로 다시 보내야 새 app_id가 주입됩니다.
             return this.send(method, url, fields, options, true);
         }

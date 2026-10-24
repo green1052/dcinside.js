@@ -86,6 +86,14 @@ describe("Http", () => {
         expect(requests.at(-1)!.url.pathname).toBe("/api/x");
     });
 
+    test("failed relogin surfaces as AuthExpiredError, not the login error", async () => {
+        const {dc} = makeClient((req) => {
+            if (req.url.pathname === "/api/login") return json({result: false, cause: "비밀번호가 일치하지 않습니다"});
+            return json({result: false, cause: "certification_login"});
+        }, loggedIn);
+        await expect(dc.http.post("https://app.dcinside.com/api/x")).rejects.toBeInstanceOf(AuthExpiredError);
+    });
+
     test("concurrent certification_login responses share one re-login", async () => {
         let expired = 2;
         const {dc, requests} = makeClient(async (req) => {
