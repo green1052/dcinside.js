@@ -29,7 +29,7 @@ export interface RequestOptions {
     list?: boolean;
     /** `result: false`를 에러로 바꾸지 않고 그대로 돌려받습니다. */
     raw?: boolean;
-    /** POST 본문을 multipart 대신 urlencoded로 보냅니다. 모바일 웹 엔드포인트용입니다. */
+    /** 기본은 앱처럼 파일이 없으면 urlencoded입니다. `false`를 주면 강제로 multipart로 보냅니다. */
     urlencoded?: boolean;
     /** 이 요청에만 덧붙일 헤더입니다. */
     headers?: Record<string, string>;
@@ -99,7 +99,7 @@ export class Http {
 
         const response = method === "GET"
             ? await this.fetch(this.buildGetUrl(target, all), {headers: options.headers})
-            : await this.fetch(target, {method, headers: options.headers, body: options.urlencoded ? toSearchParams(all) : toFormData(all)});
+            : await this.fetch(target, {method, headers: options.headers, body: this.buildBody(target, all, options)});
         const text = await response.text();
         const json = parseJson(text);
         if (json === undefined) {
@@ -128,6 +128,16 @@ export class Http {
         const result = options.list ? list(json) : json && typeof json === "object" ? first(json) : json;
         if (!options.as) return result;
         return options.list ? (result as unknown[]).map((item) => normalize(item, options.as!)) : normalize(result, options.as);
+    }
+
+    /**
+     * 앱 5.3.20부터 파일 없는 POST는 `application/x-www-form-urlencoded`(okhttp `FormBody`)로 보냅니다.
+     * 파일(Blob)이 있거나 upload 호스트(글쓰기/첨부)는 multipart입니다.
+     */
+    private buildBody(target: URL, fields: Fields, options: RequestOptions): FormData | URLSearchParams {
+        const hasFile = Object.values(fields).some((value) => value instanceof Blob);
+        if (hasFile || target.host === new URL(HOST.upload).host) return toFormData(fields);
+        return options.urlencoded === false ? toFormData(fields) : toSearchParams(fields);
     }
 
     private buildGetUrl(target: URL, query: Fields): URL {

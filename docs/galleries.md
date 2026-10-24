@@ -37,7 +37,7 @@ await dc.galleries.pumHistory("programming", 123);
 
 ## 검색 `dc.search`
 
-앱 5.3.6의 `_total_search_new.php`를 씁니다.
+앱의 `_total_search_new.php`를 씁니다.
 
 ```ts
 const result = await dc.search.search("프로그래밍", {

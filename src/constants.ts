@@ -1,8 +1,8 @@
-/** 디시인사이드 공식 안드로이드 앱(5.3.6) 식별 정보입니다. */
+/** 디시인사이드 공식 안드로이드 앱 식별 정보입니다. */
 export const APP = {
     package: "com.dcinside.app.android",
-    versionCode: "100175",
-    versionName: "5.3.6",
+    versionCode: "100191",
+    versionName: "5.3.20",
     /** 앱 서명 인증서 SHA-256(Base64). `app_id` 발급에 사용합니다. */
     signature: "5rJxRKJ2YLHgBgj6RdMZBl2X0KcftUuMoXVug0bsKd0=",
     userAgent: "dcinside.app",

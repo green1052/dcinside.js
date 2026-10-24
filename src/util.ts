@@ -43,7 +43,7 @@ export function isFailure(object: JsonObject): boolean {
 
 /** 캡챠가 필요하다는 뜻의 cause인지 확인합니다. */
 export function isCaptchaCause(cause: string): boolean {
-    return /captcha|보안\s?코드|자동\s?입력/i.test(cause);
+    return /captcha|보안\s?코드|자동\s?입력|코드가\s?설정된/i.test(cause);
 }
 
 /** Java `URLEncoder.encode(value, "UTF-8")`와 같은 결과를 만듭니다(공백은 `+`). */

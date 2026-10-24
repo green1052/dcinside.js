@@ -13,14 +13,18 @@ describe("Http", () => {
         expect(new URL(requests[1]!.raw.url).pathname).toBe("/api/chk_upload_restriction");
     });
 
-    test("injects app_id on app hosts only, sends POST as multipart", async () => {
+    test("injects app_id on app hosts only, sends POST as urlencoded unless files/upload host", async () => {
         const {dc, requests} = makeClient(() => json({result: true}));
         await dc.http.post("https://app.dcinside.com/api/x", {a: 1, b: true, c: false, skip: undefined});
+        await dc.http.post("https://app.dcinside.com/api/x", {file: new Blob(["x"])});
+        await dc.http.post("https://upload.dcinside.com/_app_write_api.php", {a: "1"});
         await dc.http.get("https://json2.dcinside.com/json1/x.php");
 
-        expect(requests[0]!.raw.headers.get("content-type")).toContain("multipart/form-data");
+        expect(requests[0]!.raw.headers.get("content-type")).toContain("application/x-www-form-urlencoded");
         expect(requests[0]!.fields).toEqual({a: "1", b: "1", c: "0", app_id: "APP"});
-        expect(requests[1]!.fields).toEqual({});
+        expect(requests[1]!.raw.headers.get("content-type")).toContain("multipart/form-data");
+        expect(requests[2]!.raw.headers.get("content-type")).toContain("multipart/form-data");
+        expect(requests[3]!.fields).toEqual({});
     });
 
     test("refreshes app_id and retries once on cause=certification", async () => {
@@ -36,7 +40,7 @@ describe("Http", () => {
         expect(calls.map((r) => r.fields["app_id"])).toEqual(["APP", "NEW"]);
         const verify = requests.find((r) => r.url.pathname === "/auth/mobile_app_verification")!;
         expect(verify.fields["value_token"]).toBe(new Bun.CryptoHasher("sha256").update("dcArdchk_20260101").digest("hex"));
-        expect(verify.fields["vName"]).toBe("5.3.6");
+        expect(verify.fields["vName"]).toBe("5.3.20");
     });
 
     test("a just-issued app_id waits out the settle window instead of being re-issued", async () => {

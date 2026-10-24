@@ -90,7 +90,7 @@ import type {ArticleListResponse, PostItem} from "@green-1052/dcinside.js";
 
 ## 저수준 요청
 
-모듈에 없는 엔드포인트도 같은 규칙(app_id 주입, multipart, 만료 재시도)으로 보낼 수 있습니다.
+모듈에 없는 엔드포인트도 같은 규칙(app_id 주입, 폼 인코딩, 만료 재시도)으로 보낼 수 있습니다. 파일이 없는 POST는 앱처럼 urlencoded로, 파일이 있거나 upload 호스트면 multipart로 보냅니다.
 
 ```ts
 const result = await dc.http.post("https://app.dcinside.com/api/어딘가", {id: "programming"});
