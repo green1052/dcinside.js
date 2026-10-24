@@ -8,8 +8,6 @@ on:
 
 jobs:
     build-and-publish:
-        # renovate 의존성 뱅프도 package.json을 고치므로 작성자로 걸러냅니다.
-        if: ${{ github.event.head_commit.author.username != 'renovate[bot]' }}
         runs-on: ubuntu-latest
         permissions:
             contents: write
