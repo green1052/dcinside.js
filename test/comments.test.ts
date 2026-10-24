@@ -1,4 +1,5 @@
 import {describe, expect, test} from "bun:test";
+import {DCInsideError} from "../src";
 import {anonymous, json, loggedIn, makeClient} from "./helpers";
 
 describe("CommentApi", () => {
@@ -40,6 +41,12 @@ describe("CommentApi", () => {
         const {dc, requests} = makeClient(() => json({result: true}), loggedIn);
         await dc.comments.write("g", 5, {dccons: [{tag: "<a>", detailIdx: 1}, {tag: "<b>", detailIdx: 2}]});
         expect(requests[0]!.fields).toMatchObject({comment_memo: "<a><b>", "detail_idx[0]": "1", "detail_idx[1]": "2"});
+    });
+
+    test("empty dccons array throws without sending", async () => {
+        const {dc, requests} = makeClient(() => json({result: true}), loggedIn);
+        await expect(dc.comments.write("g", 5, {dccons: []})).rejects.toBeInstanceOf(DCInsideError);
+        expect(requests.length).toBe(0);
     });
 
     test("delete posts comment_del with password for anonymous", async () => {

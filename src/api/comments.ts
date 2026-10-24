@@ -1,5 +1,6 @@
 import type {CaptchaAnswer} from "../auth";
 import {HOST} from "../constants";
+import {DCInsideError} from "../errors";
 import type {Fields} from "../http";
 import type {ApiResult, CommentListResponse, CommentListResponseComment, CommentSearchResponse, PostInfo} from "../types/responses";
 import {javaUrlEncode} from "../util";
@@ -90,6 +91,7 @@ export class CommentApi extends Api {
 
     /** 댓글을 답니다. `parent`가 있으면 답글입니다. (`comment_ok.php`) */
     async write(gallery: string, no: number, content: CommentContent, options: CommentWriteOptions = {}): Promise<ApiResult> {
+        if (typeof content !== "string" && content.dccons.length === 0) throw new DCInsideError("디시콘 배열이 비어 있습니다.");
         const session = this.requireSession();
         const fields: Fields = {
             ...this.target(gallery, no, options),
