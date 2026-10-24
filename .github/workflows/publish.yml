@@ -1,8 +1,8 @@
 name: CI
 on:
     push:
-        tags:
-            - "*.*.*"
+        branches:
+            - master
 
 jobs:
     build-and-publish:
@@ -27,4 +27,11 @@ jobs:
                 with:
                     node-version: latest
 
-            -   run: npm publish
+            -   name: Publish
+                run: |
+                    VERSION=$(node -p "require('./package.json').version")
+                    if npm view "@green-1052/dcinside.js@$VERSION" version >/dev/null 2>&1; then
+                        echo "skip: $VERSION already on npm"
+                    else
+                        npm publish
+                    fi
