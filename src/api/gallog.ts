@@ -68,10 +68,7 @@ export interface GallogHome {
 export class GallogApi extends Api {
     /** 앱이 여는 갤로그 주소(`app_id`, `confirm_id` 포함)입니다. */
     async url(userId: string): Promise<string> {
-        const url = new URL(`${HOST.mobile}/gallog/${encodeURIComponent(userId)}`);
-        url.searchParams.set("app_id", await this.ctx.auth.appId());
-        if (this.userId) url.searchParams.set("confirm_id", this.userId);
-        return url.toString();
+        return (await this.appUrl(`${HOST.mobile}/gallog/${encodeURIComponent(userId)}`)).toString();
     }
 
     /** 닉네임, 방문자 수, 글/댓글 수입니다. */

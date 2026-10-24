@@ -62,4 +62,12 @@ export abstract class Api {
         if (session?.type !== "login") throw new SessionRequiredError("로그인이 필요합니다. login()을 먼저 호출하세요.");
         return session;
     }
+
+    /** app_id와 로그인 `confirm_id`를 붙인 앱 웹뷰 URL입니다. */
+    protected async appUrl(base: string): Promise<URL> {
+        const url = new URL(base);
+        url.searchParams.set("app_id", await this.ctx.auth.appId());
+        if (this.userId) url.searchParams.set("confirm_id", this.userId);
+        return url;
+    }
 }

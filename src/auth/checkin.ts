@@ -16,7 +16,7 @@ export function createCheckinRequest(): Uint8Array {
     const model = "SM-S928N";
     const brand = "samsung";
 
-    const build = message([
+    const build = concat([
         stringField(1, buildFingerprint),
         stringField(2, deviceCode),
         boolField(3, false),
@@ -30,13 +30,13 @@ export function createCheckinRequest(): Uint8Array {
         stringField(13, deviceCode)
     ]);
 
-    const checkin = message([
+    const checkin = concat([
         bytesField(1, build),
         varintField(2, 0n),
         stringField(8, "WIFI::")
     ]);
 
-    return message([
+    return concat([
         varintField(1, 0n),
         varintField(2, 0n),
         varintField(3, 3n),
@@ -68,10 +68,6 @@ export function parseCheckinResponse(bytes: Uint8Array): CheckinCredentials {
         androidId: readFixed64(androidId.data),
         securityToken: readFixed64(securityToken.data)
     };
-}
-
-function message(fields: Field[]): Uint8Array {
-    return concat(fields);
 }
 
 const textEncoder = new TextEncoder();

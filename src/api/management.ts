@@ -149,24 +149,22 @@ export class ManagementApi extends Api {
 
     /** 앱의 갤러리 관리 웹페이지 주소입니다. 메인 갤러리는 `main: true`를 넘기세요. */
     async settingsUrl(gallery: string, options: { main?: boolean } = {}): Promise<string> {
+        this.requireLogin();
         const kind = galleryKind(gallery);
-        const url = options.main
-            ? new URL(`${HOST.pc}/management/mobile`)
-            : new URL(`${HOST.mobile}/management/${kind === "board" ? "minor" : kind}/main/${stripGalleryPrefix(gallery)}`);
+        const url = await this.appUrl(options.main
+            ? `${HOST.pc}/management/mobile`
+            : `${HOST.mobile}/management/${kind === "board" ? "minor" : kind}/main/${stripGalleryPrefix(gallery)}`);
         if (options.main) url.searchParams.set("id", gallery);
-        url.searchParams.set("app_id", await this.ctx.auth.appId());
-        url.searchParams.set("confirm_id", this.requireLogin().userId);
         return url.toString();
     }
 
     /** 앱의 이용자 차단 웹페이지 주소입니다. (`m.dcinside.com/api/minor_avoid`) */
     async blockUserUrl(gallery: string, no: number, commentNo?: number): Promise<string> {
-        const url = new URL(`${HOST.mobile}/api/minor_avoid`);
-        url.searchParams.set("app_id", await this.ctx.auth.appId());
+        this.requireLogin();
+        const url = await this.appUrl(`${HOST.mobile}/api/minor_avoid`);
         url.searchParams.set("id", gallery);
         url.searchParams.set("no", String(no));
         if (commentNo) url.searchParams.set("comment_no", String(commentNo));
-        url.searchParams.set("confirm_id", this.requireLogin().userId);
         return url.toString();
     }
 

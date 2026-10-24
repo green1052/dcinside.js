@@ -261,11 +261,9 @@ export class ArticleApi extends Api {
 
     /** 앱의 신고 웹페이지 주소입니다. */
     async reportUrl(gallery: string, no: number): Promise<string> {
-        const url = new URL(`${HOST.mobile}/api/report.php`);
-        url.searchParams.set("app_id", await this.ctx.auth.appId());
+        const url = await this.appUrl(`${HOST.mobile}/api/report.php`);
         url.searchParams.set("id", gallery);
         url.searchParams.set("no", String(no));
-        if (this.userId) url.searchParams.set("confirm_id", this.userId);
         return url.toString();
     }
 

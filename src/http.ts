@@ -143,9 +143,7 @@ export class Http {
     }
 
     private buildGetUrl(target: URL, query: Fields): URL {
-        for (const [key, value] of Object.entries(query)) {
-            if (value != null && !(value instanceof Blob)) target.searchParams.set(key, scalar(value));
-        }
+        setParams(target.searchParams, query);
         if (target.origin !== HOST.app || !REDIRECTED_PATHS.has(target.pathname)) return target;
         const redirect = new URL("/api/redirect.php", HOST.app);
         // URL 문자열은 퍼센트 인코딩된 ASCII라 btoa로 충분합니다.
@@ -156,11 +154,16 @@ export class Http {
 
 const scalar = (value: string | number | boolean) => (typeof value === "boolean" ? (value ? "1" : "0") : String(value));
 
-function toSearchParams(fields: Fields): URLSearchParams {
-    const params = new URLSearchParams();
+/** `null`/`undefined`/Blob을 건너뛰고 스칼라 값을 params에 옮깁니다. */
+function setParams(params: URLSearchParams, fields: Fields): void {
     for (const [key, value] of Object.entries(fields)) {
         if (value != null && !(value instanceof Blob)) params.set(key, scalar(value));
     }
+}
+
+function toSearchParams(fields: Fields): URLSearchParams {
+    const params = new URLSearchParams();
+    setParams(params, fields);
     return params;
 }
 
